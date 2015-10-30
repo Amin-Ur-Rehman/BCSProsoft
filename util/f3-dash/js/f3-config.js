@@ -9,10 +9,21 @@
     angular.module("f3UC")
         .config(['$f3ActionsProvider', function ($f3ActionsProvider) {
 
+
+            for (var i = 0; i < menu.length; i++) {
+                var obj = menu[i];
+
+                $f3ActionsProvider
+                    .state(obj.group, {
+                        title: obj.title,
+                        url: obj.url,
+                        templateUrl: obj.templateUrl,
+                        controller: obj.controller,
+                        controllerAs: obj.controllerAs
+                    });
+            }
+
             $f3ActionsProvider
-
-
-
 
                 .state('Import SO', {
                     title: 'Import Sales Order',

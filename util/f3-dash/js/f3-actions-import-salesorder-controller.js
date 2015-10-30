@@ -22,6 +22,7 @@
             if( !viewModel.salesorderId) {
                 viewModel.executionStatus = 'INVALID_ID';
                 viewModel.errorMessage = 'invalid sales order id';
+                return;
             }
 
 

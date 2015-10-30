@@ -9,7 +9,7 @@
     angular.module("f3UC")
         .controller("ActionsController", ActionsController);
 
-    function ActionsController($f3Actions, $state, f3Store) {
+    function ActionsController($f3Actions, $state, f3Store, $stateProvider) {
 
         console.log('ActionsController', arguments);
         console.log('$f3Actions', $f3Actions);
@@ -34,55 +34,53 @@
         this.selectedStore = _stores && _stores[0];
         this.storeChanged(true); // invoke manually for first time
 
-        //_stores.push({
-        //    id: 2,
-        //    name: 'Folio3 Woo'
-        //});
-
         this.stores = _stores;
 
         this.menuState = [];
 
 
+        this.generateMenuData = function(allActions) {
 
+            for (var key in allActions) {
+                var action = allActions[key];
 
-        var allActions = $f3Actions.getAll();
-        for (var key in allActions) {
-            var action = allActions[key];
+                if (!!action.group) {
 
-            if (!!action.group) {
+                    var foundGroup = this.actions.filter(function (item) {
+                        return item.group == action.group
+                    })[0];
 
-                var foundGroup = this.actions.filter(function (item) {
-                    return item.group == action.group
-                })[0];
+                    if (!foundGroup) {
 
-                if (!foundGroup) {
+                        foundGroup = {
+                            group: action.group,
+                            actions: []
+                        };
 
-                    foundGroup = {
-                        group: action.group,
-                        actions: []
-                    };
+                        this.actions.push(foundGroup);
+                    }
 
-                    this.actions.push(foundGroup);
+                    foundGroup.actions.push({
+                        title: action.title,
+                        key: key,
+                        action: action.action,
+                        icon: action.icon
+                    });
+
+                } else {
+                    this.actions.push({
+                        title: action.title,
+                        key: key,
+                        action: action.action,
+                        icon: action.icon
+                    });
                 }
-
-                foundGroup.actions.push({
-                    title: action.title,
-                    key: key,
-                    action: action.action,
-                    icon: action.icon
-                });
-
-            } else {
-                this.actions.push({
-                    title: action.title,
-                    key: key,
-                    action: action.action,
-                    icon: action.icon
-                });
             }
-        }
+        };
 
+
+
+        this.generateMenuData($f3Actions.getAll());
 
     }
 

@@ -25,23 +25,23 @@ var ConnectorDashboardApi = (function () {
         handleRequest: function (method, request, response) {
             switch (method) {
                 case 'getCustomersCount':
-                    return this.getCustomersCount(request,response);
+                    return this.getCustomersCount(request, response);
                     break;
                 case 'getSalesOrders':
-                    return this.getSalesOrders(request,response);
+                    return this.getSalesOrders(request, response);
                     break;
                 case 'getSalesOrderCount':
-                    return this.getSalesOrderCount(request,response);
+                    return this.getSalesOrderCount(request, response);
                     break;
                 case 'getItemsCount':
-                    return this.getItemsCount(request,response);
+                    return this.getItemsCount(request, response);
                     break;
                 case 'getFailedSalesOrders':
                     return this.getFailedSalesOrders(request, response);
                     break;
 
                 case 'importSalesOrder':
-                    return this.importSalesOrder(request,response);
+                    return this.importSalesOrder(request, response);
                     break;
 
                 case 'getSOSyncLogs':
@@ -58,21 +58,26 @@ var ConnectorDashboardApi = (function () {
                     break;
 
                 case 'executeSOSyncScript':
-                    return this.executeSOSyncScript(request,response);
+                    return this.executeSOSyncScript(request, response);
                     break;
                 case 'executeItemSyncScript':
-                    return this.executeItemSyncScript(request,response);
+                    return this.executeItemSyncScript(request, response);
                     break;
                 case 'executeCashRefundSyncScript':
-                    return this.executeCashRefundSyncScript(request,response);
+                    return this.executeCashRefundSyncScript(request, response);
                     break;
 
                 case 'searchSalesOrder':
-                    return this.searchSalesOrder(request,response);
+                    return this.searchSalesOrder(request, response);
                     break;
 
                 case 'searchCashRefund':
-                    return this.searchCashRefund(request,response);
+                    return this.searchCashRefund(request, response);
+                    break;
+
+
+                case 'getMenu':
+                    return this.getMenu(request, response);
                     break;
             }
 
@@ -291,6 +296,55 @@ var ConnectorDashboardApi = (function () {
             Utility.logDebug('searchExternalSystemRecord(); // return netSuiteRecordId: ', netSuiteRecordId);
             Utility.logDebug('searchExternalSystemRecord(); // end', '');
             return netSuiteRecordId;
+        },
+
+
+        getMenu: function(request, response) {
+            var storeId = request.getParameter('store_id');
+            var menu = [];
+            var productList = ExternalSystemConfig.getAll();
+
+            var foundStore = null;
+            if (!!productList && productList.length > 0) {
+                for (var i = 0; i < productList.length; i++) {
+                    var obj = productList[i];
+                    if (obj.internalId == storeId) {
+                        foundStore = obj;
+                        break;
+                    }
+                }
+            }
+
+            if (!!foundStore) {
+                var permissions = foundStore.permissions;
+                menu = this.generateMenuFromPermission(permissions);
+            }
+
+            return menu;
+        },
+
+        generateMenuFromPermission: function(permissions){
+            var menu = [];
+            if (!!permissions && permissions.length > 0) {
+                for (var j = 0; j < permissions.length; j++) {
+                    var permission = permissions[j];
+                    switch (permission) {
+                        case 'IMPORT_SO_FROM_EXTERNAL_SYSTEM':
+                            menu.push({
+                                group: 'Import SO',
+                                title: 'Import Sales Order',
+                                url: '/import-salesorder',
+                                templateUrl: "/f3-dash/templates/actions-import-salesorder.html",
+                                controller: 'ImportSalesorderController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            return menu;
         }
     };
 })();
@@ -309,10 +363,6 @@ var ConnectorDashboard = (function () {
                             '<li class="sidebar-list">' +
                             '  <a href="#/">Dashboard <span class="menu-icon fa fa-tachometer"></span></a>' +
                             '</li>' +
-                            //'<li class="sidebar-list" ng-repeat="action in actionsController.actions">' +
-                            //'  <a ng-if="!action.action" ui-sref="{{ action.key }}"> <span ng-bind="action.title"></span> <span class="menu-icon fa fa-gavel"></span></a>' +
-                            //'  <a ng-if="!!action.action" ng-click="action.action()" target="_blank"> <span ng-bind="action.title"></span> <span class="menu-icon fa fa-gavel"></span></a>' +
-                            //'</li>' +
                             '<li class="sidebar-list" ng-repeat="action in actionsController.actions track by $index">' +
                             '  <a ng-if="!!action.group" class="submenu-link"><span ng-bind="action.group"></span> <span class="menu-icon fa fa-minus"></span></a>' +
                             '  <a ng-if="!action.group && !action.action" ui-sref="{{ action.key }}" > <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
@@ -349,7 +399,7 @@ var ConnectorDashboard = (function () {
             var indexPageValue = '';
 
             var store_id = request.getParameter('store_id');
-            //
+
             //if (!store_id || store_id.length <= 0) {
             //    indexPageValue = 'Please select a Product first.';
             //    return indexPageValue;
@@ -358,7 +408,7 @@ var ConnectorDashboard = (function () {
             var data = nlapiLoadFile(this.getFileUrl() + "f3-dash/index.html");
 
             indexPageValue = data.getValue();
-            var sideBar = this.createSideBar();
+            var sideBar = this.createSideBar(store_id, fileUrl);
             indexPageValue = indexPageValue.replace(/<BASE_URL>/g, fileUrl);
             indexPageValue = indexPageValue.replace('[STORES_JSON]', JSON.stringify(sideBar && sideBar.stores || {}));
             indexPageValue = indexPageValue.replace('[SIDE_BAR]', sideBar && sideBar.sidebarHtml || '');
@@ -366,6 +416,8 @@ var ConnectorDashboard = (function () {
             return indexPageValue;
 
         },
+
+
 
         handleApiRequest: function (method, request, response) {
             response.setContentType('JSON');
@@ -434,7 +486,7 @@ var ConnectorDashboard = (function () {
          * Description of method createSideBar
          * @param parameter
          */
-        createSideBar: function () {
+        createSideBar: function (store_id, fileUrl) {
             try {
                 var template = this.SIDEBAR_TEMPLATE;
                 var finalResult = '';
