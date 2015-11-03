@@ -144,13 +144,14 @@ var InvoiceExportHelper = (function () {
             var responseBody = ConnectorConstants.CurrentWrapper.createInvoice(sessionID, netsuiteInvoiceDetails, store);
             if(!!responseBody.status) {
                 if(!!responseBody.data.increment_id) {
+                    Utility.logDebug('Success', 'Other systems Invoice created ');
                     nlapiSubmitField(netsuiteInvoiceDetails.recType, netsuiteInvoiceDetails.recordId, ConnectorConstants.Transaction.Fields.MagentoInvoiceId, responseBody.data.increment_id);
                 } else {
                     Utility.logDebug('Error', 'Other systems Invoice Increment Id not found');
                 }
                 Utility.logDebug('successfully', 'other systems invoice created');
             } else {
-                Utility.logException('Some error occurred while creating other systems Invoice', responseBody.error);
+                Utility.logException('Some error occurred while creating other systems Invoice', responseBody.message);
             }
         },
 

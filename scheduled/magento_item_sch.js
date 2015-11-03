@@ -130,18 +130,22 @@ function getTierPriceDataObj(product) {
 function syncProduct(product, productRecordtype, product_id, sessionID, isParent) {
     try {
         Utility.logDebug('Sync Product ', isParent);
-        var itemXML;
         // check if Magento Item is in NetSuite
         if (!Utility.isBlankOrNull(product.magentoSKU)) {
-            var magID = ConnectorCommon.getProductMagentoID(sessionID, product);
+            var magID = null;
+            var shopifyProduct;
+            var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product);
+            if (response.status) {
+                magID = response.product.id;
+                // this for urgent fix for shopify - will rewrite this script
+                shopifyProduct = response.product;
+            }
             //var magID = product.magentoSKU;
             if (Utility.isBlankOrNull(magID)) {
                 Utility.logDebug('Product couldn\'t update', product.magentoSKU);
                 return;
             }
-
-            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent);
-
+            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent, shopifyProduct);
             // If due to some reason Magento item is unable to update
             // Send Email Magento Side error
             if (!responseMagento.status) {
@@ -152,15 +156,12 @@ function syncProduct(product, productRecordtype, product_id, sessionID, isParent
             } else {
                 // Updated Successfully
                 Utility.logDebug('item: ' + product_id + ' price: ', +product.price + ' item synced successfully - quantity: ' + product.quatity);
-
                 // Check for feature availability
                 if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TIERED_PRICING, ConnectorConstants.CurrentStore.permissions)) {
                     Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_TIERED_PRICING + ' NOT ALLOWED');
                     return;
                 }
-
                 product.tierPriceDataObj = getTierPriceDataObj(product);
-
                 // syncing tier prices after updating item succesfully
                 var tierPriceResponse = ConnectorConstants.CurrentWrapper.syncProductTierPrice(product);
                 if (tierPriceResponse.status) {

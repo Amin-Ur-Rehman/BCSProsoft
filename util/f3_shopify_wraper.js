@@ -203,11 +203,17 @@ ShopifyWrapper = (function () {
             }
 
         }
-
+        Utility.logDebug('going to set gateway', serverOrder.gateway);
         if (!!serverOrder.gateway) {
             localOrder.payment.method = serverOrder.gateway;
         } else {
             localOrder.payment.method = '';
+        }
+        Utility.logDebug('going to set financial_status', serverOrder.financial_status);
+        if (!!serverOrder.financial_status) {
+            localOrder.payment.financial_status = serverOrder.financial_status;
+        } else {
+            localOrder.payment.financial_status = '';
         }
 
         if (serverOrder.payment_details) {
@@ -249,8 +255,10 @@ ShopifyWrapper = (function () {
 
                     var localOrder = null;
                     if (!!isOrderDetailsResponse) {
+                        Utility.logDebug('log_w', 'parsing SO details server response');
                         localOrder = parseSingleSalesOrderDetailsResponse(serverOrder);
                     } else {
+                        Utility.logDebug('log_w', 'parsing SO list server response');
                         localOrder = parseSingleSalesOrderResponse(serverOrder);
                     }
 
@@ -301,6 +309,7 @@ ShopifyWrapper = (function () {
         localProduct.total_discount = serverProduct.total_discount;
         localProduct.tax_lines = serverProduct.tax_lines;
         localProduct.item_id = serverProduct.id.toString();
+        localProduct.variants = serverProduct.variants;
 
         return localProduct;
     }
@@ -1015,30 +1024,24 @@ ShopifyWrapper = (function () {
          * Updates item to server
          * @param product
          * @param sessionID
-         * @param magID
+         * @param productId
          * @param isParent
+         * @param shopifyProduct
          * @returns {{status: boolean, faultCode: string, faultString: string}}
          */
-        updateItem: function (product, sessionID, magID, isParent) {
+        updateItem: function (product, sessionID, productId, isParent, shopifyProduct) {
 
-            // first get the product id here
-            var productInfo = ShopifyWrapper.getProduct(sessionID, product, '&fields=variants');
 
-            var firstProduct = productInfo[0];
+            shopifyProduct.variants[0].price = product.price;
+            shopifyProduct.variants[0].inventory_quantity = product.quantity;
 
             var httpRequestData = {
-                additionalUrl: 'products/' + magID + '.json',
+                additionalUrl: 'products/' + productId.toString() + '.json',
                 method: 'PUT',
                 postData: {
                     product: {
-                        id: magID,
-                        variants: [{
-                            id: firstProduct.variants[0].id,
-                            price: product.price,
-                            inventory_quantity: product.quantity,
-                            product_id: magID
-                        }
-                        ]
+                        id: productId.toSource(),
+                        variants: shopifyProduct.variants
                     }
                 }
             };
@@ -1084,8 +1087,7 @@ ShopifyWrapper = (function () {
         getProduct: function (sessionID, product, variantRequest) {
 
             var httpRequestData = {
-                additionalUrl: 'products.json?ids=' + product.magentoSKU +
-                (!!variantRequest && variantRequest.length > 0 ? variantRequest : ''),
+                additionalUrl: 'products/' + product.magentoSKU + '.json',
                 method: 'GET'
             };
 
@@ -1107,8 +1109,8 @@ ShopifyWrapper = (function () {
                 Utility.logException('Error during getProduct', e);
             }
 
-            if (!!serverResponse && serverResponse.products) {
-                serverFinalResponse.product = parseProductResponse(serverResponse.products);
+            if (!!serverResponse && serverResponse.product) {
+                serverFinalResponse.product = parseSingleProductResponse(serverResponse.product);
 
 
             }
@@ -1456,12 +1458,105 @@ ShopifyWrapper = (function () {
         },
 
         createInvoice: function (sessionID, netsuiteInvoiceObj, store) {
-            // To be implement later
+
+            var responseBody = {};
+            var shouldCaptureAmount = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
+            if(!!shouldCaptureAmount) {
+                var orderId = netsuiteInvoiceObj.otherSystemSOId;
+                var httpRequestData = {
+                    additionalUrl: 'orders/' + orderId + '/transactions.json',
+                    method: 'POST',
+                    postData: {
+                        transaction: {
+                            kind: "capture"
+                        }
+                    }
+                };
+
+                var serverResponse = sendRequest(httpRequestData);
+                if(!!serverResponse.transaction) {
+                    responseBody = this.parseInvoiceSuccessResponse(serverResponse);
+                } else {
+                    responseBody = this.parseInvoiceFailureResponse(serverResponse);
+                }
+
+            } else {
+                responseBody.status = 1;
+                responseBody.message = '';
+                responseBody.data = {increment_id: ''};
+            }
+            return responseBody;
+        },
+        /**
+         * parse response in case of successful payment capturing
+         * @param serverResponse
+         */
+        parseInvoiceSuccessResponse: function(serverResponse) {
             var responseBody = {};
             responseBody.status = 1;
-            responseBody.message = '';
-            responseBody.data = {increment_id: ''};
+            responseBody.message = serverResponse.transaction.message || '';
+            responseBody.data = {increment_id: serverResponse.transaction.id.toString() || ''};
             return responseBody;
+        },
+        /**
+         * parse response in case of failure occured in payment capturing
+         * @param serverResponse
+         */
+        parseInvoiceFailureResponse: function(serverResponse) {
+            var responseBody = {};
+            responseBody.status = 0;
+            if(!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
+                && !!serverResponse.responseJSON.errors.base && serverResponse.responseJSON.errors.base.length > 0) {
+                responseBody.message = serverResponse.responseJSON.errors.base[0];
+            } else {
+                responseBody.message = '';
+            }
+            return responseBody;
+        },
+        /**
+         * Check either payment of this Invoice should capture online or not
+         * @param netsuiteInvoiceObj
+         * @param store
+         * @returns {boolean}
+         */
+        checkPaymentCapturingMode: function (netsuiteInvoiceObj, store) {
+            var salesOrderId = netsuiteInvoiceObj.netsuiteSOId;
+            var isSOFromOtherSystem = netsuiteInvoiceObj.isSOFromOtherSystem;
+            var sOPaymentMethod = netsuiteInvoiceObj.sOPaymentMethod;
+            var isOnlineMethod = this.isOnlineCapturingPaymentMethod(sOPaymentMethod, store);
+            /**
+             * If SO is from shopify, and its SO payment method is either empty(equal to 'pending' of shopify) or
+             * credit card
+             */
+            if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && (isOnlineMethod || !sOPaymentMethod)) {
+                return true;
+            } else {
+                return false;
+            }
+            //Utility.logDebug('salesOrderId # isSOFromOtherSystem # sOPaymentMethod', salesOrderId + ' # ' + isSOFromOtherSystem + ' # ' + sOPaymentMethod);
+        },
+
+        /**
+         * Check either payment method capturing is online supported or not??
+         * @param sOPaymentMethodId
+         * @param store
+         * @returns {boolean}
+         */
+        isOnlineCapturingPaymentMethod: function (sOPaymentMethodId, store) {
+            var onlineSupported = false;
+            switch (sOPaymentMethodId) {
+                case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Discover:
+                case store.entitySyncInfo.salesorder.netsuitePaymentTypes.MasterCard:
+                case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Visa:
+                case store.entitySyncInfo.salesorder.netsuitePaymentTypes.AmericanExpress:
+                    onlineSupported = true;
+                    break;
+                default :
+                    onlineSupported = false;
+                    break;
+            }
+
+            return onlineSupported;
         },
         getPaymentInfo: function (payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
             var paymentInfo = {
@@ -1475,6 +1570,7 @@ ShopifyWrapper = (function () {
             var paypalPaymentMethod = netsuitePaymentTypes.PayPal;
 
             var paymentMethod = payment.method;
+            var financialStatus = payment.financial_status;
             // if no payment method found return
             if (!paymentMethod) {
                 return paymentInfo;
@@ -1498,7 +1594,7 @@ ShopifyWrapper = (function () {
             }
             else {
                 Utility.logDebug("Condition (3)", "");
-                var otherPaymentMethod = paymentMethod;
+                var otherPaymentMethod = paymentMethod + '_' + financialStatus;
                 Utility.logDebug("paymentMethodLookup_Key", otherPaymentMethod);
                 var paymentMethodLookupValue = FC_ScrubHandler.findValue(system, 'PaymentMethod', otherPaymentMethod);
                 Utility.logDebug("paymentMethodLookup_Value", paymentMethodLookupValue);
