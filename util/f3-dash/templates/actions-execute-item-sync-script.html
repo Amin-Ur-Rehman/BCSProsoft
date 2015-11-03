@@ -1,15 +1,19 @@
 
-<h2 class="view-heading">Sync Items</h2>
+<h2 class="view-heading">Synchronize Items</h2>
 
 
-<br /><br />
+<br />
 <div>
-    <a ng-click="viewModel.execute();" class="btn btn-success btn-lg">Start Items Sync</a>
+    <a ng-click="viewModel.execute();" class="btn btn-success btn-lg">Start Items Synchronization</a>
 </div>
 
-<br /><br />
+<br />
 
 <div class="alert alert-info" ng-if="!!viewModel.successMessage">
+
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close" ng-click="viewModel.hideAlert()">
+        <span aria-hidden="true">&times;</span>
+    </button>
 
     <div ng-if="viewModel.executionStatus == 'QUEUED'">
         The script has been queued for execution.
@@ -32,5 +36,32 @@
 </div>
 
 <div class="alert alert-danger" ng-if="!!viewModel.errorMessage">
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close" ng-click="viewModel.hideAlert()">
+        <span aria-hidden="true">&times;</span>
+    </button>
+
     An error has occurred. Please try again.
+</div>
+
+
+
+<div ng-show="viewModel.hasRecords">
+
+    <h3>
+        Recent Synchronization History
+
+        &nbsp; &nbsp;
+        <a ng-click="viewModel.loadGrid()" href="javascript:;">
+            <i class="fa fa-refresh"></i>
+        </a>
+    </h3>
+
+    <table id="jqGrid"></table>
+    <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
+    <div id="jqGridPager"></div>
+</div>
+
+
+<div ng-hide="viewModel.hasRecords" class="alert alert-info">
+    no records found.
 </div>

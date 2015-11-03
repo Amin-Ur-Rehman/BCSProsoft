@@ -1,15 +1,48 @@
 
 <h2 class="view-heading">Search Customers</h2>
 
-<div class=row>
-    <div class=col-lg-6>
-       Hello
+
+<div class="panel panel-default">
+
+    <div class="panel-title">
+
     </div>
-    <div class=col-lg-6>
-        World
+
+    <div class="panel-body">
+        <div class="form-horizontal">
+
+            <div class="row">
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label for="customerId" class="control-label col-sm-3">Customer Id</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control customerId-text"
+                                   id="customerId"
+                                   name="customerId"
+                                   ng-enter="viewModel.search()"
+                                   ng-model="viewModel.customerId" />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <button type="button" ng-click="viewModel.search()" class="btn btn-primary btn-submit">Go <i class="fa fa-arrow-right"></i></button>
+                </div>
+            </div>
+
+            <div ng-if="viewModel.searchCompleted">
+                <div class="alert alert-info" ng-if="!viewModel.response.status">
+                    No record found for provided Customer Id.
+                </div>
+                <div class="alert alert-success" ng-if="viewModel.response.status">
+                    Below is the link of searched record: <br />
+
+                    <a ng-href="{{viewModel.navigateUrl}}" target="_blank">
+                        <span ng-bind="viewModel.navigateUrl"></span>
+                    </a>
+
+                </div>
+            </div>
+        </div>
     </div>
+
 </div>
-
-
-
-{{ viewModel.storeId }}

@@ -9,36 +9,70 @@
     angular.module("f3UC")
         .controller("ActionsController", ActionsController);
 
-    function ActionsController($f3Actions, $state, f3Store, $stateProvider) {
+    function ActionsController($f3Actions, $state, f3Store, $http, f3Utility) {
 
         console.log('ActionsController', arguments);
         console.log('$f3Actions', $f3Actions);
 
-        //this.selectedAction = null;
+        var _self = this;
+
         this.storeChanged = function(manual){
             console.log('store changed!', this.selectedStore);
             if(!!this.selectedStore) {
                 f3Store.id = this.selectedStore.id;
 
-                if(manual !== true) {
-                    console.log('reloading state: ' + $state.current.name);
-                    $state.go($state.current.name, $state.params, {reload: true});
+                if (manual !== true) {
+                    var apiUrl = location.href.replace(location.hash, '');
+                    apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
+                    window.location.href = apiUrl;
+                    //+ '&method=getMenu&store_id=' + f3Store.id;
                 }
             }
         };
 
-        this.storeId = f3Store.id;
-        this.groupedActions = {};
         this.actions = [];
-
-        this.selectedStore = _stores && _stores[0];
-        this.storeChanged(true); // invoke manually for first time
-
         this.stores = _stores;
 
-        this.menuState = [];
+        
+
+        this.selectedStore = findStore(_stores, _selectedStoreJson.id);
+        this.storeChanged(true); // invoke manually for first time
 
 
+        var apiUrl = location.href.replace(location.hash, '') + '&method=getMenu&store_id=' + f3Store.id;
+
+        console.log('apiUrl: ' + apiUrl);
+        $http.get(apiUrl)
+            .success(function(response) {
+
+                console.log('$http.get().success();//');
+
+                var menuItems = _.sortBy(response, function(item){
+                    return item.menuOrder;
+                });
+
+                var cacheKey = (new Date()).getTime();
+                for (var i = 0; i < menuItems.length; i++) {
+                    var obj = menuItems[i];
+                    var state = {
+                        group: obj.group,
+                        title: obj.title,
+                        navigateUrl: obj.navigateUrl,
+                        templateUrl: f3_base_url + obj.templateUrl + '?__cacheId=' + cacheKey,
+                        controller: obj.controller,
+                        controllerAs: obj.controllerAs,
+                        url: obj.url
+                    };
+                    
+                    $f3Actions.state(obj.key, state);
+                }
+
+                _self.generateMenuData($f3Actions.getAll());
+
+            });
+
+
+        // convert to heirarchial menu
         this.generateMenuData = function(allActions) {
 
             for (var key in allActions) {
@@ -63,7 +97,7 @@
                     foundGroup.actions.push({
                         title: action.title,
                         key: key,
-                        action: action.action,
+                        navigateUrl: action.navigateUrl,
                         icon: action.icon
                     });
 
@@ -71,7 +105,7 @@
                     this.actions.push({
                         title: action.title,
                         key: key,
-                        action: action.action,
+                        navigateUrl: action.navigateUrl,
                         icon: action.icon
                     });
                 }
@@ -79,9 +113,17 @@
         };
 
 
-
-        this.generateMenuData($f3Actions.getAll());
-
+        function findStore(stores, id) {
+            var found = null;
+            for (var i = stores.length - 1; i >= 0; i--) {
+                var obj = stores[i];
+                if(obj.id == id) {
+                    found = obj;
+                    break;
+                }
+            };
+            return found;
+        }
     }
 
 })();

@@ -40,9 +40,16 @@ var ConnectorDashboardApi = (function () {
                     return this.getFailedSalesOrders(request, response);
                     break;
 
+
+
                 case 'importSalesOrder':
                     return this.importSalesOrder(request, response);
                     break;
+                case 'exportSalesOrder':
+                    return this.exportSalesOrder(request, response);
+                    break;
+
+
 
                 case 'getSOSyncLogs':
                     return this.getSOSyncLogs(request, response);
@@ -57,6 +64,20 @@ var ConnectorDashboardApi = (function () {
                     return this.getCashRefundSyncLogs(request, response);
                     break;
 
+
+
+                case 'getSOSyncScriptDeploymentInstances':
+                    return this.getSOSyncScriptDeploymentInstances(request, response);
+                    break;
+                case 'getItemSyncScriptDeploymentInstances':
+                    return this.getItemSyncScriptDeploymentInstances(request, response);
+                    break;
+                case 'getCashRefundSyncScriptDeploymentInstances':
+                    return this.getCashRefundSyncScriptDeploymentInstances(request, response);
+                    break;
+
+
+
                 case 'executeSOSyncScript':
                     return this.executeSOSyncScript(request, response);
                     break;
@@ -67,13 +88,19 @@ var ConnectorDashboardApi = (function () {
                     return this.executeCashRefundSyncScript(request, response);
                     break;
 
+
+
                 case 'searchSalesOrder':
                     return this.searchSalesOrder(request, response);
                     break;
-
+                case 'searchCustomer':
+                    return this.searchCustomer(request, response);
+                    break;
                 case 'searchCashRefund':
                     return this.searchCashRefund(request, response);
                     break;
+
+
 
 
                 case 'getMenu':
@@ -93,7 +120,6 @@ var ConnectorDashboardApi = (function () {
             var results = nlapiSearchRecord('customer',null, storeFilter, searchCol);
 
             if (results != null && results.length > 0) {
-
                 finalResponse = ConnectorCommon.getObjects(results);
             }
             return finalResponse;
@@ -153,19 +179,44 @@ var ConnectorDashboardApi = (function () {
         importSalesOrder: function(request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
-            return this.executeScheduledScript('customscript_connectororderimport', 'customdeploy_connectororderimport2', {
-                salesorderIds: [salesorderId]
-            });
+            return this.executeScheduledScript(
+                        'customscript_connectororderimport', 
+                        'customdeploy_connectororderimport2', 
+                        {
+                            salesorderIds: [salesorderId]
+                        }
+                    );
+        },
+
+        exportSalesOrder: function(request, response) {
+            var storeId = request.getParameter('store_id');
+            var salesorderId = request.getParameter('record_id');
+            return this.executeScheduledScript(
+                        'customscript_salesorder_export', 
+                        'customdeploy_salesorder_export_ondemand', 
+                        {
+                            salesorderIds: [salesorderId]
+                        }
+                    );
         },
 
         executeCashRefundSyncScript: function(request, response) {
-            return this.executeScheduledScript('customscript_cashrefund_export_sch', 'customdeploy_cashrefund_export_dep2');
+            return this.executeScheduledScript(
+                        'customscript_cashrefund_export_sch', 
+                        'customdeploy_cashrefund_export_dep2'
+                    );
         },
         executeItemSyncScript: function(request, response) {
-            return this.executeScheduledScript('customscript_magento_item_sync_sch', 'customdeploy_magento_item_sync_sch2');
+            return this.executeScheduledScript(
+                        'customscript_magento_item_sync_sch', 
+                        'customdeploy_magento_item_sync_sch2'
+                    );
         },
         executeSOSyncScript: function(request, response) {
-            return this.executeScheduledScript('customscript_connectororderimport', 'customdeploy_connectororderimport2');
+            return this.executeScheduledScript(
+                        'customscript_connectororderimport', 
+                        'customdeploy_connectororderimport2'
+                    );
         },
         executeScheduledScript: function(scriptId, deploymentId, parameters) {
             var result = {
@@ -195,22 +246,46 @@ var ConnectorDashboardApi = (function () {
         },
 
         getCashRefundSyncLogs: function(request, response) {
-            return this.getExecutionLogs('customscript_cashrefund_export_sch');
+            return this.getExecutionLogs(
+                    'customscript_cashrefund_export_sch', 
+                    'customdeploy_cashrefund_export_dep2', 
+                    request
+                );
         },
         getItemSyncLogs: function(request, response) {
-            return this.getExecutionLogs('customscript_magento_item_sync_sch');
+            return this.getExecutionLogs(
+                    'customscript_magento_item_sync_sch', 
+                    'customdeploy_magento_item_sync_sch2', 
+                    request
+                );
         },
         getFulfilmentSyncLogs: function(request, response) {
-            return this.getExecutionLogs('customscript_magento_fulfillment_ue');
+            return this.getExecutionLogs(
+                    'customscript_magento_fulfillment_ue', 
+                    'customdeploy_magento_fulfillment_ue', 
+                    request
+                );
         },
         getSOSyncLogs: function(request, response) {
-            return this.getExecutionLogs('customscript_connectororderimport');
+            return this.getExecutionLogs(
+                    'customscript_connectororderimport', 
+                    'customdeploy_connectororderimport2', 
+                    request
+                );
         },
-        getExecutionLogs: function(scriptId) {
+        getExecutionLogs: function(scriptId, deploymentId, request) {
 
             var finalResponse = [];
             var cols = [];
             var filters = [];
+
+            var startDate = request.getParameter('startDate');
+            var endDate = request.getParameter('endDate');
+            var logType = request.getParameter('logType');
+
+            Utility.logDebug('getExecutionLogs(); // startDate: ', startDate);
+            Utility.logDebug('getExecutionLogs(); // endDate: ', endDate);
+            Utility.logDebug('getExecutionLogs(); // logType: ', logType);
 
             cols.push(new nlobjSearchColumn('title'));
             cols.push(new nlobjSearchColumn('detail'));
@@ -219,6 +294,21 @@ var ConnectorDashboardApi = (function () {
             cols.push(new nlobjSearchColumn('time').setSort(true));
 
             filters.push(new nlobjSearchFilter('scriptid', 'script', 'is', scriptId));
+            filters.push(new nlobjSearchFilter('scriptid', 'scriptdeployment', 'is', deploymentId));
+
+            if (startDate && endDate) {
+                filters.push(new nlobjSearchFilter('date', null, 'within', [startDate, endDate]));
+            }
+            else if (startDate && !endDate) {
+                filters.push(new nlobjSearchFilter('date', null, 'onorafter', startDate));
+            }
+            else if (!startDate &&  endDate) {
+                filters.push(new nlobjSearchFilter('date', null, 'onorbefore', endDate));
+            }
+            
+            if ( !!logType ) {
+                filters.push(new nlobjSearchFilter('type', null, 'anyof', [logType]));
+            }
 
             var results = nlapiSearchRecord('scriptexecutionlog', null, filters, cols);
             if (results != null && results.length > 0) {
@@ -228,7 +318,40 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
+        getSOSyncScriptDeploymentInstances: function (request, response){
+            return this.getScriptDeploymentInstances(
+                    'customscript_connectororderimport', 
+                    'customdeploy_connectororderimport2'
+                );
+        },
+        getItemSyncScriptDeploymentInstances: function (request, response){
+            return this.getScriptDeploymentInstances(
+                    'customscript_magento_item_sync_sch', 
+                    'customdeploy_magento_item_sync_sch2'
+                );
+        },
+        getCashRefundSyncScriptDeploymentInstances: function (request, response){
+            return this.getScriptDeploymentInstances(
+                    'customscript_cashrefund_export_sch', 
+                    'customdeploy_cashrefund_export_dep2'
+                );
+        },
+        getScriptDeploymentInstances: function(scriptId, deploymentId) {
 
+            var finalResponse = [];
+            var filters = [];
+
+            filters.push(new nlobjSearchFilter('scriptid', 'script', 'is', scriptId));
+            filters.push(new nlobjSearchFilter('scriptid', 'scriptdeployment', 'is', deploymentId));
+
+            var results = nlapiSearchRecord(null, 'customsearch_scheduled_script_instances', filters);
+
+            if (results != null && results.length > 0) {
+                finalResponse = ConnectorCommon.getObjects(results);
+            }
+
+            return finalResponse;
+        },
 
 
 
@@ -236,6 +359,15 @@ var ConnectorDashboardApi = (function () {
             var storeId = request.getParameter('store_id');
             var recordId = request.getParameter('record_id');
             return this.searchExternalSystemRecord('cashrefund', recordId, storeId);
+        },
+
+
+        searchCustomer: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var recordId = request.getParameter('record_id');
+
+
+            return this.searchExternalSystemRecord('customer', recordId, storeId);
         },
 
         searchSalesOrder: function (request, response) {
@@ -276,6 +408,10 @@ var ConnectorDashboardApi = (function () {
             else if (recordType == 'cashrefund') {
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId, null, 'is', recordId.trim()));
             }
+            if (recordType == 'customer') {
+                var searchText = '[{"StoreId":"'+storeId+'","MagentoId":'+recordId+'}]';
+                filters.push(new nlobjSearchFilter(ConnectorConstants.Entity.Fields.MagentoId, null, 'contains', searchText));
+            }
 
             try {
 
@@ -303,6 +439,7 @@ var ConnectorDashboardApi = (function () {
             var storeId = request.getParameter('store_id');
             var menu = [];
             var productList = ExternalSystemConfig.getAll();
+            Utility.logDebug('ConnectorDashboardApi.getMenu(); // productList: ', JSON.stringify(productList));
 
             var foundStore = null;
             if (!!productList && productList.length > 0) {
@@ -310,10 +447,14 @@ var ConnectorDashboardApi = (function () {
                     var obj = productList[i];
                     if (obj.internalId == storeId) {
                         foundStore = obj;
+
                         break;
                     }
                 }
             }
+
+
+            Utility.logDebug('ConnectorDashboardApi.getMenu(); // foundStore: ', JSON.stringify(foundStore));
 
             if (!!foundStore) {
                 var permissions = foundStore.permissions;
@@ -324,26 +465,183 @@ var ConnectorDashboardApi = (function () {
         },
 
         generateMenuFromPermission: function(permissions){
+
+            Utility.logDebug('ConnectorDashboardApi.generateMenuFromPermission(); // permissions: ', JSON.stringify(permissions));
+
             var menu = [];
             if (!!permissions && permissions.length > 0) {
                 for (var j = 0; j < permissions.length; j++) {
                     var permission = permissions[j];
+
                     switch (permission) {
                         case 'IMPORT_SO_FROM_EXTERNAL_SYSTEM':
                             menu.push({
-                                group: 'Import SO',
+                                key: 'import-so',
+                                menuOrder: 10,
                                 title: 'Import Sales Order',
                                 url: '/import-salesorder',
                                 templateUrl: "/f3-dash/templates/actions-import-salesorder.html",
                                 controller: 'ImportSalesorderController',
                                 controllerAs: 'viewModel'
                             });
+
+                            menu.push({
+                                key: 'synchronize-salesorders',
+                                menuOrder: 1,
+                                group: 'Synchronize',
+                                title: 'Sales Orders',
+                                icon: 'refresh',
+                                url: "/salesorders",
+                                templateUrl: "/f3-dash/templates/actions-execute-so-sync-script.html",
+                                controller: 'ExecuteSOSyncScriptController',
+                                controllerAs: 'viewModel'
+                            });
+
+                            menu.push({
+                                key: 'view-so-sync-logs',
+                                menuOrder: 7,
+                                group: 'View Logs',
+                                title: 'Sales Orders',
+                                url: "/so-sync",
+                                templateUrl: "/f3-dash/templates/actions-view-so-sync-logs.html",
+                                controller: 'ViewSOSyncLogsController',
+                                controllerAs: 'viewModel'
+                            });
                             break;
+
+                        case 'EXPORT_SO_TO_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'export-so',
+                                menuOrder: 11,
+                                title: 'Export Sales Order',
+                                url: '/export-salesorder',
+                                templateUrl: "/f3-dash/templates/actions-export-salesorder.html",
+                                controller: 'ExportSalesorderController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'SEARCH_ORDERS':
+                            menu.push({
+                                key: 'search-orders',
+                                menuOrder: 4,
+                                group: 'Search',
+                                title: 'Sales Orders',
+                                url: "/salesorders",
+                                templateUrl: "/f3-dash/templates/actions-search-orders.html",
+                                controller: 'SearchOrdersController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'SEARCH_CUSTOMERS':
+                            menu.push({
+                                key: 'search-customers',
+                                menuOrder: 5,
+                                group: 'Search',
+                                title: 'Customers',
+                                url: "/customers",
+                                templateUrl: "/f3-dash/templates/actions-search-customers.html",
+                                controller: 'SearchCustomersController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'SEARCH_CASH_REFUNDS':
+                            menu.push({
+                                key: 'search-cash-refunds',
+                                menuOrder: 6,
+                                group: 'Search',
+                                title: 'Cash Refunds',
+                                url: "/cash-refunds",
+                                templateUrl: "/f3-dash/templates/actions-search-credit-memo.html",
+                                controller: 'SearchCreditMemoController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'UPDATE_ITEM_TO_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'synchronize-items',
+                                menuOrder: 2,
+                                group: 'Synchronize',
+                                title: 'Items',
+                                icon: 'refresh',
+                                url: "/items",
+                                templateUrl: "/f3-dash/templates/actions-execute-item-sync-script.html",
+                                controller: 'ExecuteItemSyncScriptController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'EXPORT_CASH_REFUND_TO_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'synchronize-cash-refunds',
+                                menuOrder: 3,
+                                group: 'Synchronize',
+                                title: 'Cash Refunds',
+                                icon: 'refresh',
+                                url: "/cash-refunds",
+                                templateUrl: "/f3-dash/templates/actions-execute-cash-refund-script.html",
+                                controller: 'ExecuteCashRefundScriptController',
+                                controllerAs: 'viewModel'
+                            });
+
+                            menu.push({
+                                key: 'view-cash-refund-logs',
+                                menuOrder: 8,
+                                group: 'View Logs',
+                                title: 'Cash Refunds',
+                                url: "/cash-refunds",
+                                templateUrl: "/f3-dash/templates/actions-view-cash-refund-logs.html",
+                                controller: 'ViewCashRefundLogsController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'view-fulfilment-sync-logs',
+                                menuOrder: 9,
+                                group: 'View Logs',
+                                title: 'Fulfillments',
+                                url: "/fulfillment-sync",
+                                templateUrl: "/f3-dash/templates/actions-view-fulfilment-sync-logs.html",
+                                controller: 'ViewFulfilmentSyncLogsController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case 'VIEW_SCRUB':
+                            menu.push({
+                                key: 'view-scrub',
+                                menuOrder: 12,
+                                title: 'View Scrub',
+                                navigateUrl: (function () {
+                                    // create url of list
+                                    var url = nlapiResolveURL('RECORD', 'customrecord_fc_scrub');
+                                    url = url.replace('custrecordentry', 'custrecordentrylist');
+                                    return url;
+
+                                    //// redirect
+                                    //var anchor = document.createElement('a');
+                                    //anchor.setAttribute('href', url);
+                                    //anchor.setAttribute('target', '_blank');
+                                    //document.body.appendChild(anchor);
+                                    //anchor.click();
+                                })()
+                            });
+                            break;
+
                         default:
                             break;
                     }
                 }
             }
+
+
+            Utility.logDebug('ConnectorDashboardApi.generateMenuFromPermission(); // menu: ', JSON.stringify(menu));
+
             return menu;
         }
     };
@@ -365,12 +663,12 @@ var ConnectorDashboard = (function () {
                             '</li>' +
                             '<li class="sidebar-list" ng-repeat="action in actionsController.actions track by $index">' +
                             '  <a ng-if="!!action.group" class="submenu-link"><span ng-bind="action.group"></span> <span class="menu-icon fa fa-minus"></span></a>' +
-                            '  <a ng-if="!action.group && !action.action" ui-sref="{{ action.key }}" > <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
-                            '  <a ng-if="!action.group && !!action.action" ng-click="action.action()" target="_blank"> <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
+                            '  <a ng-if="!action.group && !action.navigateUrl" ui-sref="{{ action.key }}" > <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
+                            '  <a ng-if="!!action.navigateUrl" ng-href="{{ action.navigateUrl }}" target="_blank"> <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
                             '  <ul ng-if="!!action.actions">' +
                             '    <li class="sidebar-list" ng-repeat="subAction in action.actions">' +
-                            '      <a ng-if="!subAction.action" ui-sref="{{ subAction.key }}" > <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
-                            '      <a ng-if="!!subAction.action" ng-click="subAction.action()" target="_blank"> <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
+                            '      <a ng-if="!subAction.navigateUrl" ui-sref="{{ subAction.key }}" > <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
+                            '      <a ng-if="!!subAction.navigateUrl" ng-href="{{ subAction.navigateUrl }}" target="_blank"> <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
                             '    </li>' +
                             '  </ul>' +
                             '</li>',
@@ -410,7 +708,8 @@ var ConnectorDashboard = (function () {
             indexPageValue = data.getValue();
             var sideBar = this.createSideBar(store_id, fileUrl);
             indexPageValue = indexPageValue.replace(/<BASE_URL>/g, fileUrl);
-            indexPageValue = indexPageValue.replace('[STORES_JSON]', JSON.stringify(sideBar && sideBar.stores || {}));
+            indexPageValue = indexPageValue.replace('[STORES_JSON]', JSON.stringify(sideBar && sideBar.stores || []));
+            indexPageValue = indexPageValue.replace('[SELECTED_STORE_JSON]', JSON.stringify(sideBar && sideBar.selectedStore || {}));
             indexPageValue = indexPageValue.replace('[SIDE_BAR]', sideBar && sideBar.sidebarHtml || '');
 
             return indexPageValue;
@@ -493,24 +792,37 @@ var ConnectorDashboard = (function () {
                 var productList = ExternalSystemConfig.getAll();
 
                 var stores = [];
+                var selectedStore = null;
+
                 for (var i = 0; i < productList.length; i++) {
                     var obj = productList[i];
                     var url = nlapiResolveURL('SUITELET', 'customscript_dashboard_sl', 'customdeploy_dashboard_sl');
                     url = url + '&store_id=' + obj.internalId;
                     obj.url = url;
 
-                    stores.push({
+                    var store = {
                         id: obj.internalId,
                         name: obj.systemDisplayName,
                         url: obj.url
-                    });
+                    };
+                    stores.push(store);
+
+                    if (store.id == store_id) {
+                        selectedStore = store;
+                    }
                 }
+
+
+                if (selectedStore == null) {
+                    selectedStore = stores && stores[0];
+                }
+
 
                 var template = this.SIDEBAR_TEMPLATE;
 
                 finalResult = finalResult + template;
 
-                return { stores: stores, sidebarHtml :  finalResult };
+                return { stores: stores, sidebarHtml :  finalResult, selectedStore: selectedStore };
 
             } catch (e) {
                 Utility.logException('Error during main createSideBar', e);

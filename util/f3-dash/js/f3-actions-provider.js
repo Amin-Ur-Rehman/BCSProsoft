@@ -12,7 +12,7 @@
             this.actions = {};
 
             this.state = function (key, obj) {
-
+                console.log('$f3Actions.state(); ',key, obj);
                 var group = obj.group;
                 if (!!group) {
                     group = group.toLowerCase();

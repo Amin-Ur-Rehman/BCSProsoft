@@ -14,14 +14,55 @@
     function ViewSOSyncLogsController(f3Store, $http) {
         console.log('ViewSOSyncLogsController');
 
-        var _self = this;
-        this.hasRecords = true;
+        var viewModel = this;
+        viewModel.hasRecords = true;
+        var $grid = null;
 
-        initGrid();
+        viewModel.filters = {
+            startDate: null,
+            endDate: null,
+            logType: ''
+        };
+
+
+        viewModel.filter = function() {
+            viewModel.loadGrid();
+        };
+
+
+        viewModel.loadGrid = function(options) { 
+            console.log('datatype();');
+
+            var apiUrl = location.href.replace(location.hash, '') + '&method=getSOSyncLogs';
+
+            apiUrl = apiUrl + '&logType=' + (viewModel.filters.logType||'');
+            apiUrl = apiUrl + '&startDate=' + (viewModel.filters.startDate||'');
+            apiUrl = apiUrl + '&endDate=' + (viewModel.filters.endDate||'');
+
+            $http.get(apiUrl)
+                .success(function(response) {
+
+                    console.log('response: ', response);
+
+                    viewModel.hasRecords = (response || []).length > 0;
+
+                    console.log('viewModel.hasRecords: ', viewModel.hasRecords);
+
+                    if(viewModel.hasRecords === true) {
+                        $grid[0].addJSONData(response);
+                    }
+                    else {
+                        $grid.clearGridData();
+                    }
+
+                });
+
+        };
+
 
         function initGrid() {
 
-            var $grid = jQuery("#jqGrid");
+            $grid = jQuery("#jqGrid");
 
             jQuery.jgrid.defaults.width = jQuery('.page-content').outerWidth();
 
@@ -32,27 +73,7 @@
                 styleUI: 'Bootstrap',
                 emptyrecords: "No records to view",
                 datatype: function (options) {
-                    console.log('datatype();');
-
-                    var apiUrl = location.href.replace(location.hash, '') + '&method=getSOSyncLogs';
-                    $http.get(apiUrl)
-                        .success(function(response) {
-
-                            console.log('response: ', response);
-
-                            _self.hasRecords = (response || []).length > 0;
-
-                            console.log('_self.hasRecords: ', _self.hasRecords);
-
-                            if(_self.hasRecords === true) {
-                                $grid[0].addJSONData(response);
-                            }
-                            else {
-                                $grid.clearGridData();
-                            }
-
-                        });
-
+                    viewModel.loadGrid(options);
                 },
                 idPrefix: 'row_',
                 loadui: 'block',
@@ -90,7 +111,7 @@
                 pager: "#jqGridPager"
             });
 
-        }
+        };
 
 
 
@@ -100,7 +121,11 @@
          */
         this.showDetails = function(obj) {
             console.log('show details...', arguments);
-        }
+        };
+
+
+
+        initGrid();
 
     }
 
