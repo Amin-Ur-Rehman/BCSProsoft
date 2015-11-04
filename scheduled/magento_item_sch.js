@@ -127,14 +127,14 @@ function getTierPriceDataObj(product) {
  * @param sessionID
  * @param isParent
  */
-function syncProduct(product, productRecordtype, product_id, sessionID, isParent) {
+function syncProduct(product, productRecordtype, product_id, sessionID, isParent, matrixType) {
     try {
         Utility.logDebug('Sync Product ', isParent);
         // check if Magento Item is in NetSuite
         if (!Utility.isBlankOrNull(product.magentoSKU)) {
             var magID = null;
             var shopifyProduct;
-            var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product);
+            var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product, matrixType);
             if (response.status) {
                 magID = response.product.id;
                 // this for urgent fix for shopify - will rewrite this script
@@ -145,7 +145,7 @@ function syncProduct(product, productRecordtype, product_id, sessionID, isParent
                 Utility.logDebug('Product couldn\'t update', product.magentoSKU);
                 return;
             }
-            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent, shopifyProduct);
+            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent, shopifyProduct, matrixType);
             // If due to some reason Magento item is unable to update
             // Send Email Magento Side error
             if (!responseMagento.status) {
@@ -155,7 +155,7 @@ function syncProduct(product, productRecordtype, product_id, sessionID, isParent
                 Utility.logDebug(" Error From Magento ", msg);
             } else {
                 // Updated Successfully
-                Utility.logDebug('item: ' + product_id + ' price: ', +product.price + ' item synced successfully - quantity: ' + product.quatity);
+                nlapiLogExecution("AUDIT", 'SUCCESS SYNED - Item Id: ' + product_id, 'Price: '+product.price + ' Quantity: ' + product.quatity);
                 // Check for feature availability
                 if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TIERED_PRICING, ConnectorConstants.CurrentStore.permissions)) {
                     Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_TIERED_PRICING + ' NOT ALLOWED');
@@ -333,28 +333,11 @@ function ws_soaftsubm(type) {
                             var productRecordtype = records[j].getRecordType();
                             var matrixType = itemRec.getFieldValue('matrixtype');
                             Utility.logDebug('checkpoint', '9');
-                            // if matrix parent then getting magento ids from custom records
-                            // TODO: changes matrix science
-                            if (matrixType === 'PARENT') {
-                                Utility.logDebug('checkpoint', '10');
-                                var mgParentRecs = getMagentoParents(product_id);
-                                for (var p in mgParentRecs) {
-                                    var mgParentRec = mgParentRecs[p];
-                                    var mgProductId = mgParentRec.getValue('custrecord_mpss_magento_id');
-                                    product.magentoSKU = mgProductId;
-                                    Utility.logDebug('updating now matrix... ', 'updating now... ');
-                                    syncProduct(product, productRecordtype, product_id, sessionID, true);
-                                }
-                                // Updated Successfully
-                                Utility.logDebug('item id: ' + product_id, 'configurable items are synced successfully');
-                                //nlapiSubmitField(productRecordtype, product_id, 'custitem_item_sync', 'F');
-                            } else {
-                                Utility.logDebug('checkpoint', '11');
-                                // if child matrix item
-                                product.magentoSKU = magentoId;
-                                Utility.logDebug('updating now... ', 'updating now... ');
-                                syncProduct(product, productRecordtype, product_id, sessionID, false);
-                            }
+                            Utility.logDebug('checkpoint', '11');
+                            // if child matrix item
+                            product.magentoSKU = magentoId;
+                            Utility.logDebug('updating now... ', 'updating now... ');
+                            syncProduct(product, productRecordtype, product_id, sessionID, false, matrixType);
 
                             // handle script rescheduling
                             var usageRemaining = context.getRemainingUsage();

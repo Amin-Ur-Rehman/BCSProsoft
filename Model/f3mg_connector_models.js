@@ -297,6 +297,34 @@ WOOModels = (function () {
                 "customer_emails": [],
                 "description": ""
             };
+        },
+        variant: function () {
+            return {
+                "id": 0,
+                "product_id": 0,
+                "title": "",
+                "sku": "",
+                "position": 0,
+                "grams": 0,
+                "inventory_policy": "",
+                "fulfillment_service": "",
+                "inventory_management": "",
+                "price": 0,
+                "compare_at_price": null,
+                "option1": "",
+                "option2": null,
+                "option3": null,
+                "created_at": "",
+                "updated_at": "",//2015-09-02T14:47:57-04:00
+                "taxable": false,
+                "requires_shipping": false,
+                "barcode": "",
+                "inventory_quantity": 0,
+                "old_inventory_quantity": 0,
+                "image_id": 0,
+                "weight": 0,
+                "weight_unit": ""
+            };
         }
     };
 })();
