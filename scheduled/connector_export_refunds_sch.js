@@ -167,15 +167,15 @@ var RefundExportHelper = (function () {
             for (var line = 1; line <= totalLines; line++) {
                 var nsId = creditMemoRecord.getLineItemValue('item', 'item', line);
                 var qty = creditMemoRecord.getLineItemValue('item', 'quantity', line);
+                var amount = creditMemoRecord.getLineItemValue('item', 'amount', line);
                 var itemId = creditMemoRecord.getLineItemValue('item', 'item', line);
                 var orderItemId = creditMemoRecord.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
                 if(adjustmentRefundItem != itemId) {
                     if (!Utility.isBlankOrNull(orderItemId)) {
-                        cashSaleItemsArray[orderItemId] = qty;
+                        cashSaleItemsArray[orderItemId] = {qty: qty, amount: amount};
                     }
                 }
                 else {
-                    var amount = creditMemoRecord.getLineItemValue('item', 'amount', line);
                     adjustmentRefundAmount += parseFloat(amount);
                 }
             }
@@ -193,12 +193,10 @@ var RefundExportHelper = (function () {
             for (var line = 1; line <= createdFromRecordLinesCount; line++) {
                 var orderItemId = createdFromRec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
                 if (!Utility.isBlankOrNull(orderItemId)) {
-                    var qty = cashSaleItemsArray[orderItemId];
-                    if(!qty) {
-                        qty = 0;
-                    }
+                    var lineObj = cashSaleItemsArray[orderItemId];
                     var obj = {};
-                    obj.qty = qty;
+                    obj.qty = !lineObj ? 0 : lineObj.qty;
+                    obj.amount = !lineObj ? 0 : lineObj.amount;
                     obj.orderItemId = orderItemId;
                     creditMemoDataObject.items.push(obj);
                 }
