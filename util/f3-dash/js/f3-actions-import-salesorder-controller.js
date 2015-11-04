@@ -17,11 +17,13 @@
         this.salesorderId = null;
         this.importCompleted = false;
 
-        this.import = function() {
+        viewModel.import = function() {
 
-            if( !viewModel.salesorderId) {
+            if ( !viewModel.salesorderId) {
                 viewModel.executionStatus = 'INVALID_ID';
+                viewModel.successMessage = '';
                 viewModel.errorMessage = 'invalid sales order id';
+                return;
             }
 
 
