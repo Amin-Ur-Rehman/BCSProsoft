@@ -1457,6 +1457,13 @@ ShopifyWrapper = (function () {
             return false;
         },
 
+        /**
+         * Create invoice / handle payment capturing in shopify
+         * @param sessionID
+         * @param netsuiteInvoiceObj
+         * @param store
+         * @returns {{}}
+         */
         createInvoice: function (sessionID, netsuiteInvoiceObj, store) {
 
             var responseBody = {};
@@ -1558,6 +1565,7 @@ ShopifyWrapper = (function () {
 
             return onlineSupported;
         },
+
         getPaymentInfo: function (payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
             var paymentInfo = {
                 "paymentmethod": "",
@@ -1614,14 +1622,78 @@ ShopifyWrapper = (function () {
          * @param store
          * @return {{}}
          */
-        createCustomerRefund: function (sessionID, cashRefund, store) {
-            // To be implement later
+        createCustomerRefund: function (sessionID, cashRefundObj, store) {
             var responseBody = {};
-            responseBody.status = 1;
-            responseBody.message = '';
-            responseBody.data = {increment_id: ''};
+            var refundingAmount = this.calculateAmountToRefund(cashRefundObj);
+            var orderId = cashRefundObj.orderId;
+            var httpRequestData = {
+                additionalUrl: 'orders/' + orderId + '/transactions.json',
+                method: 'POST',
+                postData: {
+                    transaction: {
+                        kind: "refund",
+                        amount: refundingAmount
+                    }
+                }
+            };
+
+            var serverResponse = sendRequest(httpRequestData);
+            if(!!serverResponse.transaction) {
+                responseBody = this.parseRefundSuccessResponse(serverResponse);
+            } else {
+                responseBody = this.parseRefundFailureResponse(serverResponse);
+            }
             return responseBody;
         },
+
+        /**
+         * Calculate total amount to refund on shopify
+         * @param cashRefundObj
+         */
+        calculateAmountToRefund: function(cashRefundObj) {
+            var totalAmountToRefund = 0;
+            if(!!cashRefundObj.items && cashRefundObj.items.length > 0) {
+                for (var i = 0; i < cashRefundObj.items.length; i++) {
+                    var obj = cashRefundObj.items[i];
+                    totalAmountToRefund += parseFloat(obj.amount);
+                }
+            }
+            if(!!cashRefundObj.adjustmentPositive) {
+                totalAmountToRefund += parseFloat(cashRefundObj.adjustmentPositive);
+            }
+            if(!!cashRefundObj.shippingCost) {
+                totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
+            }
+            return totalAmountToRefund;
+        },
+
+        /**
+         * parse response in case of successful payment capturing
+         * @param serverResponse
+         */
+        parseRefundSuccessResponse: function(serverResponse) {
+            var responseBody = {};
+            responseBody.status = 1;
+            responseBody.message = serverResponse.transaction.message || '';
+            responseBody.data = {increment_id: serverResponse.transaction.id.toString() || ''};
+            return responseBody;
+        },
+        /**
+         * parse response in case of failure occured in payment capturing
+         * @param serverResponse
+         */
+        parseRefundFailureResponse: function(serverResponse) {
+            var responseBody = {};
+            responseBody.status = 0;
+            if(!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
+                && !!serverResponse.responseJSON.errors.base && serverResponse.responseJSON.errors.base.length > 0) {
+                responseBody.message = serverResponse.responseJSON.errors.base[0];
+            } else {
+                responseBody.message = '';
+            }
+            return responseBody;
+        },
+
         getPaymentInfoToExport: function (orderRecord, orderDataObject, store) {
             var obj = {};
             // initialize scrub
