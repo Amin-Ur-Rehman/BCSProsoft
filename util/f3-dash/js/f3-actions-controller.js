@@ -56,24 +56,18 @@
                     var obj = menuItems[i];
                     var state = {
                         group: obj.group,
-                        groupIcon: obj.groupIcon,
                         title: obj.title,
                         navigateUrl: obj.navigateUrl,
-                        icon: obj.icon,                        
+                        templateUrl: f3_base_url + obj.templateUrl + '?__cacheId=' + cacheKey,
+                        controller: obj.controller,
+                        controllerAs: obj.controllerAs,
                         url: obj.url
                     };
                     
-                    obj.templateUrl && (state.templateUrl = f3_base_url + obj.templateUrl + '?__cacheId=' + cacheKey);
-                    obj.controller && (state.controller = obj.controller);
-                    obj.controllerAs && (state.controllerAs = obj.controllerAs);
-
                     $f3Actions.state(obj.key, state);
                 }
 
                 _self.generateMenuData($f3Actions.getAll());
-
-
-                $state.go('index', $state.params, {reload: true});
 
             });
 
@@ -94,7 +88,6 @@
 
                         foundGroup = {
                             group: action.group,
-                            groupIcon: action.groupIcon,
                             actions: []
                         };
 
@@ -118,39 +111,6 @@
                 }
             }
         };
-
-
-        // ng-click="actionsController.selectAction(action.key)"
-        this.selectAction = function(key){
-            for (var i = this.actions.length - 1; i >= 0; i--) {
-                var action = this.actions[i];
-                action.selected = false;
-                if(action.actions){
-                    for (var j = action.actions.length - 1; j >= 0; j--) {
-                        var subAction = action.actions[j];
-                        subAction.selected = false;
-                    }
-                }
-            };
-
-
-            for (var i = this.actions.length - 1; i >= 0; i--) {
-                var action = this.actions[i];
-                if(action.key == key){
-                    action.selected = true;
-                    break;
-                }
-                if(action.actions){
-                    for (var j = action.actions.length - 1; j >= 0; j--) {
-                        var subAction = action.actions[j];
-                        if(action.key == key){
-                            subAction.selected = true;
-                            break;
-                        }
-                    }
-                }
-            };
-        }
 
 
         function findStore(stores, id) {

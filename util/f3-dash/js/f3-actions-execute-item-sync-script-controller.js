@@ -17,7 +17,7 @@
         console.log('ExecuteItemSyncScriptController');
 
         var viewModel = this;
-        viewModel.loading = false;
+
 
         viewModel.hasRecords = true;
 
@@ -32,12 +32,10 @@
 
         viewModel.loadGrid = function(options) {
             console.log('datatype();');
-            viewModel.loading = true;
 
             var apiUrl = location.href.replace(location.hash, '') + '&method=getItemSyncScriptDeploymentInstances';
             $http.get(apiUrl)
                 .success(function (response) {
-                    viewModel.loading = false;
 
                     console.log('response: ', response);
 
