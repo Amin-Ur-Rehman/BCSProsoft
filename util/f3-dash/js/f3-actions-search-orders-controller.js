@@ -9,13 +9,38 @@
     angular.module("f3UC")
         .controller("SearchOrdersController", SearchOrdersController);
 
-    function SearchOrdersController(f3Store, $http) {
+    function SearchOrdersController(f3Store, f3Utility, $http) {
         console.log('SearchMagentoOrdersController');
 
+        
         var _self = this;
+        var viewModel = this;
         this.store = f3Store;
         this.salesorderId = '';
         this.searchCompleted = false;
+
+
+
+        // <jq-grid config="viewModel.salesorders.config" data="viewModel.salesorders.data"></jq-grid>
+        viewModel.salesorders = {
+            loading: false,
+            data: [],
+            hasData: !!this.data,
+            loadData: function(){
+
+                viewModel.salesorders.loading = true;
+                var apiUrl = location.href.replace(location.hash, '') + '&method=getSalesOrders';
+                apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
+
+                $http.get(apiUrl)
+                    .success(function(response) {
+                        console.log('response: ', response);
+                        viewModel.salesorders.loading = false;
+                        viewModel.salesorders.data = response;
+                        viewModel.salesorders.hasData = !!response;
+                    });
+            }
+        };
 
 
         this.search = function() {
@@ -43,6 +68,11 @@
                 });
 
         };
+
+
+
+        viewModel.salesorders.loadData();
+
     }
 
 })();

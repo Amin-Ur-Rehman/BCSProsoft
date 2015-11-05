@@ -17,6 +17,7 @@
         console.log('ExecuteSOSyncScriptController');
 
         var viewModel = this;
+        viewModel.loading = false;
         viewModel.hasRecords = true;
 
         viewModel.hideAlert   = function() {
@@ -31,12 +32,13 @@
         viewModel.loadGrid = function(options) {
             console.log('datatype();');
 
+            viewModel.loading = true;
             var apiUrl = location.href.replace(location.hash, '') + '&method=getSOSyncScriptDeploymentInstances';
             $http.get(apiUrl)
                 .success(function (response) {
 
                     console.log('response: ', response);
-
+                    viewModel.loading = false;
                     viewModel.hasRecords = (response || []).length > 0;
 
                     console.log('viewModel.hasRecords: ', viewModel.hasRecords);

@@ -1,0 +1,47 @@
+<li class="sidebar-title">
+    <select 
+        ng-change="actionsController.storeChanged()" 
+        ng-model="actionsController.selectedStore" 
+        ng-options="store.name for store in actionsController.stores">
+    </select>
+</li>
+
+<!--<li class="sidebar-list">
+    <a href="#/">
+    	<i class="sidebar-icon icon-screen-desktop"></i>
+        Dashboard
+    </a>
+</li>-->
+
+<li class="sidebar-list" 
+    ng-repeat="action in actionsController.actions track by $index" 
+    ng-class="{'active': action.selected}">
+
+    <a ng-if="!!action.group" class="submenu-link" ng-click="actionsController.selectAction(action.key)">
+    	<i class="sidebar-icon {{ action.groupIcon }}"></i>
+        <span ng-bind="action.group"></span>
+        <span class="menu-icon fa fa-minus"></span>
+    </a>
+    <a ng-if="!action.group && !action.navigateUrl" ui-sref="{{ action.key }}" ng-click="actionsController.selectAction(action.key)">
+    	<i class="sidebar-icon {{ action.icon }}"></i>
+        <span ng-bind="action.title"></span>
+    </a>
+    <a ng-if="!!action.navigateUrl" ng-href="{{ action.navigateUrl }}" target="_blank">
+    	<i class="sidebar-icon {{ action.icon }}"></i>
+        <span ng-bind="action.title"></span>
+    </a>
+
+    <ul ng-if="!!action.actions">
+        <li class="sidebar-list" 
+            ng-repeat="subAction in action.actions"
+            ng-class="{'active': subAction.selected}">
+            <a ng-if="!subAction.navigateUrl" ui-sref="{{ subAction.key }}" ng-click="actionsController.selectAction(action.key)">
+                <span ng-bind="subAction.title"></span>
+            </a>
+            <a ng-if="!!subAction.navigateUrl" ng-href="{{ subAction.navigateUrl }}" target="_blank">
+                <span ng-bind="subAction.title"></span>
+            </a>
+        </li>
+    </ul>
+
+</li>

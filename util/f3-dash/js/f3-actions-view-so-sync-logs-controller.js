@@ -15,6 +15,7 @@
         console.log('ViewSOSyncLogsController');
 
         var viewModel = this;
+        viewModel.loading = false;
         viewModel.hasRecords = true;
         var $grid = null;
 
@@ -32,6 +33,7 @@
 
         viewModel.loadGrid = function(options) { 
             console.log('datatype();');
+            viewModel.loading = true;
 
             var apiUrl = location.href.replace(location.hash, '') + '&method=getSOSyncLogs';
 
@@ -43,6 +45,7 @@
                 .success(function(response) {
 
                     console.log('response: ', response);
+                    viewModel.loading = false;
 
                     viewModel.hasRecords = (response || []).length > 0;
 

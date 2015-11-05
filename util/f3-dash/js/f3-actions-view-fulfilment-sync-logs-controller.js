@@ -15,6 +15,7 @@
 
         var $grid = null;
         var viewModel = this;
+        viewModel.loading = false;
         viewModel.hasRecords = true;
 
 
@@ -31,6 +32,7 @@
 
         viewModel.loadGrid = function(options) {   
             console.log('datatype();');
+            viewModel.loading = true;
 
             var apiUrl = location.href.replace(location.hash, '') + '&method=getFulfilmentSyncLogs';
 
@@ -42,6 +44,7 @@
                 .success(function(response) {
 
                     console.log('response: ', response);
+                    viewModel.loading = false;
 
                     viewModel.hasRecords = (response || []).length > 0;
 
