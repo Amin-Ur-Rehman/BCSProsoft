@@ -22,25 +22,26 @@
                                ng-model="viewModel.customerId" />
                     </div>
                 </div>
+                <div class="col-sm-8" ng-if="viewModel.searchCompleted">
+                    <label for="salesorder_id" class="control-label col-sm-3">&nbsp;</label>
+
+                    <div class="col-sm-8 alert alert-info marbot0" ng-if="!viewModel.response.status">
+                        No record found for provided Customer Id.
+                    </div>
+                    <div class="col-sm-8 alert alert-success marbot0" ng-if="viewModel.response.status">
+                        Below is the link of searched record: <br />
+    
+                        <a ng-href="{{viewModel.navigateUrl}}" target="_blank">
+                            <span ng-bind="viewModel.navigateUrl"></span>
+                        </a>
+    
+                    </div>
+                </div>
                 <div class="col-sm-8">
                     <label for="salesorder_id" class="control-label col-sm-3">&nbsp;</label>
 					<div class="col-sm-9 padleft_0">
                         <button type="button" ng-click="viewModel.search()" class="btn btn-primary btn-submit">Go <!--<i class="fa fa-arrow-right"></i>--></button>
                     </div>
-                </div>
-            </div>
-
-            <div ng-if="viewModel.searchCompleted">
-                <div class="alert alert-info" ng-if="!viewModel.response.status">
-                    No record found for provided Customer Id.
-                </div>
-                <div class="alert alert-success" ng-if="viewModel.response.status">
-                    Below is the link of searched record: <br />
-
-                    <a ng-href="{{viewModel.navigateUrl}}" target="_blank">
-                        <span ng-bind="viewModel.navigateUrl"></span>
-                    </a>
-
                 </div>
             </div>
         </div>
@@ -59,11 +60,10 @@
 
 <div class="panel panel-default">
     <div class="panel-heading">
-        <i class="fa fa-tasks"></i> &nbsp; 
-        Recent Customers
+        <i class="icon-users padright_10"></i>Recent Customers
           &nbsp; &nbsp;
         <a ng-click="viewModel.customers.loadData()" href="javascript:;">
-            <i class="fa fa-refresh" ng-class="{'fa-spin': viewModel.customers.loading }"></i>
+            <i class="sidebar-icon icon-refresh f20" ng-class="{'fa-spin': viewModel.customers.loading }"></i>
         </a>
 
     </div>

@@ -36,6 +36,7 @@
             ng-repeat="subAction in action.actions"
             ng-class="{'active': subAction.selected}">
             <a ng-if="!subAction.navigateUrl" ui-sref="{{ subAction.key }}" ng-click="actionsController.selectAction(action.key)">
+                <!--<i class="sidebar-icon icon-refresh"></i>-->
                 <span ng-bind="subAction.title"></span>
             </a>
             <a ng-if="!!subAction.navigateUrl" ng-href="{{ subAction.navigateUrl }}" target="_blank">

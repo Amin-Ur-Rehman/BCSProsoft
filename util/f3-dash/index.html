@@ -44,18 +44,18 @@
     <script type="text/javascript" src="<BASE_URL>f3-dash/js/f3-actions-import-salesorder-controller.js"></script>
     <script type="text/javascript" src="<BASE_URL>f3-dash/js/dashboard.min.js"></script>
 </head>
-<body ng-controller="MasterController">
-<div id="page-wrapper" ng-class="{'open': toggle}" ng-cloak>
+<body ng-controller="MasterController as viewModel">
+<div id="page-wrapper" ng-class="{'open': viewModel.toggle}" ng-cloak>
 
     <!-- Sidebar -->
     <div id="sidebar-wrapper">
         <ul class="sidebar" ng-controller="ActionsController as actionsController">
-            <!--<li class="sidebar-main">
-                <a ng-click="toggleSidebar()">
-                     Dashboard
+            <li class="sidebar-main side_title">
+                <a ng-click="viewModel.toggleSidebar()">
+                     Folio3 Connector
                     <span class="menu-icon glyphicon glyphicon-transfer"></span>
                 </a>
-            </li>-->
+            </li>
             [SIDE_BAR]
         </ul>
     </div>
