@@ -27,9 +27,7 @@ var ConnectorDashboardApi = (function () {
                 case 'getCustomersCount':
                     return this.getCustomersCount(request, response);
                     break;
-                case 'getSalesOrders':
-                    return this.getSalesOrders(request, response);
-                    break;
+                
                 case 'getSalesOrderCount':
                     return this.getSalesOrderCount(request, response);
                     break;
@@ -40,6 +38,16 @@ var ConnectorDashboardApi = (function () {
                     return this.getFailedSalesOrders(request, response);
                     break;
 
+
+                case 'getSalesOrders':
+                    return this.getSalesOrders(request, response);
+                    break;
+                case 'getCustomers':
+                    return this.getCustomers(request, response);
+                    break;
+                case 'getItems':
+                    return this.getItems(request, response);
+                    break;
 
 
                 case 'importSalesOrder':
@@ -146,13 +154,68 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
-        getSalesOrders: function(request, response) {
+        getExternalSystemRecords : function(recordType, storeId) {
 
-            var storeId = request.getParameter('store_id');
-            var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_so_by_store',
-                                    'custbody_f3mg_magento_store');
+            var finalResponse = [];
+            var filters = [];
+            var cols = [];
+
+            if ( recordType === 'salesorder') {
+                filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', storeId));
+                filters.push(new nlobjSearchFilter('mainline', null, 'is', 'T'));
+
+                cols.push(new nlobjSearchColumn('tranid'));
+                cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
+                cols.push(new nlobjSearchColumn('custbody_magentoid').setLabel('externalSystemRecordId'));
+            }
+            else if ( recordType === 'customer') {
+                var searchText = '{"StoreId":"'+ storeId +'"';
+                filters.push(new nlobjSearchFilter('custentity_magento_custid', null, 'contains', searchText));
+                cols.push(new nlobjSearchColumn('companyname'));
+                cols.push(new nlobjSearchColumn('email'));
+                cols.push(new nlobjSearchColumn('isperson'));
+                cols.push(new nlobjSearchColumn('firstname'));
+                cols.push(new nlobjSearchColumn('lastname'));
+                cols.push(new nlobjSearchColumn('custentity_magento_custid'));
+                cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
+                cols.push(new nlobjSearchColumn('entitystatus'));
+            }
+            else if(recordType === 'item') {
+                var searchText = '{"StoreId":"'+ storeId +'"';
+                filters.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoId, null, 'contains', searchText));
+                cols.push(new nlobjSearchColumn('itemid'));
+                cols.push(new nlobjSearchColumn('displayname'));
+                cols.push(new nlobjSearchColumn('modified').setSort(true));
+            }
+
+            var results = nlapiSearchRecord(recordType, null, filters, cols);
+            if (results != null && results.length > 0) {
+                finalResponse = ConnectorCommon.getObjects(results);
+            }
+
             return finalResponse;
         },
+        getSalesOrders: function(request, response) {
+            var storeId = request.getParameter('store_id');
+
+            return this.getExternalSystemRecords('salesorder', storeId);
+        },
+        getCustomers: function(request, response) {
+
+            var storeId = request.getParameter('store_id');
+
+            return this.getExternalSystemRecords('customer', storeId);
+        },
+
+        getItems: function(request, response) {
+
+            var storeId = request.getParameter('store_id');
+
+            return this.getExternalSystemRecords('item', storeId);
+        },
+
+
+
 
         getItemsCount: function(request, response) {
             var storeId = request.getParameter('store_id');
@@ -175,7 +238,7 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
-
+ 
         importSalesOrder: function(request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
@@ -402,15 +465,18 @@ var ConnectorDashboardApi = (function () {
 
             //filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', storeId));
 
-            if (recordType == 'salesorder') {
+            if (recordType === 'salesorder') {
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'is', recordId.trim()));
             }
-            else if (recordType == 'cashrefund') {
+            else if (recordType === 'cashrefund') {
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId, null, 'is', recordId.trim()));
             }
-            if (recordType == 'customer') {
-                var searchText = '[{"StoreId":"'+storeId+'","MagentoId":'+recordId+'}]';
-                filters.push(new nlobjSearchFilter(ConnectorConstants.Entity.Fields.MagentoId, null, 'contains', searchText));
+            else if (recordType === 'customer') {
+                var searchFormat = ConnectorConstants.MagentoIdFormat;
+                searchFormat = searchFormat.replace(/<STOREID>/gi, storeId);
+                searchFormat = searchFormat.replace(/<MAGENTOID>/gi, recordId);
+                //var searchText = '[{"StoreId":"'+storeId+'","MagentoId":'+recordId+'}]';
+                filters.push(new nlobjSearchFilter(ConnectorConstants.Entity.Fields.MagentoId, null, 'contains', searchFormat));
             }
 
             try {
@@ -469,6 +535,18 @@ var ConnectorDashboardApi = (function () {
             Utility.logDebug('ConnectorDashboardApi.generateMenuFromPermission(); // permissions: ', JSON.stringify(permissions));
 
             var menu = [];
+
+            menu.push({
+                key: 'index',
+                menuOrder: 0,
+                title: 'Dashboard',
+                icon: 'icon-screen-desktop',
+                url: '/',
+                templateUrl: "/f3-dash/templates/dashboard.html",
+                controller: 'MasterController',
+                controllerAs: 'viewModel'
+            });
+
             if (!!permissions && permissions.length > 0) {
                 for (var j = 0; j < permissions.length; j++) {
                     var permission = permissions[j];
@@ -479,6 +557,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'import-so',
                                 menuOrder: 10,
                                 title: 'Import Sales Order',
+                                icon: 'icon-cloud-download',
                                 url: '/import-salesorder',
                                 templateUrl: "/f3-dash/templates/actions-import-salesorder.html",
                                 controller: 'ImportSalesorderController',
@@ -489,8 +568,8 @@ var ConnectorDashboardApi = (function () {
                                 key: 'synchronize-salesorders',
                                 menuOrder: 1,
                                 group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
                                 title: 'Sales Orders',
-                                icon: 'refresh',
                                 url: "/salesorders",
                                 templateUrl: "/f3-dash/templates/actions-execute-so-sync-script.html",
                                 controller: 'ExecuteSOSyncScriptController',
@@ -501,6 +580,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'view-so-sync-logs',
                                 menuOrder: 7,
                                 group: 'View Logs',
+                                groupIcon: 'icon-graph',
                                 title: 'Sales Orders',
                                 url: "/so-sync",
                                 templateUrl: "/f3-dash/templates/actions-view-so-sync-logs.html",
@@ -514,6 +594,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'export-so',
                                 menuOrder: 11,
                                 title: 'Export Sales Order',
+                                icon: 'icon-cloud-upload',
                                 url: '/export-salesorder',
                                 templateUrl: "/f3-dash/templates/actions-export-salesorder.html",
                                 controller: 'ExportSalesorderController',
@@ -526,6 +607,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'search-orders',
                                 menuOrder: 4,
                                 group: 'Search',
+                                groupIcon: 'icon-magnifier',
                                 title: 'Sales Orders',
                                 url: "/salesorders",
                                 templateUrl: "/f3-dash/templates/actions-search-orders.html",
@@ -539,6 +621,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'search-customers',
                                 menuOrder: 5,
                                 group: 'Search',
+                                groupIcon: 'icon-magnifier',
                                 title: 'Customers',
                                 url: "/customers",
                                 templateUrl: "/f3-dash/templates/actions-search-customers.html",
@@ -552,6 +635,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'search-cash-refunds',
                                 menuOrder: 6,
                                 group: 'Search',
+                                groupIcon: 'icon-magnifier',
                                 title: 'Cash Refunds',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-search-credit-memo.html",
@@ -565,8 +649,9 @@ var ConnectorDashboardApi = (function () {
                                 key: 'synchronize-items',
                                 menuOrder: 2,
                                 group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
                                 title: 'Items',
-                                icon: 'refresh',
+                                icon: 'fa fa-refresh',
                                 url: "/items",
                                 templateUrl: "/f3-dash/templates/actions-execute-item-sync-script.html",
                                 controller: 'ExecuteItemSyncScriptController',
@@ -579,8 +664,8 @@ var ConnectorDashboardApi = (function () {
                                 key: 'synchronize-cash-refunds',
                                 menuOrder: 3,
                                 group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
                                 title: 'Cash Refunds',
-                                icon: 'refresh',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-execute-cash-refund-script.html",
                                 controller: 'ExecuteCashRefundScriptController',
@@ -591,6 +676,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'view-cash-refund-logs',
                                 menuOrder: 8,
                                 group: 'View Logs',
+                                groupIcon: 'icon-graph',
                                 title: 'Cash Refunds',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-view-cash-refund-logs.html",
@@ -604,6 +690,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'view-fulfilment-sync-logs',
                                 menuOrder: 9,
                                 group: 'View Logs',
+                                groupIcon: 'icon-graph',
                                 title: 'Fulfillments',
                                 url: "/fulfillment-sync",
                                 templateUrl: "/f3-dash/templates/actions-view-fulfilment-sync-logs.html",
@@ -617,6 +704,7 @@ var ConnectorDashboardApi = (function () {
                                 key: 'view-scrub',
                                 menuOrder: 12,
                                 title: 'View Scrub',
+                                icon: 'icon-eye',
                                 navigateUrl: (function () {
                                     // create url of list
                                     var url = nlapiResolveURL('RECORD', 'customrecord_fc_scrub');
@@ -654,24 +742,24 @@ var ConnectorDashboardApi = (function () {
 var ConnectorDashboard = (function () {
     return {
 
-        SIDEBAR_TEMPLATE : '<li class="sidebar-title">' +
-                            '  <select ng-change="actionsController.storeChanged()" ng-model="actionsController.selectedStore" ' +
-                                'ng-options="store.name for store in actionsController.stores"></select>' +
-                            '</li>' +
-                            '<li class="sidebar-list">' +
-                            '  <a href="#/">Dashboard <span class="menu-icon fa fa-tachometer"></span></a>' +
-                            '</li>' +
-                            '<li class="sidebar-list" ng-repeat="action in actionsController.actions track by $index">' +
-                            '  <a ng-if="!!action.group" class="submenu-link"><span ng-bind="action.group"></span> <span class="menu-icon fa fa-minus"></span></a>' +
-                            '  <a ng-if="!action.group && !action.navigateUrl" ui-sref="{{ action.key }}" > <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
-                            '  <a ng-if="!!action.navigateUrl" ng-href="{{ action.navigateUrl }}" target="_blank"> <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
-                            '  <ul ng-if="!!action.actions">' +
-                            '    <li class="sidebar-list" ng-repeat="subAction in action.actions">' +
-                            '      <a ng-if="!subAction.navigateUrl" ui-sref="{{ subAction.key }}" > <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
-                            '      <a ng-if="!!subAction.navigateUrl" ng-href="{{ subAction.navigateUrl }}" target="_blank"> <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
-                            '    </li>' +
-                            '  </ul>' +
-                            '</li>',
+        // SIDEBAR_TEMPLATE : '<li class="sidebar-title">' +
+        //                     '  <select ng-change="actionsController.storeChanged()" ng-model="actionsController.selectedStore" ' +
+        //                         'ng-options="store.name for store in actionsController.stores"></select>' +
+        //                     '</li>' +
+        //                     '<li class="sidebar-list">' +
+        //                     '  <a href="#/">Dashboard <span class="menu-icon fa fa-tachometer"></span></a>' +
+        //                     '</li>' +
+        //                     '<li class="sidebar-list" ng-repeat="action in actionsController.actions track by $index">' +
+        //                     '  <a ng-if="!!action.group" class="submenu-link"><span ng-bind="action.group"></span> <span class="menu-icon fa fa-minus"></span></a>' +
+        //                     '  <a ng-if="!action.group && !action.navigateUrl" ui-sref="{{ action.key }}" > <span ng-bind="action.title"></span> <span class="menu-icon fa fa-{{ action.icon }}"></span></a>' +
+        //                     '  <a ng-if="!!action.navigateUrl" ng-href="{{ action.navigateUrl }}" target="_blank"> <span ng-bind="action.title"></span> <span class="menu-icon {{ action.icon }}"></span></a>' +
+        //                     '  <ul ng-if="!!action.actions">' +
+        //                     '    <li class="sidebar-list" ng-repeat="subAction in action.actions">' +
+        //                     '      <a ng-if="!subAction.navigateUrl" ui-sref="{{ subAction.key }}" > <span ng-bind="subAction.title"></span> <span class="menu-icon fa fa-{{ subAction.icon }}"></span></a>' +
+        //                     '      <a ng-if="!!subAction.navigateUrl" ng-href="{{ subAction.navigateUrl }}" target="_blank"> <span ng-bind="subAction.title"></span> <span class="menu-icon {{ subAction.icon }}"></span></a>' +
+        //                     '    </li>' +
+        //                     '  </ul>' +
+        //                     '</li>',
 
 
 
@@ -704,6 +792,7 @@ var ConnectorDashboard = (function () {
             //}
 
             var data = nlapiLoadFile(this.getFileUrl() + "f3-dash/index.html");
+
 
             indexPageValue = data.getValue();
             var sideBar = this.createSideBar(store_id, fileUrl);
@@ -750,7 +839,7 @@ var ConnectorDashboard = (function () {
                         indexPageValue; // external html page
 
 
-                    form = nlapiCreateForm('Folio3 Connector - Dashboard');
+                    form = nlapiCreateForm('Folio3 Connector');
                     //form.setScript(FC_SYNC_CONSTANTS.ClientScripts.ClientScript3.Id); // Constants.Netsuite.Scripts.ClientScriptId
                     html = form.addField('inlinehtml', 'inlinehtml', '');
 
@@ -787,8 +876,10 @@ var ConnectorDashboard = (function () {
          */
         createSideBar: function (store_id, fileUrl) {
             try {
-                var template = this.SIDEBAR_TEMPLATE;
-                var finalResult = '';
+
+                var sidebarFile = nlapiLoadFile(this.getFileUrl() + "f3-dash/templates/_sidebar.html");
+
+                var template = sidebarFile.getValue(); //this.SIDEBAR_TEMPLATE;
                 var productList = ExternalSystemConfig.getAll();
 
                 var stores = [];
@@ -818,11 +909,10 @@ var ConnectorDashboard = (function () {
                 }
 
 
-                var template = this.SIDEBAR_TEMPLATE;
+                //var template = this.SIDEBAR_TEMPLATE;
+                //finalResult = finalResult + template;
 
-                finalResult = finalResult + template;
-
-                return { stores: stores, sidebarHtml :  finalResult, selectedStore: selectedStore };
+                return { stores: stores, sidebarHtml :  template, selectedStore: selectedStore };
 
             } catch (e) {
                 Utility.logException('Error during main createSideBar', e);

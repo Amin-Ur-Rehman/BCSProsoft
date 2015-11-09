@@ -2,7 +2,7 @@
 <h2 class="view-heading">Synchronize Cash Refunds</h2>
 
 
-<br />
+<!--<br />-->
 <div>
     <a ng-click="viewModel.execute();" class="btn btn-success btn-lg">Start Cash Refund Synchronization</a>
 </div>
@@ -45,25 +45,36 @@
 
 
 
-<div ng-show="viewModel.hasRecords">
-
-    <h3>
+<div >
+    <div class="panel panel-default">
+        <div class="panel-heading">
+        	<i class="fa fa-tasks"></i> &nbsp; Recent Synchronization History &nbsp; &nbsp;
+            <a ng-click="viewModel.loadGrid()" href="javascript:;">
+                <!--<i class="fa fa-refresh"></i>-->
+                <i class="sidebar-icon icon-refresh" ng-class="{'fa-spin': viewModel.loading }"></i>            
+            </a>
+        </div>
+    <!--<h3 class="sub_hd">
         Recent Synchronization History
 
         &nbsp; &nbsp;
         <a ng-click="viewModel.loadGrid()" href="javascript:;">
-            <i class="fa fa-refresh"></i>
+            <!-<i class="fa fa-refresh"></i>->
+            <i class="sidebar-icon icon-refresh"></i>            
         </a>
-    </h3>
+    </h3>-->
+    <div class="panel-body">
+		<div class="table-responsive" ng-show="viewModel.hasRecords">
+            <table id="jqGrid"></table>
+            <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
+            <div id="jqGridPager"></div>
+        </div>
 
-    <table id="jqGrid"></table>
-    <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
-    <div id="jqGridPager"></div>
+        <div ng-hide="viewModel.hasRecords" class="alert alert-info">
+            no records found.
+        </div>
+
+    </div>
 </div>
-
-
-<div ng-hide="viewModel.hasRecords" class="alert alert-info">
-    no records found.
 </div>
-
 

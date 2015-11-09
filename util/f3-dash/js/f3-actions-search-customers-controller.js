@@ -11,13 +11,35 @@
 
 
 
-    function SearchCustomersController(f3Store, $http) {
+    function SearchCustomersController(f3Store, f3Utility, $http) {
         console.log('SearchCustomersController');
              
         var _self = this;
         this.store = f3Store;
         this.customerId = '';
         this.searchCompleted = false;
+        var viewModel = this;
+
+        // <jq-grid config="viewModel.customers.config" data="viewModel.customers.data"></jq-grid>
+        viewModel.customers = {
+            loading: false,
+            data: [],
+            hasData: !!this.data,
+            loadData: function(){
+
+                viewModel.customers.loading = true;
+                var apiUrl = location.href.replace(location.hash, '') + '&method=getCustomers';
+                apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
+
+                $http.get(apiUrl)
+                    .success(function(response) {
+                        console.log('response: ', response);
+                        viewModel.customers.loading = false;
+                        viewModel.customers.data = response;
+                        viewModel.customers.hasData = !!response;
+                    });
+            }
+        };
 
 
         this.search = function() {
@@ -28,7 +50,9 @@
             console.log(_self.customerId);
 
             var apiUrl = location.href.replace(location.hash, '') +
-                '&method=searchCustomer&record_id=' + _self.customerId + '&store_id' + f3Store.id;
+                '&method=searchCustomer&record_id=' + _self.customerId;
+
+            apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
 
             $http.get(apiUrl)
                 .success(function(response) {
@@ -45,6 +69,9 @@
                 });
 
         };
+
+
+        viewModel.customers.loadData();
 
     }
 

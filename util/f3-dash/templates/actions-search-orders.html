@@ -1,6 +1,7 @@
 
 <h2 class="view-heading">Search Sales Orders</h2>
 
+
 <div class="panel panel-default">
 
     <div class="panel-title">
@@ -8,23 +9,24 @@
     </div>
 
     <div class="panel-body">
-        <div class="form-horizontal">
+        <div class="form-horizontal padtop_30 padbot_15">
 
             <div class="row">
-                <div class="col-sm-6">
-                    <div class="form-group">
-                        <label for="salesorder_id" class="control-label col-sm-3">Sales Order Id</label>
-                        <div class="col-sm-9">
-                            <input type="text" class="form-control salesorder-id-text"
-                                   id="salesorder_id"
-                                   name="salesorder_id"
-                                   ng-enter="viewModel.search()"
-                                   ng-model="viewModel.salesorderId" />
-                        </div>
+                <div class="col-sm-8 form-group">
+                    <label for="salesorder_id" class="control-label col-sm-3">Sales Order Id</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control salesorder-id-text"
+                               id="salesorder_id"
+                               name="salesorder_id"
+                               ng-enter="viewModel.search()"
+                               ng-model="viewModel.salesorderId" />
                     </div>
                 </div>
-                <div class="col-sm-6">
-                    <button type="button" ng-click="viewModel.search()" class="btn btn-primary btn-submit">Go <i class="fa fa-arrow-right"></i></button>
+                <div class="col-sm-8">
+                    <label for="salesorder_id" class="control-label col-sm-3">&nbsp;</label>
+					<div class="col-sm-9 padleft_0">
+                        <button type="button" ng-click="viewModel.search()" class="btn btn-primary btn-submit">Go <!--<i class="fa fa-arrow-right"></i>--></button>
+                    </div>
                 </div>
             </div>
 
@@ -45,3 +47,63 @@
     </div>
 
 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <i class="fa fa-tasks"></i> &nbsp; 
+        Recent Sales Orders
+          &nbsp; &nbsp;
+        <a ng-click="viewModel.salesorders.loadData()" href="javascript:;">
+            <i class="fa fa-refresh" ng-class="{'fa-spin': viewModel.salesorders.loading }"></i>
+        </a>
+
+    </div>
+    <div class="panel-body">
+                  
+        <div ng-show="viewModel.salesorders.hasData">
+            <div class=table-responsive>
+                <table class="table ">
+                    <thead>
+                        <tr>
+                            <th>Last Modified Date</th>
+                            <th>Sales Order #</th>
+                            <th>NS Internal Id</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="item in viewModel.salesorders.data">
+                            <td>{{ item.lastmodifieddate }}</td>
+                            <td>{{ item.tranid }}</td>
+                            <td>
+                                <a ng-href="/app/accounting/transactions/salesord.nl?id={{ item.id }}" target="_blank">
+                                    {{ item.id }}
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div ng-hide="viewModel.salesorders.hasData" class="alert alert-info">
+            no records found.
+        </div>
+
+    </div>
+</div>
+
+
+
+
+
