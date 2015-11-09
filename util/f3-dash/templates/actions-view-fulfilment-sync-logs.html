@@ -2,7 +2,8 @@
 <h2 class="view-heading">Fulfillments Synchronization Logs
 		&nbsp; &nbsp;
         <a ng-click="viewModel.loadGrid()" href="javascript:;">
-            <i class="fa fa-refresh"></i>
+            <!--<i class="fa fa-refresh"></i>-->
+            <i class="sidebar-icon icon-refresh" ng-class="{'fa-spin': viewModel.loading }"></i>
         </a>
 </h2>
 
@@ -12,14 +13,14 @@
 <div class="panel panel-default">
   <div class="panel-heading"><i class="fa fa-filter"></i> &nbsp; Filters</div>
   <div class="panel-body">
-  	<div class="form-horizontal">
+  	<div class="form-horizontal padbot_15">
   		<div class="row">
 
   			<div class="form-group col-sm-5">
-  				<label class="control-label col-sm-3">
+  				<label class="control-label col-sm-4">
   					Type
   				</label>
-  				<div class="col-sm-9">
+  				<div class="col-sm-8">
   					<select class="form-control" ng-model="viewModel.filters.logType">
   						<option value="">-- All --</option>
   						<option value="DEBUG">Debug</option>
@@ -32,23 +33,22 @@
 
 
   			<div class="form-group col-sm-5">
-  				<label class="control-label col-sm-3">
+  				<label class="control-label col-sm-4">
   					Date Range
   				</label>
-  				<div class="col-sm-9">
-  					<div class="row">
-	  					<div class="col-sm-6">
-	  						<input type="text" class="form-control" ng-model="viewModel.filters.startDate" placeholder="mm/dd/yyyy" />
-	  					</div>
-	  					<div class="col-sm-6">
-	  						<input type="text" class="form-control" ng-model="viewModel.filters.endDate" placeholder="mm/dd/yyyy" />
-	  					</div>
-  					</div>
+  				<div class="col-sm-8">
+                    <div class="row col-sm-12 mid_col">
+                        <input type="text" class="form-control col_left" ng-model="viewModel.filters.startDate" placeholder="mm/dd/yyyy" />
+                        <input type="text" class="form-control col_right" ng-model="viewModel.filters.endDate" placeholder="mm/dd/yyyy" />
+                    </div>
   				</div>
   			</div>
 
-			<div class="form-group col-sm-2">
-  				<button type="button" ng-click="viewModel.filter()" class="btn btn-primary">Filter</button>
+			<div class="form-group col-sm-5">
+  				<label class="control-label col-sm-4">&nbsp;</label>
+  				 <div class="col-sm-8">
+                    <button type="button" ng-click="viewModel.filter()" class="btn btn-primary">Filter</button>
+                </div>
   			</div>
 
   		</div>
@@ -57,14 +57,23 @@
 </div>
 
 
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <i class="fa fa-tasks"></i> &nbsp; Results &nbsp; &nbsp;
+    </div>
+    <div class="panel-body">
+		  <div class="table-responsive" ng-show="viewModel.hasRecords">
+            <div >
+                <table id="jqGrid"></table>
+                <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
+                <div id="jqGridPager"></div>
+            </div>
+        </div>
 
-<div ng-show="viewModel.hasRecords">
-    <table id="jqGrid"></table>
-    <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
-    <div id="jqGridPager"></div>
+        <div ng-hide="viewModel.hasRecords" class="alert alert-info">
+          no records found.
+      </div>
+    </div>
 </div>
 
 
-<div ng-hide="viewModel.hasRecords" class="alert alert-info">
-    no records found.
-</div>

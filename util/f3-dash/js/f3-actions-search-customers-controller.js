@@ -50,7 +50,9 @@
             console.log(_self.customerId);
 
             var apiUrl = location.href.replace(location.hash, '') +
-                '&method=searchCustomer&record_id=' + _self.customerId + '&store_id' + f3Store.id;
+                '&method=searchCustomer&record_id=' + _self.customerId;
+
+            apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
 
             $http.get(apiUrl)
                 .success(function(response) {

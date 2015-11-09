@@ -45,6 +45,9 @@ var ConnectorDashboardApi = (function () {
                 case 'getCustomers':
                     return this.getCustomers(request, response);
                     break;
+                case 'getItems':
+                    return this.getItems(request, response);
+                    break;
 
 
                 case 'importSalesOrder':
@@ -166,7 +169,7 @@ var ConnectorDashboardApi = (function () {
                 cols.push(new nlobjSearchColumn('custbody_magentoid').setLabel('externalSystemRecordId'));
             }
             else if ( recordType === 'customer') {
-                var searchText = '[{"StoreId":"'+ storeId +'"';
+                var searchText = '{"StoreId":"'+ storeId +'"';
                 filters.push(new nlobjSearchFilter('custentity_magento_custid', null, 'contains', searchText));
                 cols.push(new nlobjSearchColumn('companyname'));
                 cols.push(new nlobjSearchColumn('email'));
@@ -176,6 +179,13 @@ var ConnectorDashboardApi = (function () {
                 cols.push(new nlobjSearchColumn('custentity_magento_custid'));
                 cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
                 cols.push(new nlobjSearchColumn('entitystatus'));
+            }
+            else if(recordType === 'item') {
+                var searchText = '{"StoreId":"'+ storeId +'"';
+                filters.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoId, null, 'contains', searchText));
+                cols.push(new nlobjSearchColumn('itemid'));
+                cols.push(new nlobjSearchColumn('displayname'));
+                cols.push(new nlobjSearchColumn('modified').setSort(true));
             }
 
             var results = nlapiSearchRecord(recordType, null, filters, cols);
@@ -195,25 +205,17 @@ var ConnectorDashboardApi = (function () {
             var storeId = request.getParameter('store_id');
 
             return this.getExternalSystemRecords('customer', storeId);
-
-            // var filters = [];
-            // var cols = [];
-
-            // filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', storeId));
-            // cols.push(new nlobjSearchColumn('tranid'));
-
-            // var results = nlapiSearchRecord('salesorder', null, filters, cols);
-            // if (results != null && results.length > 0) {
-            //     finalResponse = ConnectorCommon.getObjects(results);
-            // }
-
-            // return finalResponse;
-
-            // var storeId = request.getParameter('store_id');
-            // var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_so_by_store',
-            //                         'custbody_f3mg_magento_store');
-            // return finalResponse;
         },
+
+        getItems: function(request, response) {
+
+            var storeId = request.getParameter('store_id');
+
+            return this.getExternalSystemRecords('item', storeId);
+        },
+
+
+
 
         getItemsCount: function(request, response) {
             var storeId = request.getParameter('store_id');
@@ -463,13 +465,13 @@ var ConnectorDashboardApi = (function () {
 
             //filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', storeId));
 
-            if (recordType == 'salesorder') {
+            if (recordType === 'salesorder') {
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'is', recordId.trim()));
             }
-            else if (recordType == 'cashrefund') {
+            else if (recordType === 'cashrefund') {
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId, null, 'is', recordId.trim()));
             }
-            if (recordType == 'customer') {
+            else if (recordType === 'customer') {
                 var searchFormat = ConnectorConstants.MagentoIdFormat;
                 searchFormat = searchFormat.replace(/<STOREID>/gi, storeId);
                 searchFormat = searchFormat.replace(/<MAGENTOID>/gi, recordId);
