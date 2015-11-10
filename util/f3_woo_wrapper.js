@@ -1448,13 +1448,13 @@ WooWrapper = (function () {
             return paymentInfo;
         },
 
-/**
+        /**
          * Create refund in wocommerce
          * @param sessionID
          * @param netsuiteRefundObj
          * @param store
          */
-        createCustomerRefund: function(sessionID, cashRefund, store) {
+        createCustomerRefund: function (sessionID, cashRefund, store) {
             // To be implement later
             var responseBody = {};
             responseBody.status = 1;
@@ -1478,6 +1478,115 @@ WooWrapper = (function () {
                 obj.paymentMethod = defaultMagentoPaymentMethod;
             }
             return obj;
+        },
+
+        getNsProductIdsByExtSysIds: function (magentoIds, enviornment) {
+            var cols = [];
+            var filterExpression = "";
+            var resultArray = [];
+            var result = {};
+            var magentoIdId;
+
+            if (enviornment === 'production') {
+                magentoIdId = 'custitem_magentoid';
+            } else {
+                //magentoIdId = 'custitem_magento_sku';
+                magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
+            }
+
+            result.errorMsg = '';
+
+            try {
+                /*filterExpression = "[[";
+                 for (var x = 0; x < magentoIds.length; x++) {
+                 // multiple store handling
+                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
+                 if ((x + 1) < magentoIds.length) {
+                 filterExpression = filterExpression + ",'or' ,";
+                 }
+                 }
+                 filterExpression = filterExpression + ']';
+                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
+                 Utility.logDebug(' filterExpression', filterExpression);
+                 filterExpression = eval(filterExpression);
+                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
+
+                filterExpression = "[[";
+                for (var x = 0; x < magentoIds.length; x++) {
+                    // multiple store handling
+                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                    if ((x + 1) < magentoIds.length) {
+                        filterExpression = filterExpression + ",'or' ,";
+                    }
+                }
+                filterExpression = filterExpression + ']';
+                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                Utility.logDebug(' filterExpression', filterExpression);
+                filterExpression = eval(filterExpression);
+                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));
+                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+
+                if (recs && recs.length > 0) {
+                    for (var i = 0; i < recs.length; i++) {
+                        var obj = {};
+                        obj.internalId = recs[i].getId();
+
+                        var itemid = recs[i].getValue('itemid');
+                        if (!Utility.isBlankOrNull(itemid)) {
+                            var itemidArr = itemid.split(':');
+                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        }
+                        obj.magentoID = itemid;
+                        resultArray[resultArray.length] = obj;
+                    }
+                }
+                result.data = resultArray;
+            } catch (ex) {
+                Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);
+                result.errorMsg = ex.toString();
+            }
+            return result;
+        },
+        /**
+         * Get Shopify Item Ids by NetSuite Item Ids
+         * @param itemIdsArr
+         * @return {Object}
+         */
+        getExtSysItemIdsByNsIds: function (itemIdsArr) {
+            var magentoItemIds = {};
+
+            if (itemIdsArr.length > 0) {
+                var fils = [];
+                var cols = [];
+                var result;
+
+                fils.push(new nlobjSearchFilter('internalid', null, 'anyof', itemIdsArr, null));
+                cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));// this is purest specific
+
+                result = nlapiSearchRecord('item', null, fils, cols) || [];
+
+                if (result.length > 0) {
+                    for (var i in result) {
+                        var magentoId = result[i].getValue('itemid');
+                        magentoId = magentoId.split(':');
+                        magentoItemIds[result[i].getId()] = (magentoId[magentoId.length - 1]).trim();
+                        /*
+                         This logic will work for Magento and WOO b/c custom field contains product id
+                         in other systems as well as with Shopify
+                         var magentoId = result[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                         magentoId = !Utility.isBlankOrNull(magentoId) ? JSON.parse(magentoId) : [];
+                         magentoId = ConnectorCommon.getMagentoIdFromObjArray(magentoId, ConnectorConstants.CurrentStore.systemId);
+                         magentoItemIds[result[i].getId()] = magentoId;
+                         */
+                    }
+                }
+            }
+
+            return magentoItemIds;
         }
     };
 

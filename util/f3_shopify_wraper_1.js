@@ -438,17 +438,16 @@ ShopifyWrapper = (function () {
      * @returns {object}
      */
     function getBillingAddress(address) {
-        var data = WOOModels.billingAddress();
+        var data = ShopifyModels.billingAddress();
         data.first_name = address.firstname || "";
         data.last_name = address.lastname || "";
         data.company = address.company || "";
         data.address_1 = address.street1 || "";
         data.address_2 = address.street2 || "";
         data.city = address.city || "";
-        data.state = address.region || "";
-        data.postcode = address.postcode || "";
+        data.province = address.region || "";
+        data.zip = address.postcode || "";
         data.country = address.country || "";
-        data.email = "";
         data.phone = address.telephone || "";
         return data;
     }
@@ -459,16 +458,17 @@ ShopifyWrapper = (function () {
      * @returns {object}
      */
     function getShippingAddress(address) {
-        var data = WOOModels.shippingAddress();
+        var data = ShopifyModels.shippingAddress();
         data.first_name = address.firstname || "";
         data.last_name = address.lastname || "";
         data.company = address.company || "";
         data.address_1 = address.street1 || "";
         data.address_2 = address.street2 || "";
         data.city = address.city || "";
-        data.state = address.region || "";
-        data.postcode = address.postcode || "";
+        data.province = address.region || "";
+        data.zip = address.postcode || "";
         data.country = address.country || "";
+        data.phone = address.telephone || "";
         return data;
     }
 
@@ -509,18 +509,18 @@ ShopifyWrapper = (function () {
      */
     function getCustomerData(customerRecord, type) {
         var data = {};
-        data.customer = WOOModels.customer();
+        data.customer = ShopifyModels.customer();
         data.customer.email = customerRecord.email;
         data.customer.first_name = customerRecord.firstname;
         data.customer.last_name = customerRecord.lastname;
-        if (type.toString() === "create") {
+        /*if (type.toString() === "create") {
             data.customer.password = customerRecord.password || "";
         } else {
             delete data.customer.username;
-        }
+        }*/
         var defaultAddresses = getDefaultAddresses(customerRecord);
-        data.customer.billing_address = defaultAddresses.shippingAddress;
-        data.customer.shipping_address = defaultAddresses.billingAddress;
+        data.customer.addresses.push(defaultAddresses.shippingAddress);
+        data.customer.addresses.push(defaultAddresses.billingAddress);
         return data;
     }
 
@@ -537,8 +537,9 @@ ShopifyWrapper = (function () {
             var itemObj = {};
             // TODO: change sku with product_id if not work
             //itemObj.product_id = 8
-            itemObj.sku = item.sku;
+            itemObj.variant_id = item.sku;
             itemObj.quantity = item.quantity;
+            itemObj.price = item.price;
             lineItems.push(itemObj);
         }
         return lineItems;
@@ -550,7 +551,7 @@ ShopifyWrapper = (function () {
      * @returns {*|{first_name, last_name, company, address_1, address_2, city, state, postcode, country, email, phone}}
      */
     function getSalesOrderBillingAddress(orderRecord) {
-        var billingAddress = WOOModels.billingAddress();
+        var billingAddress = ShopifyModels.billingAddress();
         var addresses = orderRecord.customer.addresses;
         for (var i in addresses) {
             var address = addresses[i];
@@ -558,13 +559,12 @@ ShopifyWrapper = (function () {
                 billingAddress.first_name = address.firstName || "";
                 billingAddress.last_name = address.lastName || "";
                 billingAddress.company = address.company || "";
-                billingAddress.address_1 = address.street || "";
-                billingAddress.address_2 = "";
+                billingAddress.address1 = address.street || "";
+                billingAddress.address2 = "";
                 billingAddress.city = address.city || "";
-                billingAddress.state = address.stateId || "";
-                billingAddress.postcode = address.zipCode || "";
-                billingAddress.country = address.country || "";
-                billingAddress.email = "";
+                billingAddress.province_code = address.stateId || "";
+                billingAddress.zip = address.zipCode || "";
+                billingAddress.country_code = address.country || "";
                 billingAddress.phone = address.telephone || "";
             }
         }
@@ -577,7 +577,7 @@ ShopifyWrapper = (function () {
      * @returns {*|{first_name, last_name, company, address_1, address_2, city, state, postcode, country}}
      */
     function getSalesOrderShippingAddress(orderRecord) {
-        var shippingAddress = WOOModels.shippingAddress();
+        var shippingAddress = ShopifyModels.shippingAddress();
         var addresses = orderRecord.customer.addresses;
         for (var i in addresses) {
             var address = addresses[i];
@@ -585,12 +585,13 @@ ShopifyWrapper = (function () {
                 shippingAddress.first_name = address.firstName || "";
                 shippingAddress.last_name = address.lastName || "";
                 shippingAddress.company = address.company || "";
-                shippingAddress.address_1 = address.street || "";
-                shippingAddress.address_2 = "";
+                shippingAddress.address1 = address.street || "";
+                shippingAddress.address2 = "";
                 shippingAddress.city = address.city || "";
-                shippingAddress.state = address.stateId || "";
-                shippingAddress.postcode = address.zipCode || "";
-                shippingAddress.country = address.country || "";
+                shippingAddress.province_code = address.stateId || "";
+                shippingAddress.zip = address.zipCode || "";
+                shippingAddress.country_code = address.country || "";
+                shippingAddress.phone = address.telephone || "";
             }
         }
         return shippingAddress;
@@ -605,9 +606,10 @@ ShopifyWrapper = (function () {
         var shippingLines = [];
         var shippingInfo = orderRecord.shipmentInfo;
         shippingLines.push({
-            method_id: "flat_rate",
-            method_title: "Flat Rate",
-            total: shippingInfo.shipmentCost
+            //source: "shopify",
+            code: shippingInfo.shipmentMethod,
+            title: shippingInfo.shipmentMethod,
+            price: shippingInfo.shipmentCost
         });
         return shippingLines;
     }
@@ -633,9 +635,13 @@ ShopifyWrapper = (function () {
      */
     function getSalesOrderData(orderRecord) {
         var data = {};
-        data.order = WOOModels.salesOrder();
+        data.order = ShopifyModels.salesOrder();
+
+        data.order.email = orderRecord.customer.email;
+        data.order.financial_status = "pending";// todo generalize if necessary
+
         // set customer
-        data.order.customer_id = orderRecord.customer.customerId;
+        data.order.customer.id = orderRecord.customer.customerId;
         // set products in main object
         data.order.line_items = getSalesOrderLineItems(orderRecord);
         // set billing address
@@ -645,7 +651,7 @@ ShopifyWrapper = (function () {
         // set shipping lines
         data.order.shipping_lines = getSalesOrderShippingLines(orderRecord);
         // set payment details
-        data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
+        //data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
         return data;
     }
 
@@ -874,7 +880,7 @@ ShopifyWrapper = (function () {
     }
 
     function parseSingleProductVariantResponse(variant) {
-        var variantObj = WOOModels.variant();
+        var variantObj = ShopifyModels.variant();
         variantObj.id = variant.id;
         variantObj.product_id = variant.product_id;
         variantObj.title = variant.title;
@@ -900,6 +906,15 @@ ShopifyWrapper = (function () {
         variantObj.weight = variant.weight;
         variantObj.weight_unit = variant.weight_unit;
         return variantObj;
+    }
+
+    function getOrderLineIdData(lineItems){
+        var data = {};
+        for(var i in lineItems){
+            var lineItem = lineItems[i];
+            data[lineItem.sku] = lineItem.variant_id.toString();
+        }
+        return data;
     }
 
     //endregion
@@ -1058,21 +1073,11 @@ ShopifyWrapper = (function () {
          * @param sessionID
          * @param productId
          * @param isParent
-         * @param shopifyProduct
-         * @param matrixType
          * @returns {{status: boolean, faultCode: string, faultString: string}}
          */
-        updateItem: function (product, sessionID, productId, isParent, shopifyProduct, matrixType) {
+        updateItem: function (product, sessionID, productId, isParent) {
             var serverFinalResponse = null;
-
-            // if the item is matrix child then update by variant id
-            if (matrixType === "CHILD") {
-                serverFinalResponse = this.updateVariant(product, productId);
-            } else {
-                // update by product id
-                serverFinalResponse = this.updateProduct(product, sessionID, productId, isParent, shopifyProduct);
-            }
-
+            serverFinalResponse = this.updateVariant(product, productId);
             return serverFinalResponse;
         },
 
@@ -1080,10 +1085,9 @@ ShopifyWrapper = (function () {
          * Gets Product from the server
          * @param sessionID
          * @param product
-         * @param matrixType
          * @returns {*}
          */
-        getProduct: function (sessionID, product, matrixType) {
+        getProduct: function (sessionID, product) {
             var serverResponse = null;
             // Make Call and Get Data
             var serverFinalResponse = {
@@ -1092,13 +1096,6 @@ ShopifyWrapper = (function () {
                 faultString: '',
                 product: {}
             };
-
-            // for matrix child product
-            if(matrixType === "CHILD"){
-                serverFinalResponse.product.id = product.magentoSKU;
-                serverFinalResponse.status = true;
-                return serverFinalResponse;
-            }
 
             var httpRequestData = {
                 additionalUrl: 'products/' + product.magentoSKU + '.json',
@@ -1261,7 +1258,7 @@ ShopifyWrapper = (function () {
         },
 
         /**
-         * This method create a sales order to WOO
+         * This method create a sales order to Shopify
          * @param internalId
          * @param orderRecord
          * @param store
@@ -1270,7 +1267,7 @@ ShopifyWrapper = (function () {
          */
         createSalesOrder: function (internalId, orderRecord, store, sessionId) {
             var httpRequestData = {
-                url: 'orders',
+                additionalUrl: 'orders.json',
                 method: 'POST',
                 postData: getSalesOrderData(orderRecord)
             };
@@ -1289,16 +1286,16 @@ ShopifyWrapper = (function () {
             }
             if (!!serverResponse && serverResponse.order) {
                 var order = serverResponse.order;
-                if (!!order) {
-                    serverFinalResponse.incrementalIdData = {};
-                    serverFinalResponse.incrementalIdData.orderIncrementId = order.order_number.toString();
-                }
+                serverFinalResponse.incrementalIdData = {};
+                serverFinalResponse.incrementalIdData.orderIncrementId = order.id.toString();
+                serverFinalResponse.magentoOrderLineIdData = getOrderLineIdData(order.line_items);
                 // No need to set Line Items Ids here
             }
             // If some problem
             if (!serverFinalResponse.status) {
                 serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
             }
+            return serverFinalResponse;
         },
 
         /**
@@ -1306,7 +1303,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         hasDifferentLineItemIds: function () {
-            return false;
+            return true;
         },
         /**
          * This method create or update a customer to WOO
@@ -1318,8 +1315,8 @@ ShopifyWrapper = (function () {
         upsertCustomer: function (customerRecord, store, type) {
             // handling of endpoints for update or create customer
             var httpRequestData = {
-                url: 'customers' + (type.toString() === "update" ? "/" + customerRecord.magentoId : ""),
-                method: 'POST',
+                additionalUrl: 'customers' + (type.toString() === "update" ? "/" + customerRecord.magentoId : "") + ".json",
+                method: (type.toString() === "update") ? 'PUT' : "POST",
                 postData: getCustomerData(customerRecord, type)
             };
             var serverResponse = null;
@@ -1732,6 +1729,115 @@ ShopifyWrapper = (function () {
             }
 
             return serverFinalResponse;
+        },
+        /**
+         * This method returns the item map between NetSuite and Shopify Wrapper
+         * @param magentoIds
+         * @return {Object}
+         */
+        getNsProductIdsByExtSysIds: function (magentoIds) {
+            var cols = [];
+            var filterExpression = "";
+            var resultArray = [];
+            var result = {};
+            var magentoIdId;
+
+            magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
+            result.errorMsg = '';
+
+
+            try {
+                /*filterExpression = "[[";
+                 for (var x = 0; x < magentoIds.length; x++) {
+                 // multiple store handling
+                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
+                 if ((x + 1) < magentoIds.length) {
+                 filterExpression = filterExpression + ",'or' ,";
+                 }
+                 }
+                 filterExpression = filterExpression + ']';
+                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
+                 Utility.logDebug(' filterExpression', filterExpression);
+                 filterExpression = eval(filterExpression);
+                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
+
+                filterExpression = "[[";
+                for (var x = 0; x < magentoIds.length; x++) {
+                    // multiple store handling
+                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                    if ((x + 1) < magentoIds.length) {
+                        filterExpression = filterExpression + ",'or' ,";
+                    }
+                }
+                filterExpression = filterExpression + ']';
+                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                Utility.logDebug(' filterExpression', filterExpression);
+                filterExpression = eval(filterExpression);
+                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));
+                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+
+                if (recs && recs.length > 0) {
+                    for (var i = 0; i < recs.length; i++) {
+                        var obj = {};
+                        obj.internalId = recs[i].getId();
+
+                        var itemid = recs[i].getValue('itemid');
+                        if (!Utility.isBlankOrNull(itemid)) {
+                            var itemidArr = itemid.split(':');
+                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        }
+                        obj.magentoID = itemid;
+                        resultArray[resultArray.length] = obj;
+                    }
+                }
+                result.data = resultArray;
+            } catch (ex) {
+                Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);
+                result.errorMsg = ex.toString();
+            }
+            return result;
+        },
+        /**
+         * Get Shopify Item Ids by NetSuite Item Ids
+         * @param itemIdsArr
+         * @param fieldType
+         * @return {Object}
+         */
+        getExtSysItemIdsByNsIds: function (itemIdsArr, fieldType) {
+            var magentoItemIds = {};
+
+            if (itemIdsArr.length > 0) {
+                var fils = [];
+                var cols = [];
+                var result;
+
+                fils.push(new nlobjSearchFilter('internalid', null, 'anyof', itemIdsArr, null));
+                cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));// this is purest specific
+
+                result = nlapiSearchRecord('item', null, fils, cols) || [];
+
+                if (result.length > 0) {
+                    for (var i in result) {
+                        var magentoId;
+                        if(fieldType === "ITEM_ID"){
+                            magentoId = result[i].getValue('itemid');
+                            magentoId = magentoId.split(':');
+                            magentoItemIds[result[i].getId()] = (magentoId[magentoId.length - 1]).trim();
+                        }else{
+                            magentoId = result[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                            magentoId = !Utility.isBlankOrNull(magentoId) ? JSON.parse(magentoId) : [];
+                            magentoId = ConnectorCommon.getMagentoIdFromObjArray(magentoId, ConnectorConstants.CurrentStore.systemId);
+                            magentoItemIds[result[i].getId()] = magentoId;
+                        }
+                    }
+                }
+            }
+
+            return magentoItemIds;
         }
     };
 

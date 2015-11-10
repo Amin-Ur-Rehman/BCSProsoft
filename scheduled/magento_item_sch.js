@@ -127,25 +127,26 @@ function getTierPriceDataObj(product) {
  * @param sessionID
  * @param isParent
  */
-function syncProduct(product, productRecordtype, product_id, sessionID, isParent, matrixType) {
+function syncProduct(product, productRecordtype, product_id, sessionID, isParent) {
     try {
         Utility.logDebug('Sync Product ', isParent);
         // check if Magento Item is in NetSuite
         if (!Utility.isBlankOrNull(product.magentoSKU)) {
             var magID = null;
-            var shopifyProduct;
-            var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product, matrixType);
-            if (response.status) {
-                magID = response.product.id;
-                // this for urgent fix for shopify - will rewrite this script
-                shopifyProduct = response.product;
+            if(ConnectorConstants.CurrentStore.entitySyncInfo.IdentifierType === "sku"){
+                var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product);
+                if (response.status) {
+                    magID = response.product.id;
+                }
+            }else{
+                magID = product.magentoSKU
             }
-            //var magID = product.magentoSKU;
+
             if (Utility.isBlankOrNull(magID)) {
                 Utility.logDebug('Product couldn\'t update', product.magentoSKU);
                 return;
             }
-            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent, shopifyProduct, matrixType);
+            var responseMagento = ConnectorConstants.CurrentWrapper.updateItem(product, sessionID, magID, isParent);
             // If due to some reason Magento item is unable to update
             // Send Email Magento Side error
             if (!responseMagento.status) {
@@ -331,13 +332,12 @@ function ws_soaftsubm(type) {
                             product.quantity = product.quatity;
 
                             var productRecordtype = records[j].getRecordType();
-                            var matrixType = itemRec.getFieldValue('matrixtype');
                             Utility.logDebug('checkpoint', '9');
                             Utility.logDebug('checkpoint', '11');
                             // if child matrix item
                             product.magentoSKU = magentoId;
                             Utility.logDebug('updating now... ', 'updating now... ');
-                            syncProduct(product, productRecordtype, product_id, sessionID, false, matrixType);
+                            syncProduct(product, productRecordtype, product_id, sessionID, false);
 
                             // handle script rescheduling
                             var usageRemaining = context.getRemainingUsage();

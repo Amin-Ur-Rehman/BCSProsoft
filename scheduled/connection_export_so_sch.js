@@ -217,7 +217,7 @@ var OrderExportHelper = (function () {
 
             try {
                 var itemId;
-                var sku;
+                var skuOrId;
                 var itemQty;
                 var itemPrice;
                 var line;
@@ -239,12 +239,17 @@ var OrderExportHelper = (function () {
                     }
                 }
 
-                // TODO: need to cater non-synced items
-                var magentoItemsMap = ConnectorCommon.getMagentoItemIds(itemIdsArr);
+                var magentoItemsMap = ConnectorConstants.CurrentWrapper.getExtSysItemIdsByNsIds(itemIdsArr);
 
                 for (line = 1; line <= totalLines; line++) {
                     itemId = orderRecord.getLineItemValue('item', 'item', line);
-                    sku = magentoItemsMap[itemId] || '';
+                    skuOrId = magentoItemsMap[itemId] || '';
+
+                    // Check for feature availability
+                    if (!skuOrId && !FeatureVerification.isPermitted(Features.EXPORT_SO_DUMMMY_ITEM, ConnectorConstants.CurrentStore.permissions)) {
+                        Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                        Utility.throwException("FEATURE_PERMISSION", Features.EXPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                    }
                     itemQty = orderRecord.getLineItemValue('item', 'quantity', line) || 0;
                     itemPrice = orderRecord.getLineItemValue('item', 'rate', line) || 0;
 
@@ -270,7 +275,7 @@ var OrderExportHelper = (function () {
 
                     var obj = {
                         itemId: itemId,
-                        sku: sku,
+                        sku: skuOrId,
                         quantity: itemQty,
                         price: itemPrice,
                         giftInfo: giftInfo
@@ -280,6 +285,7 @@ var OrderExportHelper = (function () {
             }
             catch (e) {
                 Utility.logException('OrderExportHelper.appendItemsInDataObject', e);
+                throw e;
             }
 
             orderDataObject.items = arr;
@@ -313,6 +319,10 @@ var OrderExportHelper = (function () {
             Utility.logDebug('key_shipmentMethod', shipmentMethod);
             obj.shipmentMethod = FC_ScrubHandler.findValue(system, "ShippingMethod", shipmentMethod);
             Utility.logDebug('value_shipmentMethod', obj.shipmentMethod);
+
+            if(shipmentMethod === obj.shipmentMethod){
+                obj.shipmentMethod = FC_ScrubHandler.findValue(system, "ShippingMethod", "DEFAULT");
+            }
 
             // set shipping cost in object
             var shipmentCost = orderRecord.getFieldValue('shippingcost') || '0';
@@ -367,7 +377,9 @@ var OrderExportHelper = (function () {
 
         /**
          * Gets a single Order
-         * @param parameter
+         * @param orderInternalId
+         * @param store
+         * @return {*}
          */
         getOrder: function (orderInternalId, store) {
             var orderDataObject = null;
@@ -401,6 +413,7 @@ var OrderExportHelper = (function () {
                 }
             } catch (e) {
                 Utility.logException('OrderExportHelper.getOrder', e);
+                throw e;
             }
             Utility.logDebug('getOrder', JSON.stringify(orderDataObject));
 
@@ -409,7 +422,8 @@ var OrderExportHelper = (function () {
 
         /**
          * Sets Magento Id in the Order record
-         * @param parameter
+         * @param magentoId
+         * @param orderId
          */
         setOrderExternalSystemId: function (magentoId, orderId) {
             try {
@@ -422,13 +436,16 @@ var OrderExportHelper = (function () {
 
         /**
          * Set Magento Orders Line Ids in Line Items
-         * @param orderData
+         * @param orderInternalId
+         * @param orderObject
+         * @param magentoOrderLineIdData
          */
         setExternalSystemOrderLineIds: function (orderInternalId, orderObject, magentoOrderLineIdData) {
             try {
                 //Utility.logDebug('orderData.items', JSON.stringify(orderObject.items));
                 var itemIdsArray = OrderExportHelper.getItemIdsArray(orderObject.items);
-                var lineItemData = ConnectorCommon.getMagentoItemIds(itemIdsArray);
+                //var lineItemData = ConnectorCommon.getMagentoItemIds(itemIdsArray);
+                var lineItemData = ConnectorConstants.CurrentWrapper.getExtSysItemIdsByNsIds(itemIdsArray, "ITEM_ID");
                 Utility.logDebug('lineItemData.skuArray', JSON.stringify(lineItemData));
                 var soRecord = nlapiLoadRecord('salesorder', orderInternalId);
                 for (var i = 1; i <= soRecord.getLineItemCount('item'); i++) {
@@ -437,7 +454,7 @@ var OrderExportHelper = (function () {
                     if (!!sku) {
                         var magentoOrderLineId = magentoOrderLineIdData[sku];
                         if (!!magentoOrderLineId) {
-                            soRecord.setLineItemValue('item', 'custcol_mg_order_item_id', i, magentoOrderLineId);
+                            soRecord.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, i, magentoOrderLineId);
                         }
                     }
                 }
@@ -467,7 +484,8 @@ var OrderExportHelper = (function () {
         },
         /**
          * Description of method setOrderMagentoSync
-         * @param parameter
+         * @param orderId
+         * @return {boolean}
          */
         setOrderMagentoSync: function (orderId) {
             var result = false;
@@ -608,7 +626,8 @@ var ExportSalesOrders = (function () {
 
         /**
          * sync customer belongs to current sales order if not synched to magento
-         * @param customer
+         * @param customerId
+         * @param externalSystemCustomerIds
          * @param store
          */
         processCustomer: function (customerId, externalSystemCustomerIds, store) {
@@ -720,6 +739,12 @@ var ExportSalesOrders = (function () {
                             Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_SO_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                             continue;
                         }
+                        // Check for feature availability
+                        if (FeatureVerification.isPermitted(Features.EXPORT_SO_DUMMMY_ITEM, ConnectorConstants.CurrentStore.permissions)) {
+                            ConnectorConstants.initializeDummyItem();
+                        } else {
+                            Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                        }
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
                         Utility.logDebug('debug', 'Step-2');
@@ -827,6 +852,7 @@ var ExportSalesOrders = (function () {
         /**
          * Reschedules only there is any need
          * @param context Context Object
+         * @param params Params Object
          * @returns {boolean} true if rescheduling was necessary and done, false otherwise
          */
         rescheduleIfNeeded: function (context, params) {

@@ -100,7 +100,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     products = salesOrderDetails.products;
 
                     Utility.logDebug('products', JSON.stringify(products));
-                    netsuiteMagentoProductMap = ConnectorCommon.getNetsuiteProductIdsByMagentoIds(products, 'pro');
+                    netsuiteMagentoProductMap = ConnectorConstants.CurrentWrapper.getNsProductIdsByExtSysIds(products);
 
                     //Utility.logDebug('stages_w', 'Step-e');
 
