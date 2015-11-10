@@ -96,6 +96,7 @@ var RemoveMagentoSO = (function () {
                     if (!FeatureVerification.isPermitted(Features.CANCEL_SO_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                         Utility.logEmergency('FEATURE PERMISSION', Features.CANCEL_SO_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                         response.write("Cancelling Sales Order to External System is not allowed.");
+                        return;
                     }
                     ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                     ConnectorConstants.CurrentWrapper.initialize(store);
