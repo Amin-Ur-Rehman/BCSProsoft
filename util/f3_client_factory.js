@@ -852,14 +852,17 @@ function F3BaseV1Client() {
                 }
             }
             else {
-                if (ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.setDummyItem) {
-                    Utility.logDebug('Set Dummy Item Id: ', ConnectorConstants.DummyItem.Id);
-                    rec.setLineItemValue('item', 'item', x + 1, ConnectorConstants.DummyItem.Id);
-                    isDummyItemSetInOrder = true;
-                    rec.setLineItemValue('item', 'amount', x + 1, '0');
-                    rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);
-                    rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
+                // Check for feature availability
+                if (!FeatureVerification.isPermitted(Features.IMPORT_SO_DUMMMY_ITEM, ConnectorConstants.CurrentStore.permissions)) {
+                    Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                    Utility.throwException("FEATURE_PERMISSION", Features.IMPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
                 }
+                Utility.logDebug('Set Dummy Item Id: ', ConnectorConstants.DummyItem.Id);
+                rec.setLineItemValue('item', 'item', x + 1, ConnectorConstants.DummyItem.Id);
+                isDummyItemSetInOrder = true;
+                rec.setLineItemValue('item', 'amount', x + 1, '0');
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);
+                rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
             }
 
             if (isSerial == 'T')
