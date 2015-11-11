@@ -13,7 +13,7 @@
     // TODO : need to implement inheritance to prevent duplicate code.
     // TODO : we should also consider moving server calls into separate angular services
 
-    function ExecuteItemSyncScriptController(f3Store, $http) {
+    function ExecuteItemSyncScriptController(f3Store, $http, $timeout) {
         console.log('ExecuteItemSyncScriptController');
 
         var viewModel = this;
@@ -118,6 +118,13 @@
                     viewModel.showLoadingIcon = false;
 
                     viewModel.loadGrid();
+
+                    var secondsToHideMessage = 5;
+                    $timeout(function(){
+                        viewModel.successMessage = null;
+                        viewModel.errorMessage = null;
+                        viewModel.executionStatus = null;
+                    }, secondsToHideMessage * 1000);
                 });
         };
     }

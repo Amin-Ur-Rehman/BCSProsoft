@@ -1,3 +1,12 @@
+<!--<div class="page-title">
+    <h3>Dashboard</h3>
+    <div class="page-breadcrumb">
+        <ol class="breadcrumb">
+            <li><a href="index.html">Home</a></li>
+            <li class="active">Dashboard</li>
+        </ol>
+    </div>
+</div>-->
 <div class="row alerts-container" data-ng-show=alerts.length>
     <div class=col-xs-12>
         <alert data-ng-repeat="alert in alerts" type={{alert.type}} close=closeAlert($index)>{{alert.msg}}</alert>
@@ -48,11 +57,10 @@
 
 <div class="panel panel-default" ng-init="viewModel.customers.loadData({limit: 5})"> 
     <div class="panel-heading">
-        <i class="fa fa-tasks"></i> &nbsp; 
-        Recent Customers
+        <i class="icon-users padright_10"></i>Recent Customers
           &nbsp; &nbsp;
         <a ng-click="viewModel.customers.loadData({limit: 5})" href="javascript:;">
-            <i class="fa fa-refresh" ng-class="{'fa-spin': viewModel.customers.loading }"></i>
+            <i class="sidebar-icon icon-refresh f16 right" ng-class="{'fa-spin': viewModel.customers.loading }"></i>
         </a>
 
     </div>
@@ -65,7 +73,7 @@
                         <tr>
                             <th>ID</th>
                             <th>Name</th>
-                            <th>Last Modified</th>
+                            <th>Modified</th>
                             
                         </tr>
                     </thead>
@@ -98,11 +106,10 @@
 
         <div class="panel panel-default" ng-init="viewModel.salesorders.loadData({limit: 5})">
             <div class="panel-heading">
-                <i class="fa fa-tasks"></i> &nbsp; 
-                Recent Sales Orders
+                <i class="icon-notebook padright_10"></i>Recent Sales Orders
                   &nbsp; &nbsp;
                 <a ng-click="viewModel.salesorders.loadData({limit: 5})" href="javascript:;">
-                    <i class="fa fa-refresh" ng-class="{'fa-spin': viewModel.salesorders.loading }"></i>
+                    <i class="sidebar-icon icon-refresh f16 right" ng-class="{'fa-spin': viewModel.salesorders.loading }"></i>
                 </a>
 
             </div>
@@ -114,8 +121,9 @@
                             <thead>
                                 <tr>
                                     <th>NS Order #</th>
-                                    <th>Imported Order #</th>
-                                    <th>Last Modified</th>
+                                    <!--<th>Imported Order #</th>-->
+                                    <th>Order #</th>
+                                    <th>Modified</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,11 +158,10 @@
 
         <div class="panel panel-default" ng-init="viewModel.items.loadData({limit: 5})">
             <div class="panel-heading">
-                <i class="fa fa-tasks"></i> &nbsp; 
-                Recent Items
+                <i class="icon-list padright_10"></i>Recent Items
                   &nbsp; &nbsp;
                 <a ng-click="viewModel.items.loadData({limit: 5})" href="javascript:;">
-                    <i class="fa fa-refresh" ng-class="{'fa-spin': viewModel.items.loading }"></i>
+                    <i class="sidebar-icon icon-refresh f16 right" ng-class="{'fa-spin': viewModel.items.loading }"></i>
                 </a>
 
             </div>
@@ -167,7 +174,7 @@
                                 <tr>
                                     <th>ID</th>
                                     <th>Item Name</th>
-                                    <th>Last Modified</th>
+                                    <th>Modified</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -203,7 +210,7 @@
 <div class="row">
     <div class="col-lg-12">
         <div class="panel panel-default">
-          <div class="panel-heading"><i class="fa fa-tasks"></i> &nbsp; Failed Sales Orders</div>
+          <div class="panel-heading"><i class="fa fa-tasks"></i>Failed Sales Orders</div>
           <div class="panel-body">
             <div class=table-responsive>
                     <table class="table" ng-if="!!viewModel.failedSalesOrders && !!viewModel.failedSalesOrders.length">

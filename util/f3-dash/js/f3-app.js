@@ -6,11 +6,12 @@
 
     'use strict';
 
-    angular.module("f3UC", [
-        "ui.bootstrap",
-        "ui.router",
-        "ngCookies",
-        "chart.js"
+    angular.module('f3UC', [
+        'ui.bootstrap',
+        'ui.router',
+        'ngCookies',
+        'chart.js',
+        'ngAnimate'
     ]);
 
 
@@ -95,6 +96,10 @@
 
         console.log('bindLinks(); // end');
     });
+
+
+
+    google.load("visualization", "1", {packages:["corechart"]});
 
 
 })();

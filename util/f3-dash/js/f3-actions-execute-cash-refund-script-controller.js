@@ -13,7 +13,7 @@
     // TODO : need to implement inheritance to prevent duplicate code.
     // TODO : we should also consider moving server calls into separate angular services
 
-    function ExecuteCashRefundScriptController(f3Store, $http){
+    function ExecuteCashRefundScriptController(f3Store, f3Utility, $http, $timeout){
         console.log('ExecuteCashRefundScriptController');
 
         var viewModel = this;
@@ -30,6 +30,54 @@
         };
 
         var _$grid = null;
+
+
+
+
+
+
+        viewModel.graphs = {};
+        viewModel.graphs.customers = {
+            loading: false,
+            data: [],
+            hasData: !!this.data,
+            loadData: function(options){
+
+                viewModel.graphs.customers.loading = true;
+                var apiUrl = location.href.replace(location.hash, '') + '&method=getCustomersGraph';
+                apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
+
+                $http.get(apiUrl)
+                    .success(function(response) {
+                        console.log('viewModel.graphs.customers.response: ', response);
+                        viewModel.graphs.customers.loading = false;
+
+                        options.limit = options.limit || response.length;
+                        var filtered = Array.prototype.slice.call(response, 0, options.limit);
+
+                        viewModel.graphs.customers.data = filtered;
+                        viewModel.graphs.customers.hasData = !!filtered;
+
+                        // https://developers.google.com/chart/interactive/docs/gallery/piechart
+                        var data = google.visualization.arrayToDataTable([
+                            ['Task', 'Hours per Day'],
+                            ['Work',     11],
+                            ['Eat',      2],
+                            ['Commute',  2],
+                            ['Watch TV', 2],
+                            ['Sleep',    7]
+                        ]);
+
+                        var chartOptions = {
+                            title: 'Top Revenue Customers'
+                        };
+
+                        var chart = new google.visualization.PieChart(document.getElementById('customers_pie_chart'));
+                        chart.draw(data, chartOptions);
+
+                    });
+            }
+        };
 
 
 
@@ -122,6 +170,14 @@
                     viewModel.showLoadingIcon = false;
 
                     viewModel.loadGrid();
+
+
+                    var secondsToHideMessage = 5;
+                    $timeout(function(){
+                        viewModel.successMessage = null;
+                        viewModel.errorMessage = null;
+                        viewModel.executionStatus = null;
+                    }, secondsToHideMessage * 1000);
                 });
         };
     }

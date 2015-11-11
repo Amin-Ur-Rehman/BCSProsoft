@@ -1,11 +1,5 @@
 
-<h2 class="view-heading">Sales Orders Synchronization Logs
-		&nbsp; &nbsp;
-        <a ng-click="viewModel.loadGrid()" href="javascript:;">
-            <!--<i class="fa fa-refresh"></i>-->
-            <i class="sidebar-icon icon-refresh" ng-class="{'fa-spin': viewModel.loading }"></i>
-        </a>
-</h2>
+<h2 class="view-heading">Sales Orders Synchronization Logs</h2>
 
 
 
@@ -60,7 +54,10 @@
 
 <div class="panel panel-default">
     <div class="panel-heading">
-        <i class="fa fa-tasks"></i> &nbsp; Results &nbsp; &nbsp;
+        <i class="icon-graph padright_10"></i>Sales Order Results &nbsp; &nbsp;
+        <a ng-click="viewModel.loadGrid()" href="javascript:;">
+            <i class="sidebar-icon icon-refresh f20" ng-class="{'fa-spin': viewModel.loading }"></i>
+        </a>
     </div>
     <div class="panel-body">
 		<div class="table-responsive" ng-show="viewModel.hasRecords">

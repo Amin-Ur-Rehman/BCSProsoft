@@ -18,9 +18,10 @@
     </div>
 
     <div ng-if="viewModel.executionStatus == 'INQUEUE'">
-        The script you requested is already in a queue and waiting to be run. This script cannot be requested
+        <!--The script you requested is already in a queue and waiting to be run. This script cannot be requested
         again until it finishes processing. If the script is INQUEUE,
-        you must try again later if you want to run the script.
+        you must try again later if you want to run the script.-->
+        The script you requested is already in a queue and waiting to be run.
     </div>
 
     <div ng-if="viewModel.executionStatus == 'INPROGRESS'">
@@ -44,13 +45,13 @@
 
 
 
-<div >
+<div ng-show="viewModel.hasRecords">
     <div class="panel panel-default">
         <div class="panel-heading">
         	<i class="fa fa-tasks"></i> &nbsp; Recent Synchronization History &nbsp; &nbsp;
             <a ng-click="viewModel.loadGrid()" href="javascript:;">
                 <!--<i class="fa fa-refresh"></i>-->
-                <i class="sidebar-icon icon-refresh" ng-class="{'fa-spin': viewModel.loading }"></i>            
+                <i class="sidebar-icon icon-refresh f20" ng-class="{'fa-spin': viewModel.loading }"></i>            
             </a>
             <a ui-sref="view-so-sync-logs" href="javascript:;" class="pull-right">
                 <h6>View Detailed Logs &nbsp;<i class="fa fa-angle-double-right"></i></h6>
@@ -68,18 +69,16 @@
         </a>
     </h3>-->
     <div class="panel-body">
-		<div class="table-responsive" ng-show="viewModel.hasRecords">
+		<div class=table-responsive>
             <table id="jqGrid"></table>
             <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
             <div id="jqGridPager"></div>
         </div>
-
-        <div ng-hide="viewModel.hasRecords" class="alert alert-info">
-            no records found.
-        </div>
-
     </div>
 </div>
 </div>
 
+<div ng-hide="viewModel.hasRecords" class="alert alert-info">
+    no records found.
+</div>
 

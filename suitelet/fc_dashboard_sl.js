@@ -39,6 +39,13 @@ var ConnectorDashboardApi = (function () {
                     break;
 
 
+
+                case 'getCustomersGraph':
+                    return this.getCustomersGraph(request, response);
+                    break;
+
+
+
                 case 'getSalesOrders':
                     return this.getSalesOrders(request, response);
                     break;
@@ -152,6 +159,13 @@ var ConnectorDashboardApi = (function () {
                 finalResponse = ConnectorCommon.getObjects(results);
             }
             return finalResponse;
+        },
+
+
+        getCustomersGraph: function(request, response){
+            var storeId = request.getParameter('store_id');
+
+            return this.getResultFromSavedSearch(storeId, 'customsearch_f3_graph_top_rev_cust');
         },
 
         getExternalSystemRecords : function(recordType, storeId) {
@@ -569,6 +583,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 1,
                                 group: 'Synchronize',
                                 groupIcon: 'icon-refresh',
+                                icon: 'icon-notebook',
                                 title: 'Sales Orders',
                                 url: "/salesorders",
                                 templateUrl: "/f3-dash/templates/actions-execute-so-sync-script.html",
@@ -581,6 +596,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 7,
                                 group: 'View Logs',
                                 groupIcon: 'icon-graph',
+                                icon: 'icon-notebook',
                                 title: 'Sales Orders',
                                 url: "/so-sync",
                                 templateUrl: "/f3-dash/templates/actions-view-so-sync-logs.html",
@@ -608,6 +624,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 4,
                                 group: 'Search',
                                 groupIcon: 'icon-magnifier',
+                                icon: 'icon-notebook',
                                 title: 'Sales Orders',
                                 url: "/salesorders",
                                 templateUrl: "/f3-dash/templates/actions-search-orders.html",
@@ -622,6 +639,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 5,
                                 group: 'Search',
                                 groupIcon: 'icon-magnifier',
+                                icon: 'icon-users',
                                 title: 'Customers',
                                 url: "/customers",
                                 templateUrl: "/f3-dash/templates/actions-search-customers.html",
@@ -636,6 +654,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 6,
                                 group: 'Search',
                                 groupIcon: 'icon-magnifier',
+                                icon: 'icon-action-undo',
                                 title: 'Cash Refunds',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-search-credit-memo.html",
@@ -650,8 +669,8 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 2,
                                 group: 'Synchronize',
                                 groupIcon: 'icon-refresh',
+                                icon: 'icon-list',
                                 title: 'Items',
-                                icon: 'fa fa-refresh',
                                 url: "/items",
                                 templateUrl: "/f3-dash/templates/actions-execute-item-sync-script.html",
                                 controller: 'ExecuteItemSyncScriptController',
@@ -665,6 +684,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 3,
                                 group: 'Synchronize',
                                 groupIcon: 'icon-refresh',
+                                icon: 'icon-action-undo',
                                 title: 'Cash Refunds',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-execute-cash-refund-script.html",
@@ -677,6 +697,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 8,
                                 group: 'View Logs',
                                 groupIcon: 'icon-graph',
+                                icon: 'icon-action-undo',
                                 title: 'Cash Refunds',
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-view-cash-refund-logs.html",
@@ -691,6 +712,7 @@ var ConnectorDashboardApi = (function () {
                                 menuOrder: 9,
                                 group: 'View Logs',
                                 groupIcon: 'icon-graph',
+                                icon: 'icon-trophy',
                                 title: 'Fulfillments',
                                 url: "/fulfillment-sync",
                                 templateUrl: "/f3-dash/templates/actions-view-fulfilment-sync-logs.html",
