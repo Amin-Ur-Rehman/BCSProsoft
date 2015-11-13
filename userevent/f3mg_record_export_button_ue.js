@@ -30,15 +30,26 @@ var RecordExportButtonUE = (function () {
                 var recordType = nlapiGetRecordType();
                 //Utility.logDebug('recordType', recordType);
                 var eligibleRecordTypes = ConnectorCommon.getEligibleRecordTypeForExportButton();
-                if(eligibleRecordTypes.indexOf(recordType) > -1) {
+                if (eligibleRecordTypes.indexOf(recordType) > -1) {
                     var context = nlapiGetContext();
                     var executionContext = context.getExecutionContext();
                     if (executionContext.toString() === 'userinterface') {
                         if (type.toString() === 'view') {
+                            // getting text value for external system in NetSuite record.
+                            var externalSystemText = nlapiGetFieldText(ConnectorConstants.Transaction.Fields.MagentoStore);
+                            externalSystemText = externalSystemText || nlapiGetFieldText(ConnectorConstants.PromoCode.Fields.MagentoStore);
+                            // getting value for external system id
+                            var externalSystemId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+                            externalSystemId = externalSystemId || nlapiGetFieldValue(ConnectorConstants.PromoCode.Fields.MagentoId);
+                            // donot show button if record is already synced
+                            if (!!externalSystemId || !externalSystemText) {
+                                return;
+                            }
+                            externalSystemText = externalSystemText || "External System";
                             var recordInternalId = nlapiGetRecordId();
                             var suiteletUrl = nlapiResolveURL('SUITELET', ConnectorConstants.SuiteScripts.Suitelet.GenericDataExport.id, ConnectorConstants.SuiteScripts.Suitelet.GenericDataExport.deploymentId);
                             var script = "var recordId = nlapiGetRecordId(); var recordType = nlapiGetRecordType(); var url = '" + suiteletUrl + "&recordId=" + recordInternalId + "&recordType=" + recordType + "'; window.open(url,'Processing','width=200,height=200');";
-                            form.addButton('custpage_btn_sync_to_magento', 'Sync To Magento', script);
+                            form.addButton('custpage_btn_sync_to_magento', 'Sync To ' + externalSystemText, script);
                         }
                     }
                 }

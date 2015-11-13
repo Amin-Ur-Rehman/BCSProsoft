@@ -25,7 +25,13 @@ var GenericDataExportManager = (function () {
                 var recordType = request.getParameter("recordType");
                 var result = this.exportData(recordId, recordType);
                 if (!!result && !!result.status) {
-                    response.write('Record has been exported to magento. Please close this popup.');
+                    var msg;
+                    if (result.hasOwnProperty("msg")) {
+                        msg = result.msg;
+                    } else {
+                        msg = "Record has been exported to magento. Please close this popup.";
+                    }
+                    response.write(msg);
                 } else {
                     response.write('Some error occurred during record export:<br /><br />' + result.error);
                 }
@@ -47,6 +53,9 @@ var GenericDataExportManager = (function () {
             }
             else if (recordType == ConnectorConstants.NSRecordTypes.PaymentTerm) {
                 result = this.exportPaymentTerm(recordId, recordType);
+            }
+            else if (recordType == ConnectorConstants.NSRecordTypes.SalesOrder) {
+                result = this.exportSalesOrder(recordId, recordType);
             }
 
             return result;
@@ -157,6 +166,48 @@ var GenericDataExportManager = (function () {
 
             var result = {
                 status: status,
+                error: error
+            };
+            return result;
+        },
+
+        exportSalesOrder: function (recordId, recordType) {
+            var status = true;
+            var error = '';
+            var msg = '';
+            try {
+                var orderData = nlapiLookupField(recordType, recordId, [ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.Transaction.Fields.MagentoId]);
+
+                if (!!orderData[ConnectorConstants.Transaction.Fields.MagentoId]) {
+                    msg = "Sales Order is already synced. Please close the window.";
+                }
+                else if (!!orderData[ConnectorConstants.Transaction.Fields.MagentoStore]) {
+                    msg = "Please select External System first. Please close the window. ";
+                } else {
+                    var data = {};
+                    data[RecordsToSync.FieldName.RecordId] = recordId;
+                    data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+                    data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+                    data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+                    data[RecordsToSync.FieldName.ExternalSystem] = nlapiLookupField(recordType, recordId, ConnectorConstants.Transaction.Fields.MagentoStore);
+                    RecordsToSync.upsert(data);
+                    nlapiScheduleScript(ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.id, ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.deploymentId);
+                    msg = "Please close the window. Sales Order will be synced in few minutes.";
+                }
+            }
+            catch (ex) {
+                status = false;
+                if (ex instanceof nlobjError) {
+                    error = 'Code: ' + ex.getCode() + ',  Detail: ' + ex.getDetails();
+                } else {
+                    error = ex.toString();
+                }
+                nlapiLogExecution('ERROR', 'error in GenericDataExportManager.exportSalesOrder', error);
+            }
+
+            var result = {
+                status: status,
+                msg: msg,
                 error: error
             };
             return result;

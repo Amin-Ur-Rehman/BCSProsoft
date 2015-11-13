@@ -1484,7 +1484,8 @@ var ConnectorCommon = (function () {
             var eligibleRecordTypes = [
                 ConnectorConstants.NSRecordTypes.PromotionCode,
                 ConnectorConstants.NSRecordTypes.PriceLevel,
-                ConnectorConstants.NSRecordTypes.PaymentTerm
+                ConnectorConstants.NSRecordTypes.PaymentTerm,
+                ConnectorConstants.NSRecordTypes.SalesOrder
             ];
             return eligibleRecordTypes;
         },

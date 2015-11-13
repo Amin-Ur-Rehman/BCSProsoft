@@ -130,13 +130,18 @@ ConnectorConstants = (function () {
                 GiftCertificateExportToMagento: {
                     id: 'customscript_gift_certificate_export_sch',
                     deploymentId: 'customdeploy_gift_certificate_export_dep'
+                },
+                SalesOrderExportToExternalSystem: {
+                    id: 'customscript_salesorder_export',
+                    deploymentId: 'customdeploy_salesorder_export_using_cr'
                 }
             }
         },
         NSRecordTypes: {
             PromotionCode: 'promotioncode',
             PriceLevel: 'pricelevel',
-            PaymentTerm: 'term'
+            PaymentTerm: 'term',
+            SalesOrder: 'salesorder'
         },
         RetryAction: {
             Messages: {

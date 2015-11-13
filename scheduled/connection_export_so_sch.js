@@ -15,13 +15,40 @@
  */
 var OrderExportHelper = (function () {
     return {
-        /**
-         * Gets Orders based on the the Store Id
-         * @param allStores
-         * @param storeId
-         * @return {object[],[]}
-         */
-        getOrders: function (allStores, storeId) {
+        ordersFromCustomRecord: function () {
+            // if deployment id is this it means that we should fetch the orders from custom record instead searching blindly
+            return nlapiGetContext().getDeploymentId() === ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.deploymentId;
+        },
+        getSalesOrdersFromCustomRecord: function (allStores, storeId) {
+            var fils = [];
+            var searchResults = null;
+            var results = [];
+
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.RecordType, null, "is", "salesorder", null));
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Status, null, "is", RecordsToSync.Status.Pending, null));
+            if (!allStores) {
+                fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'is', storeId, null));
+            } else {
+                fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
+            }
+
+            searchResults = RecordsToSync.lookup(fils);
+
+            for (var i in searchResults) {
+                var searchResult = searchResults[i];
+                var recordId = searchResult.getValue(RecordsToSync.FieldName.RecordId);
+                if (!!recordId) {
+                    results.push({
+                        internalId: recordId,
+                        id: searchResult.getId()
+                    });
+                }
+            }
+
+            return results;
+        },
+
+        getOrdersByStore: function (allStores, storeId) {
             var filters = [];
             var records;
             var result = [];
@@ -79,6 +106,24 @@ var OrderExportHelper = (function () {
                     result.push(resultObject);
                 }
             }
+            return result;
+        },
+
+        /**
+         * Gets Orders based on the the Store Id
+         * @param allStores
+         * @param storeId
+         * @return {object[],[]}
+         */
+        getOrders: function (allStores, storeId) {
+            var result = null;
+
+            if (this.ordersFromCustomRecord()) {
+                result = this.getSalesOrdersFromCustomRecord(allStores, storeId);
+            } else {
+                result = this.getOrdersByStore(allStores, storeId);
+            }
+
             return result;
         },
         /**
@@ -320,7 +365,7 @@ var OrderExportHelper = (function () {
             obj.shipmentMethod = FC_ScrubHandler.findValue(system, "ShippingMethod", shipmentMethod);
             Utility.logDebug('value_shipmentMethod', obj.shipmentMethod);
 
-            if(shipmentMethod === obj.shipmentMethod){
+            if (shipmentMethod === obj.shipmentMethod) {
                 obj.shipmentMethod = FC_ScrubHandler.findValue(system, "ShippingMethod", "DEFAULT");
             }
 
@@ -761,12 +806,20 @@ var ExportSalesOrders = (function () {
 
                                 try {
                                     this.processOrder(orderObject, store);
+                                    if (OrderExportHelper.ordersFromCustomRecord()) {
+                                        RecordsToSync.markProcessed(orderObject.id, RecordsToSync.Status.Processed);
+                                    }
                                     context.setPercentComplete(Math.round(((100 * c) / orderIds.length) * 100) / 100);  // calculate the results
 
                                     // displays the percentage complete in the %Complete column on the Scheduled Script Status page
                                     context.getPercentComplete();  // displays percentage complete
                                 } catch (e) {
-                                    ExportSalesOrders.markRecords(orderObject.internalId, e.toString());
+                                    // this handling is for maintaining order ids in custom record
+                                    if (OrderExportHelper.ordersFromCustomRecord()) {
+                                        RecordsToSync.markProcessed(orderObject.id, RecordsToSync.Status.ProcessedWithError);
+                                    } else {
+                                        ExportSalesOrders.markRecords(orderObject.internalId, e.toString());
+                                    }
                                 }
                                 if (this.rescheduleIfNeeded(context, null)) {
                                     return null;

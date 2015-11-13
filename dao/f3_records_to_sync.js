@@ -22,7 +22,8 @@ var RecordsToSync = (function () {
             Action: 'custrecord_f3mg_rts_action',
             Status: 'custrecord_f3mg_rts_status',
             Data: 'custrecord_rectosyncdata',
-            Comments: 'custrecord_rectosyncproccomnts'
+            Comments: 'custrecord_rectosyncproccomnts',
+            ExternalSystem: 'custrecord_rts_external_system'
         },
         RecordTypes : {
             Customer: 'customer',
