@@ -241,6 +241,7 @@ ShopifyWrapper = (function () {
     /**
      * Parses Sales Order Response
      * @param serverResponse
+     * @param isOrderDetailsResponse
      * @returns {Array}
      */
     function parseSalesOrderResponse(serverResponse, isOrderDetailsResponse) {
@@ -338,7 +339,6 @@ ShopifyWrapper = (function () {
         return finalResult;
     }
 
-
     function parseFulfillmentResponse(serverResponse) {
         var finalResult = {
             isOrderStatusCompleted: false
@@ -358,7 +358,6 @@ ShopifyWrapper = (function () {
 
         return finalResult;
     }
-
 
     function parseSingleCustomerAddressResponse(serverAddress) {
 
@@ -438,17 +437,16 @@ ShopifyWrapper = (function () {
      * @returns {object}
      */
     function getBillingAddress(address) {
-        var data = WOOModels.billingAddress();
+        var data = ShopifyModels.billingAddress();
         data.first_name = address.firstname || "";
         data.last_name = address.lastname || "";
         data.company = address.company || "";
         data.address_1 = address.street1 || "";
         data.address_2 = address.street2 || "";
         data.city = address.city || "";
-        data.state = address.region || "";
-        data.postcode = address.postcode || "";
+        data.province = address.region || "";
+        data.zip = address.postcode || "";
         data.country = address.country || "";
-        data.email = "";
         data.phone = address.telephone || "";
         return data;
     }
@@ -459,16 +457,17 @@ ShopifyWrapper = (function () {
      * @returns {object}
      */
     function getShippingAddress(address) {
-        var data = WOOModels.shippingAddress();
+        var data = ShopifyModels.shippingAddress();
         data.first_name = address.firstname || "";
         data.last_name = address.lastname || "";
         data.company = address.company || "";
         data.address_1 = address.street1 || "";
         data.address_2 = address.street2 || "";
         data.city = address.city || "";
-        data.state = address.region || "";
-        data.postcode = address.postcode || "";
+        data.province = address.region || "";
+        data.zip = address.postcode || "";
         data.country = address.country || "";
+        data.phone = address.telephone || "";
         return data;
     }
 
@@ -509,18 +508,18 @@ ShopifyWrapper = (function () {
      */
     function getCustomerData(customerRecord, type) {
         var data = {};
-        data.customer = WOOModels.customer();
+        data.customer = ShopifyModels.customer();
         data.customer.email = customerRecord.email;
         data.customer.first_name = customerRecord.firstname;
         data.customer.last_name = customerRecord.lastname;
-        if (type.toString() === "create") {
-            data.customer.password = customerRecord.password || "";
-        } else {
-            delete data.customer.username;
-        }
+        /*if (type.toString() === "create") {
+         data.customer.password = customerRecord.password || "";
+         } else {
+         delete data.customer.username;
+         }*/
         var defaultAddresses = getDefaultAddresses(customerRecord);
-        data.customer.billing_address = defaultAddresses.shippingAddress;
-        data.customer.shipping_address = defaultAddresses.billingAddress;
+        data.customer.addresses.push(defaultAddresses.shippingAddress);
+        data.customer.addresses.push(defaultAddresses.billingAddress);
         return data;
     }
 
@@ -537,8 +536,9 @@ ShopifyWrapper = (function () {
             var itemObj = {};
             // TODO: change sku with product_id if not work
             //itemObj.product_id = 8
-            itemObj.sku = item.sku;
+            itemObj.variant_id = item.sku;
             itemObj.quantity = item.quantity;
+            itemObj.price = item.price;
             lineItems.push(itemObj);
         }
         return lineItems;
@@ -550,7 +550,7 @@ ShopifyWrapper = (function () {
      * @returns {*|{first_name, last_name, company, address_1, address_2, city, state, postcode, country, email, phone}}
      */
     function getSalesOrderBillingAddress(orderRecord) {
-        var billingAddress = WOOModels.billingAddress();
+        var billingAddress = ShopifyModels.billingAddress();
         var addresses = orderRecord.customer.addresses;
         for (var i in addresses) {
             var address = addresses[i];
@@ -558,13 +558,12 @@ ShopifyWrapper = (function () {
                 billingAddress.first_name = address.firstName || "";
                 billingAddress.last_name = address.lastName || "";
                 billingAddress.company = address.company || "";
-                billingAddress.address_1 = address.street || "";
-                billingAddress.address_2 = "";
+                billingAddress.address1 = address.street || "";
+                billingAddress.address2 = "";
                 billingAddress.city = address.city || "";
-                billingAddress.state = address.stateId || "";
-                billingAddress.postcode = address.zipCode || "";
-                billingAddress.country = address.country || "";
-                billingAddress.email = "";
+                billingAddress.province_code = address.stateId || "";
+                billingAddress.zip = address.zipCode || "";
+                billingAddress.country_code = address.country || "";
                 billingAddress.phone = address.telephone || "";
             }
         }
@@ -577,7 +576,7 @@ ShopifyWrapper = (function () {
      * @returns {*|{first_name, last_name, company, address_1, address_2, city, state, postcode, country}}
      */
     function getSalesOrderShippingAddress(orderRecord) {
-        var shippingAddress = WOOModels.shippingAddress();
+        var shippingAddress = ShopifyModels.shippingAddress();
         var addresses = orderRecord.customer.addresses;
         for (var i in addresses) {
             var address = addresses[i];
@@ -585,12 +584,13 @@ ShopifyWrapper = (function () {
                 shippingAddress.first_name = address.firstName || "";
                 shippingAddress.last_name = address.lastName || "";
                 shippingAddress.company = address.company || "";
-                shippingAddress.address_1 = address.street || "";
-                shippingAddress.address_2 = "";
+                shippingAddress.address1 = address.street || "";
+                shippingAddress.address2 = "";
                 shippingAddress.city = address.city || "";
-                shippingAddress.state = address.stateId || "";
-                shippingAddress.postcode = address.zipCode || "";
-                shippingAddress.country = address.country || "";
+                shippingAddress.province_code = address.stateId || "";
+                shippingAddress.zip = address.zipCode || "";
+                shippingAddress.country_code = address.country || "";
+                shippingAddress.phone = address.telephone || "";
             }
         }
         return shippingAddress;
@@ -605,9 +605,10 @@ ShopifyWrapper = (function () {
         var shippingLines = [];
         var shippingInfo = orderRecord.shipmentInfo;
         shippingLines.push({
-            method_id: "flat_rate",
-            method_title: "Flat Rate",
-            total: shippingInfo.shipmentCost
+            //source: "shopify",
+            code: shippingInfo.shipmentMethod,
+            title: shippingInfo.shipmentMethod,
+            price: shippingInfo.shipmentCost
         });
         return shippingLines;
     }
@@ -633,9 +634,11 @@ ShopifyWrapper = (function () {
      */
     function getSalesOrderData(orderRecord) {
         var data = {};
-        data.order = WOOModels.salesOrder();
+        data.order = ShopifyModels.salesOrder();
+        data.order.email = orderRecord.customer.email;
+        data.order.financial_status = "pending";// todo generalize if necessary
         // set customer
-        data.order.customer_id = orderRecord.customer.customerId;
+        data.order.customer.id = orderRecord.customer.customerId;
         // set products in main object
         data.order.line_items = getSalesOrderLineItems(orderRecord);
         // set billing address
@@ -645,7 +648,7 @@ ShopifyWrapper = (function () {
         // set shipping lines
         data.order.shipping_lines = getSalesOrderShippingLines(orderRecord);
         // set payment details
-        data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
+        //data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
         return data;
     }
 
@@ -737,10 +740,10 @@ ShopifyWrapper = (function () {
         var errorObject = null;
         var error;
         if (serverResponse.hasOwnProperty("errors")) {
-            error = serverResponse.errors;
+            error = serverResponse.errors[0];
             errorObject = {
-                code: "DEV",
-                message: JSON.stringify(error)
+                code: error.code,
+                message: error.message
             };
         }//else {
         //    var data = serverResponse.hasOwnProperty(type) ? serverResponse[type] : null;
@@ -881,6 +884,44 @@ ShopifyWrapper = (function () {
             finalResult.status = true;
         }
         return finalResult;
+    }
+
+    function parseSingleProductVariantResponse(variant) {
+        var variantObj = ShopifyModels.variant();
+        variantObj.id = variant.id;
+        variantObj.product_id = variant.product_id;
+        variantObj.title = variant.title;
+        variantObj.sku = variant.sku;
+        variantObj.position = variant.position;
+        variantObj.grams = variant.grams;
+        variantObj.inventory_policy = variant.inventory_policy;
+        variantObj.fulfillment_service = variant.fulfillment_service;
+        variantObj.inventory_management = variant.inventory_management;
+        variantObj.price = variant.price;
+        variantObj.compare_at_price = variant.compare_at_price;
+        variantObj.option1 = variant.option1;
+        variantObj.option2 = variant.option2;
+        variantObj.option3 = variant.option3;
+        variantObj.created_at = variant.created_at;
+        variantObj.updated_at = variant.updated_at;//2015-09-02T14:47:57-04:00
+        variantObj.taxable = variant.taxable;
+        variantObj.requires_shipping = variant.requires_shipping;
+        variantObj.barcode = variant.barcode;
+        variantObj.inventory_quantity = variant.inventory_quantity;
+        variantObj.old_inventory_quantity = variant.old_inventory_quantity;
+        variantObj.image_id = variant.image_id;
+        variantObj.weight = variant.weight;
+        variantObj.weight_unit = variant.weight_unit;
+        return variantObj;
+    }
+
+    function getOrderLineIdData(lineItems) {
+        var data = {};
+        for (var i in lineItems) {
+            var lineItem = lineItems[i];
+            data[lineItem.sku] = lineItem.variant_id.toString();
+        }
+        return data;
     }
 
     //endregion
@@ -1039,53 +1080,16 @@ ShopifyWrapper = (function () {
          * @param sessionID
          * @param productId
          * @param isParent
-         * @param shopifyProduct
          * @returns {{status: boolean, faultCode: string, faultString: string}}
          */
-        updateItem: function (product, sessionID, productId, isParent, shopifyProduct) {
+        updateItem: function (product, sessionID, productId, isParent) {
 
 
-            shopifyProduct.variants[0].price = product.price;
-            shopifyProduct.variants[0].inventory_quantity = product.quantity;
+            var serverFinalResponse = null;
 
-            var httpRequestData = {
-                additionalUrl: 'products/' + productId.toString() + '.json',
-                method: 'PUT',
-                postData: {
-                    product: {
-                        id: productId.toSource(),
-                        variants: shopifyProduct.variants
-                    }
-                }
-            };
 
-            var serverResponse = null;
+            serverFinalResponse = this.updateVariant(product, productId);
 
-            // Make Call and Get Data
-            var serverFinalResponse = {
-                status: false,
-                faultCode: '',
-                faultString: '',
-                product: {}
-            };
-
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
-
-            } catch (e) {
-                Utility.logException('Error during updateItem', e);
-            }
-
-            if (!!serverResponse && serverResponse.product) {
-                serverFinalResponse.product = parseSingleProductResponse(serverResponse.product);
-
-            }
-
-            // If some problem
-            if (!serverFinalResponse.status) {
-                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
-            }
 
             return serverFinalResponse;
         },
@@ -1094,15 +1098,10 @@ ShopifyWrapper = (function () {
          * Gets Product from the server
          * @param sessionID
          * @param product
-         * @param variantRequest
          * @returns {*}
          */
-        getProduct: function (sessionID, product, variantRequest) {
+        getProduct: function (sessionID, product) {
 
-            var httpRequestData = {
-                additionalUrl: 'products/' + product.magentoSKU + '.json',
-                method: 'GET'
-            };
 
             var serverResponse = null;
 
@@ -1114,6 +1113,10 @@ ShopifyWrapper = (function () {
                 product: {}
             };
 
+            var httpRequestData = {
+                additionalUrl: 'products/' + product.magentoSKU + '.json',
+                method: 'GET'
+            };
             try {
                 serverResponse = sendRequest(httpRequestData);
                 serverFinalResponse.status = true;
@@ -1135,7 +1138,6 @@ ShopifyWrapper = (function () {
 
             return serverFinalResponse;
         },
-
 
         createFulfillment: function (sessionID, serverItemIds, serverSOId) {
 
@@ -1274,7 +1276,7 @@ ShopifyWrapper = (function () {
         },
 
         /**
-         * This method create a sales order to WOO
+         * This method create a sales order to Shopify
          * @param internalId
          * @param orderRecord
          * @param store
@@ -1283,7 +1285,7 @@ ShopifyWrapper = (function () {
          */
         createSalesOrder: function (internalId, orderRecord, store, sessionId) {
             var httpRequestData = {
-                url: 'orders',
+                additionalUrl: 'orders.json',
                 method: 'POST',
                 postData: getSalesOrderData(orderRecord)
             };
@@ -1302,16 +1304,16 @@ ShopifyWrapper = (function () {
             }
             if (!!serverResponse && serverResponse.order) {
                 var order = serverResponse.order;
-                if (!!order) {
-                    serverFinalResponse.incrementalIdData = {};
-                    serverFinalResponse.incrementalIdData.orderIncrementId = order.order_number.toString();
-                }
+                serverFinalResponse.incrementalIdData = {};
+                serverFinalResponse.incrementalIdData.orderIncrementId = order.id.toString();
+                serverFinalResponse.magentoOrderLineIdData = getOrderLineIdData(order.line_items);
                 // No need to set Line Items Ids here
             }
             // If some problem
             if (!serverFinalResponse.status) {
                 serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
             }
+            return serverFinalResponse;
         },
 
         /**
@@ -1319,7 +1321,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         hasDifferentLineItemIds: function () {
-            return false;
+            return true;
         },
         /**
          * This method create or update a customer to WOO
@@ -1331,8 +1333,8 @@ ShopifyWrapper = (function () {
         upsertCustomer: function (customerRecord, store, type) {
             // handling of endpoints for update or create customer
             var httpRequestData = {
-                url: 'customers' + (type.toString() === "update" ? "/" + customerRecord.magentoId : ""),
-                method: 'POST',
+                additionalUrl: 'customers' + (type.toString() === "update" ? "/" + customerRecord.magentoId : "") + ".json",
+                method: (type.toString() === "update") ? 'PUT' : "POST",
                 postData: getCustomerData(customerRecord, type)
             };
             var serverResponse = null;
@@ -1632,7 +1634,7 @@ ShopifyWrapper = (function () {
         /**
          * Create refund in shopify
          * @param sessionID
-         * @param cashRefund
+         * @param cashRefundObj
          * @param store
          * @return {{}}
          */
@@ -1724,6 +1726,184 @@ ShopifyWrapper = (function () {
                 obj.paymentMethod = defaultMagentoPaymentMethod;
             }
             return obj;
+        },
+        updateVariant: function (product, productId) {
+            var httpRequestData = {
+                additionalUrl: '/variants/' + productId.toString() + '.json',
+                method: 'PUT',
+                postData: {
+                    variant: {
+                        id: productId.toString(),
+                        inventory_quantity: product.quantity,
+                        price: product.price
+                    }
+                }
+            };
+            var serverResponse = null;
+            // Make Call and Get Data
+            var serverFinalResponse = {
+                status: false,
+                faultCode: '',
+                faultString: '',
+                product: {}
+            };
+            try {
+                serverResponse = sendRequest(httpRequestData);
+                serverFinalResponse.status = true;
+            } catch (e) {
+                Utility.logException('Error during updateItem', e);
+            }
+            if (!!serverResponse && serverResponse.variant) {
+                serverFinalResponse.product = parseSingleProductVariantResponse(serverResponse.variant);
+            }
+            // If some problem
+            if (!serverFinalResponse.status) {
+                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
+            }
+            return serverFinalResponse;
+        },
+        /**
+         * Updates item to server
+         * @param product
+         * @param sessionID
+         * @param productId
+         * @param isParent
+         * @param shopifyProduct
+         * @returns {{status: boolean, faultCode: string, faultString: string}}
+         */
+        updateProduct: function (product, sessionID, productId, isParent, shopifyProduct) {
+            shopifyProduct.variants[0].price = product.price;
+            shopifyProduct.variants[0].inventory_quantity = product.quantity;
+            var httpRequestData = {
+                additionalUrl: 'products/' + productId.toString() + '.json',
+                method: 'PUT',
+                postData: {
+                    product: {
+                        id: productId.toString(),
+                        variants: shopifyProduct.variants
+                    }
+                }
+            };
+            var serverResponse = null;
+            // Make Call and Get Data
+            var serverFinalResponse = {
+                status: false,
+                faultCode: '',
+                faultString: '',
+                product: {}
+            };
+            try {
+                serverResponse = sendRequest(httpRequestData);
+                serverFinalResponse.status = true;
+            } catch (e) {
+                Utility.logException('Error during updateItem', e);
+            }
+            if (!!serverResponse && serverResponse.product) {
+                serverFinalResponse.product = parseSingleProductResponse(serverResponse.product);
+            }
+            // If some problem
+            if (!serverFinalResponse.status) {
+                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
+            }
+            return serverFinalResponse;
+        },
+        /**
+         * This method returns the item map between NetSuite and Shopify Wrapper
+         * @param magentoIds
+         * @return {Object}
+         */
+        getNsProductIdsByExtSysIds: function (magentoIds) {
+            var cols = [];
+            var filterExpression = "";
+            var resultArray = [];
+            var result = {};
+            var magentoIdId;
+            magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
+            result.errorMsg = '';
+            try {
+                /*filterExpression = "[[";
+                 for (var x = 0; x < magentoIds.length; x++) {
+                 // multiple store handling
+                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
+                 if ((x + 1) < magentoIds.length) {
+                 filterExpression = filterExpression + ",'or' ,";
+                 }
+                 }
+                 filterExpression = filterExpression + ']';
+                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
+                 Utility.logDebug(' filterExpression', filterExpression);
+                 filterExpression = eval(filterExpression);
+                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
+                filterExpression = "[[";
+                for (var x = 0; x < magentoIds.length; x++) {
+                    // multiple store handling
+                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                    if ((x + 1) < magentoIds.length) {
+                        filterExpression = filterExpression + ",'or' ,";
+                    }
+                }
+                filterExpression = filterExpression + ']';
+                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                Utility.logDebug(' filterExpression', filterExpression);
+                filterExpression = eval(filterExpression);
+                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));
+                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+                if (recs && recs.length > 0) {
+                    for (var i = 0; i < recs.length; i++) {
+                        var obj = {};
+                        obj.internalId = recs[i].getId();
+                        var itemid = recs[i].getValue('itemid');
+                        if (!Utility.isBlankOrNull(itemid)) {
+                            var itemidArr = itemid.split(':');
+                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        }
+                        obj.magentoID = itemid;
+                        resultArray[resultArray.length] = obj;
+                    }
+                }
+                result.data = resultArray;
+            } catch (ex) {
+                Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);
+                result.errorMsg = ex.toString();
+            }
+            return result;
+        },
+        /**
+         * Get Shopify Item Ids by NetSuite Item Ids
+         * @param itemIdsArr
+         * @param fieldType
+         * @return {Object}
+         */
+        getExtSysItemIdsByNsIds: function (itemIdsArr, fieldType) {
+            var magentoItemIds = {};
+            if (itemIdsArr.length > 0) {
+                var fils = [];
+                var cols = [];
+                var result;
+                fils.push(new nlobjSearchFilter('internalid', null, 'anyof', itemIdsArr, null));
+                cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));// this is purest specific
+                result = nlapiSearchRecord('item', null, fils, cols) || [];
+                if (result.length > 0) {
+                    for (var i in result) {
+                        var magentoId;
+                        if (fieldType === "ITEM_ID") {
+                            magentoId = result[i].getValue('itemid');
+                            magentoId = magentoId.split(':');
+                            magentoItemIds[result[i].getId()] = (magentoId[magentoId.length - 1]).trim();
+                        } else {
+                            magentoId = result[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                            magentoId = !Utility.isBlankOrNull(magentoId) ? JSON.parse(magentoId) : [];
+                            magentoId = ConnectorCommon.getMagentoIdFromObjArray(magentoId, ConnectorConstants.CurrentStore.systemId);
+                            magentoItemIds[result[i].getId()] = magentoId;
+                        }
+                    }
+                }
+            }
+            return magentoItemIds;
         }
     };
 
