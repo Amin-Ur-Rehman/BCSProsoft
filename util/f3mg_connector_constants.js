@@ -119,6 +119,10 @@ ConnectorConstants = (function () {
                 GenericDataExport: {
                     id: 'customscript_f3mg_generic_data_exp_sl',
                     deploymentId: 'customdeploy_f3mg_generic_data_exp_sl_de'
+                },
+                UpdateSOToExternalSystem: {
+                    id: 'customscript_f3mg_remove_magento_so_suit',
+                    deploymentId: 'customdeploy_f3mg_remove_magento_so_suit'
                 }
             },
             ScheduleScript: {
@@ -166,15 +170,15 @@ ConnectorConstants = (function () {
         MagentoProductTypes: {
             GiftCard: "aw_giftcard"
         },
-	 NetSuitePaymentTypes:{
-            Cash : '1',
-            Check : '2',
-            Discover : '3',
-            MasterCard : '4',
-            Visa : '5',
-            AmericanExpress : '6',
-            PayPal : '7',
-            EFT : '8'
+        NetSuitePaymentTypes: {
+            Cash: '1',
+            Check: '2',
+            Discover: '3',
+            MasterCard: '4',
+            Visa: '5',
+            AmericanExpress: '6',
+            PayPal: '7',
+            EFT: '8'
         },
         /**
          * Init method

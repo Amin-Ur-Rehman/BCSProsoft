@@ -40,7 +40,6 @@ CUSTOMER = {
 
         return result;
     },
-
     getCustomersCount: function () {
         var arrFils = [];
         var recs;
@@ -64,7 +63,6 @@ CUSTOMER = {
         }
         return result;
     },
-
     getCustomersSubmittedFromUserEvent: function () {
         var recs;
         var result = [];
@@ -83,7 +81,6 @@ CUSTOMER = {
 
         return result;
     },
-
     setCustomerMagentoId: function (magentoId, customerId) {
         var result = false;
 
@@ -101,7 +98,6 @@ CUSTOMER = {
         return result;
 
     },
-
     setCustomerMagentoSync: function (customerId) {
         var result = false;
 
@@ -186,7 +182,6 @@ CUSTOMER = {
 
         return customerDataObject;
     },
-
     getNSCustomerAddresses: function (customerRecordObject) {
         var customerAddresses = [];
         var addressObject;
@@ -240,7 +235,6 @@ CUSTOMER = {
         return customerAddresses;
 
     },
-
     getMagentoCreateCustomerRequestXML: function (customerDataObject, sessionId) {
         var xml = '';
 
@@ -275,7 +269,6 @@ CUSTOMER = {
         return xml;
 
     },
-
     getMagentoUpdateCustomerRequestXML: function (customerDataObject, sessionId) {
         var xml = '';
 
@@ -311,7 +304,6 @@ CUSTOMER = {
         return xml;
 
     },
-
     getMagentoCreateAddressRequestXML: function (customerAddressObject, sessionId, magentoCustomerId) {
         var xml = '';
         var firstName;
@@ -377,7 +369,6 @@ CUSTOMER = {
 
         return xml;
     },
-
     getMagentoUpdateAddressRequestXML: function (customerAddressObject, sessionId, magentoAddressId) {
         var xml = '';
         var firstName;
@@ -442,13 +433,40 @@ CUSTOMER = {
         }
 
         return xml;
-    }
-    ,
+    },
     getRandomPassword: function () {
         var randomstring = Math.random().toString(36).slice(-8);
         return randomstring;
-    }
+    },
 
+    /**
+     *
+     * @param customerInternalId
+     * @returns {*}
+     */
+    getCustomerForInstantSync: function (customerInternalId) {
+        var arrFils = [];
+        var recs;
+        var result = [];
+        var arrCols = [];
+        var resultObject;
+        var CUSTOMER_STATUSES = ConnectorConstants.CustomerTypesToExport;
+        arrFils.push(new nlobjSearchFilter('internalid', null, 'is', customerInternalId));
+        arrFils.push(new nlobjSearchFilter('entitystatus', null, 'anyof', CUSTOMER_STATUSES));
+        arrCols.push(new nlobjSearchColumn(ConnectorConstants.Entity.Fields.MagentoId));
+        arrCols.push(new nlobjSearchColumn(ConnectorConstants.Entity.Fields.MagentoStore));
+        recs = nlapiSearchRecord('customer', null, arrFils, arrCols);
+        if (!!recs && recs.length > 0) {
+            for (var i = 0; i < recs.length; i++) {
+                resultObject = {};
+                resultObject.internalId = recs[i].getId();
+                resultObject.magentoCustomerIds = recs[i].getValue(ConnectorConstants.Entity.Fields.MagentoId);
+                resultObject.externalSystems = recs[i].getValue(ConnectorConstants.Entity.Fields.MagentoId);
+                result.push(resultObject);
+            }
+        }
+        return result;
+    }
 };
 
 
@@ -660,7 +678,7 @@ CustomerSync = (function () {
                 addressCreated = false;
             } else {
                 otherStoreAddressInfo = customerAddressObj.magentoIdStoreRef;
-                if (!!isBlankOrNull(otherStoreAddressInfo)){
+                if (!!isBlankOrNull(otherStoreAddressInfo)) {
                     createOrUpdateMagentoJSONRef = 'update';
                 }
                 Utility.logDebug('address store info  ', 'store.systemId  ' + store.systemId + '    ' + responseMagento.magentoAddressId + '    ' + createOrUpdateMagentoJSONRef + '    ' + JSON.stringify(otherStoreAddressInfo));

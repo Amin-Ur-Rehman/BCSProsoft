@@ -1412,7 +1412,7 @@ WooWrapper = (function () {
         },
 
         requiresOrderUpdateAfterCancelling: function () {
-            return false;
+            return true;
         },
 
         createInvoice: function (sessionID, netsuiteInvoiceObj, store) {

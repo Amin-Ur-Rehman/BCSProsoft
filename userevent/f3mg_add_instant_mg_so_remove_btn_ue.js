@@ -10,8 +10,14 @@ var AddInstantSORemovalBtnHelper = (function () {
                 label: 'Cancel Magento Sales Order',
                 url: '/app/site/hosting/scriptlet.nl?script=customscript_f3mg_remove_magento_so_suit&deploy=customdeploy_f3mg_remove_magento_so_suit'
             }
-        }
-        , addInstantSORemovalBtn: function (type, form, request) {
+        },
+        /**
+         * Adding button for cancelling sales order to external system
+         * @param type
+         * @param form
+         * @param request
+         */
+        addInstantSORemovalBtn: function (type, form, request) {
             try {
                 //Utility.logDebug('type', type.toString());
                 if (type.toString() === 'view') {
@@ -41,13 +47,13 @@ var AddInstantSORemovalBtnHelper = (function () {
                         url += '&status=' + 'C';
 
                         script = "if(confirm('Do you want to cancel this sales order in Magento?'))" +
-                                "{" +
-                                    "InstantSync.openPopupWindow(this,'" + url + "');" +
-                                "}";
+                            "{" +
+                            "InstantSync.openPopupWindow(this,'" + url + "');" +
+                            "}";
 
                         // Show 'Close Magento Sales Order' button if order is synched to magento
                         //Utility.logDebug('magentoStoreIds#magentoId#magentoSync#status', magentoStoreIds+'#'+magentoId+'#'+magentoSync+'#'+status);
-                        if(!!magentoStoreIds && !!magentoId && magentoSync === 'T'
+                        if (!!magentoStoreIds && !!magentoId && magentoSync === 'T'
                             && (status === ConnectorConstants.NSTransactionStatus.PendingApproval
                             || status === ConnectorConstants.NSTransactionStatus.PendingFulfillment)) {
                             form.addButton(name, label, script);
@@ -95,7 +101,7 @@ var SalesOrderActionsManager = (function () {
         recordTypes: {
             externalSystem: {
                 internalId: "customrecord_external_system",
-                    fields: {
+                fields: {
                     defaultStore: "custrecord_es_default_store"
                 }
             }
@@ -112,11 +118,11 @@ var SalesOrderActionsManager = (function () {
      * get default store Id if exist
      * @returns {*}
      */
-    function getDefaultStoreId(){
+    function getDefaultStoreId() {
         var defaultStoreId = null;
         var recs = nlapiSearchRecord(salesOrderActionsManagerConfig.recordTypes.externalSystem.internalId, null
             , [new nlobjSearchFilter(salesOrderActionsManagerConfig.recordTypes.externalSystem.fields.defaultStore, null, 'is', 'T')], []);
-        if(!!recs && recs.length > 0) {
+        if (!!recs && recs.length > 0) {
             defaultStoreId = recs[0].getId();
         }
         return defaultStoreId;
@@ -135,11 +141,11 @@ var SalesOrderActionsManager = (function () {
                 //Utility.logDebug('type', type.toString());
                 if (type.toString() === 'create' || type.toString() === 'edit') {
                     var defaultStoreId = getDefaultStoreId();
-                    if(!!defaultStoreId) {
+                    if (!!defaultStoreId) {
                         var magentoStore = nlapiGetFieldValue(salesOrderActionsManagerConfig.recordTypes.salesOrder.fields.magentoStore);
                         //Utility.logDebug('defaultStoreId', defaultStoreId);
                         //Utility.logDebug('magentoStore', magentoStore);
-                        if(!magentoStore) {
+                        if (!magentoStore) {
                             nlapiSetFieldValue(salesOrderActionsManagerConfig.recordTypes.salesOrder.fields.magentoStore, defaultStoreId);
                         }
                     }
@@ -170,7 +176,7 @@ var SalesOrderActionsManager = (function () {
          * @param form
          * @param request
          */
-        handleCopySalesOrderScenario: function(type, form, request) {
+        handleCopySalesOrderScenario: function (type, form, request) {
             try {
                 if (type == 'copy') {
                     nlapiSetFieldValue(ConnectorConstants.Transaction.Fields.MagentoSync, 'F');
@@ -186,6 +192,78 @@ var SalesOrderActionsManager = (function () {
             catch (ex) {
                 Utility.logException('SalesOrderActionsManager.handleCopySalesOrderScenario', e);
             }
+        },
+
+        cancelOrCloseSalesOrder: function (type) {
+            Utility.logDebug('SalesOrderActionsManager.cancelOrCloseSalesOrder', "Start");
+            Utility.logDebug("type", type);
+            try {
+                if (type.toString() === "cancel") {
+                    Utility.logDebug('cancelOrderToExternalSystem', "Start");
+                    this.cancelOrderToExternalSystem();
+                    Utility.logDebug('cancelOrderToExternalSystem', "End");
+                } else if (type !== "delete") {
+                    if (this.isOrderClose()) {
+                        this.closeOrderToExternalSystem();
+                    }
+                }
+            }
+            catch (ex) {
+                nlapiLogExecution('ERROR', 'SalesOrderUserEvent.userEventAfterSubmit(); ', ex);
+            }
+            Utility.logDebug('SalesOrderActionsManager.cancelOrCloseSalesOrder', "End");
+        },
+        isOrderClose: function () {
+            var isClose = false;
+
+            var oldRec = nlapiGetOldRecord();
+            var newRec = nlapiGetNewRecord();
+
+            var oldStatus = oldRec.getFieldValue('status');
+            var newStatus = newRec.getFieldValue('status');
+
+            Utility.logDebug("oldStatus", oldStatus);
+            Utility.logDebug("newStatus", newStatus);
+
+            if (oldStatus !== newStatus && newStatus === "H") {
+                isClose = true;
+            }
+
+            return isClose;
+        },
+        cancelOrderToExternalSystem: function () {
+            this.delegateToSuitelet();
+        },
+
+        closeOrderToExternalSystem: function () {
+            this.delegateToSuitelet();
+        },
+        delegateToSuitelet: function (status) {
+            var ctx = nlapiGetContext();
+            var newRec = nlapiLookupField(nlapiGetRecordType(), nlapiGetRecordId(), [
+                "status",
+                ConnectorConstants.Transaction.Fields.MagentoStore,
+                ConnectorConstants.Transaction.Fields.MagentoId
+            ]);
+            var magentoStoreIds = newRec[ConnectorConstants.Transaction.Fields.MagentoStore];
+            var magentoId = newRec[ConnectorConstants.Transaction.Fields.MagentoId];
+            var nsSoId = nlapiGetRecordId();
+            var status = newRec['status'];
+
+            var url = nlapiResolveURL("SUITELET", ConnectorConstants.SuiteScripts.Suitelet.UpdateSOToExternalSystem.id, ConnectorConstants.SuiteScripts.Suitelet.UpdateSOToExternalSystem.deploymentId, "EXTERNAL");
+            url += url.indexOf('?') === -1 ? '?' : '&';
+            url += 'nssoid=' + nsSoId;
+            url += '&mgsoid=' + magentoId;
+            url += '&storeid=' + magentoStoreIds;
+            url += '&status=' + status;
+
+            //url = ctx.getSetting("SCRIPT", "custscript_base_url") + url;
+
+            Utility.logDebug("url", url);
+
+            var response = nlapiRequestURL(url);
+            var responseBody = response.getBody();
+            Utility.logDebug("Cancel/Close Order Response", responseBody);
         }
 
     };
@@ -202,13 +280,17 @@ var SalesOrderActionsManager = (function () {
  * @returns {Void}
  */
 function AddMagentoSORemovalBtnBeforeLoad(type, form, request) {
-    AddInstantSORemovalBtn.userEventBeforeLoad(type, form, request);
+    //AddInstantSORemovalBtn.userEventBeforeLoad(type, form, request);
     SalesOrderActionsManager.handleCopySalesOrderScenario(type, form, request);
 }
-
 
 
 function SalesOrderBeforeSubmit(type, form, request) {
     SalesOrderActionsManager.setDefaultStore(type, form, request);
     SalesOrderActionsManager.setDontSyncToMagentoField(type, form, request);
+}
+
+
+function SalesOrderAfterSubmit(type, form, request) {
+    SalesOrderActionsManager.cancelOrCloseSalesOrder(type);
 }

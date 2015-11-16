@@ -129,8 +129,8 @@ var RemoveMagentoSO = (function () {
                         }
 
                         var script = '';
-                        script += '<script>window.opener.location.reload(); setTimeout(function(){window.close();}, 3000);</script>';
-                        var msg = 'This Sales Order has been Cancelled in Magento. <br /><br />This popup will close in 3 seconds.';
+                        //script += '<script>window.opener.location.reload(); setTimeout(function(){window.close();}, 3000);</script>';
+                        var msg = 'This Sales Order has been Cancelled. <br /><br />';
                         response.write(msg + script);
 
                     } else {

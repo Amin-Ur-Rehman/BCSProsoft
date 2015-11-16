@@ -1351,7 +1351,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         requiresAddressCall: function () {
-            return false;
+            return true;
         },
         /**
          * This method has no implementation because no separate address call is neeeded to sync customer addresses

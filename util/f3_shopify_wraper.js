@@ -737,12 +737,12 @@ ShopifyWrapper = (function () {
         var errorObject = null;
         var error;
         if (serverResponse.hasOwnProperty("errors")) {
-            error = serverResponse.errors[0];
+            error = serverResponse.errors;
             errorObject = {
-                code: error.code,
-                message: error.message
+                code: "DEV",
+                message: JSON.stringify(error)
             };
-        } //else {
+        }//else {
         //    var data = serverResponse.hasOwnProperty(type) ? serverResponse[type] : null;
         //    if (data === null) {
         //        errorObject = {
@@ -810,15 +810,16 @@ ShopifyWrapper = (function () {
 
         return serverResponse;
     }
-    function getCreateFulfillmentLineItemsData(){
-        var lineItems =  [];
+
+    function getCreateFulfillmentLineItemsData() {
+        var lineItems = [];
         // we are in after submit event of item fulfillment that's why I have accessed the record
         // here direclty because it is only for shopify and we can get the info here
         var linesCount = nlapiGetLineItemCount('item');
-        for(var lineNum = 1; lineNum<= linesCount; lineNum++){
-            var isLineFulfill =  nlapiGetLineItemValue('item', 'itemreceive', lineNum);
+        for (var lineNum = 1; lineNum <= linesCount; lineNum++) {
+            var isLineFulfill = nlapiGetLineItemValue('item', 'itemreceive', lineNum);
             // if line is not fulfill skip it
-            if(isLineFulfill !== "T"){
+            if (isLineFulfill !== "T") {
                 continue;
             }
             var itemId = nlapiGetLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNum);
@@ -831,7 +832,8 @@ ShopifyWrapper = (function () {
         }
         return lineItems;
     }
-    function getCreateFulfillmentTrackingNumbersData(){
+
+    function getCreateFulfillmentTrackingNumbersData() {
         var trackingNumbersData = {};
         var trackingNumbers = [];
         var packageCarrier = '';
@@ -855,19 +857,30 @@ ShopifyWrapper = (function () {
         trackingNumbersData.trackingNumbers = trackingNumbers;
         return trackingNumbersData;
     }
-    function getCreateFulfillmentData(){
+
+    function getCreateFulfillmentData() {
         var data = {
-            "tracking_numbers":[],
+            "tracking_numbers": [],
             "line_items": []
         };
         var lineItems = getCreateFulfillmentLineItemsData();
         var trackingNumbersData = getCreateFulfillmentTrackingNumbersData();
-        if(lineItems.length === 0){
+        if (lineItems.length === 0) {
             Utility.throwException("ALLZOHU", "No lines are found to be fulfilled");
         }
         data.line_items = lineItems;
         data.tracking_numbers = trackingNumbersData.trackingNumbers;
         return data;
+    }
+
+    function parseCancelSalesOrderResponse(serverResponse) {
+        var finalResult = {
+            status: false
+        };
+        if (serverResponse.hasOwnProperty("status") && serverResponse.status.toString() === "cancelled") {
+            finalResult.status = true;
+        }
+        return finalResult;
     }
 
     //endregion
@@ -1354,7 +1367,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         requiresAddressCall: function () {
-            return false;
+            return true;
         },
         /**
          * This method has no implementation because no separate address call is neeeded to sync customer addresses
@@ -1406,18 +1419,19 @@ ShopifyWrapper = (function () {
             return serverFinalResponse;
         },
         /**
-         * This method cancel the order to WOO
+         * This method cancel the order to Shopify
          * @param data
          * @return {{status: boolean, faultCode: string, faultString: string, result: Array}}
          */
         cancelSalesOrder: function (data) {
             var httpRequestData = {
-                url: 'orders/' + data.orderIncrementId,
-                method: 'PUT',
+                additionalUrl: 'orders/' + data.orderIncrementId + "/cancel.json",
+                method: 'POST',
                 postData: {
-                    "order": {
-                        "status": "cancelled"
-                    }
+                    //"amount": true,
+                    "restock": true,
+                    "reason": "other",
+                    "email": false
                 }
             };
             var serverResponse = null;
@@ -1442,13 +1456,13 @@ ShopifyWrapper = (function () {
                 return serverFinalResponse;
             }
             if (!!serverResponse && !!serverResponse.order) {
-                var cancelSalesOrderResponse = parseCancelSalesOrderResponse(serverResponse.order);
+                //var cancelSalesOrderResponse = parseCancelSalesOrderResponse(serverResponse.order);
                 // order status is changed to cancelled
-                serverFinalResponse.status = cancelSalesOrderResponse.status;
+                serverFinalResponse.status = true;
             }
             // If some problem
             if (!serverFinalResponse.status) {
-                serverFinalResponse.error = "Error in cancelling sales order to WOO";
+                serverFinalResponse.error = "Error in cancelling sales order to Shopify";
             }
             return serverFinalResponse;
         },
@@ -1468,7 +1482,7 @@ ShopifyWrapper = (function () {
 
             var responseBody = {};
             var shouldCaptureAmount = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
-            if(!!shouldCaptureAmount) {
+            if (!!shouldCaptureAmount) {
                 var orderId = netsuiteInvoiceObj.otherSystemSOId;
                 var httpRequestData = {
                     additionalUrl: 'orders/' + orderId + '/transactions.json',
@@ -1481,7 +1495,7 @@ ShopifyWrapper = (function () {
                 };
 
                 var serverResponse = sendRequest(httpRequestData);
-                if(!!serverResponse.transaction) {
+                if (!!serverResponse.transaction) {
                     responseBody = this.parseInvoiceSuccessResponse(serverResponse);
                 } else {
                     responseBody = this.parseInvoiceFailureResponse(serverResponse);
@@ -1498,7 +1512,7 @@ ShopifyWrapper = (function () {
          * parse response in case of successful payment capturing
          * @param serverResponse
          */
-        parseInvoiceSuccessResponse: function(serverResponse) {
+        parseInvoiceSuccessResponse: function (serverResponse) {
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = serverResponse.transaction.message || '';
@@ -1509,10 +1523,10 @@ ShopifyWrapper = (function () {
          * parse response in case of failure occured in payment capturing
          * @param serverResponse
          */
-        parseInvoiceFailureResponse: function(serverResponse) {
+        parseInvoiceFailureResponse: function (serverResponse) {
             var responseBody = {};
             responseBody.status = 0;
-            if(!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
+            if (!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
                 && !!serverResponse.responseJSON.errors.base && serverResponse.responseJSON.errors.base.length > 0) {
                 responseBody.message = serverResponse.responseJSON.errors.base[0];
             } else {
@@ -1638,7 +1652,7 @@ ShopifyWrapper = (function () {
             };
 
             var serverResponse = sendRequest(httpRequestData);
-            if(!!serverResponse.transaction) {
+            if (!!serverResponse.transaction) {
                 responseBody = this.parseRefundSuccessResponse(serverResponse);
             } else {
                 responseBody = this.parseRefundFailureResponse(serverResponse);
@@ -1650,18 +1664,18 @@ ShopifyWrapper = (function () {
          * Calculate total amount to refund on shopify
          * @param cashRefundObj
          */
-        calculateAmountToRefund: function(cashRefundObj) {
+        calculateAmountToRefund: function (cashRefundObj) {
             var totalAmountToRefund = 0;
-            if(!!cashRefundObj.items && cashRefundObj.items.length > 0) {
+            if (!!cashRefundObj.items && cashRefundObj.items.length > 0) {
                 for (var i = 0; i < cashRefundObj.items.length; i++) {
                     var obj = cashRefundObj.items[i];
                     totalAmountToRefund += parseFloat(obj.amount);
                 }
             }
-            if(!!cashRefundObj.adjustmentPositive) {
+            if (!!cashRefundObj.adjustmentPositive) {
                 totalAmountToRefund += parseFloat(cashRefundObj.adjustmentPositive);
             }
-            if(!!cashRefundObj.shippingCost) {
+            if (!!cashRefundObj.shippingCost) {
                 totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
             }
             return totalAmountToRefund;
@@ -1671,7 +1685,7 @@ ShopifyWrapper = (function () {
          * parse response in case of successful payment capturing
          * @param serverResponse
          */
-        parseRefundSuccessResponse: function(serverResponse) {
+        parseRefundSuccessResponse: function (serverResponse) {
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = serverResponse.transaction.message || '';
@@ -1682,10 +1696,10 @@ ShopifyWrapper = (function () {
          * parse response in case of failure occured in payment capturing
          * @param serverResponse
          */
-        parseRefundFailureResponse: function(serverResponse) {
+        parseRefundFailureResponse: function (serverResponse) {
             var responseBody = {};
             responseBody.status = 0;
-            if(!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
+            if (!!serverResponse.responseJSON && !!serverResponse.responseJSON.errors
                 && !!serverResponse.responseJSON.errors.base && serverResponse.responseJSON.errors.base.length > 0) {
                 responseBody.message = serverResponse.responseJSON.errors.base[0];
             } else {
