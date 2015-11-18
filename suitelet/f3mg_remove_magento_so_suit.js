@@ -96,6 +96,7 @@ var RemoveMagentoSO = (function () {
                     if (!FeatureVerification.isPermitted(Features.CANCEL_SO_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                         Utility.logEmergency('FEATURE PERMISSION', Features.CANCEL_SO_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                         response.write("Cancelling Sales Order to External System is not allowed.");
+                        return;
                     }
                     ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                     ConnectorConstants.CurrentWrapper.initialize(store);
@@ -128,8 +129,8 @@ var RemoveMagentoSO = (function () {
                         }
 
                         var script = '';
-                        script += '<script>window.opener.location.reload(); setTimeout(function(){window.close();}, 3000);</script>';
-                        var msg = 'This Sales Order has been Cancelled in Magento. <br /><br />This popup will close in 3 seconds.';
+                        //script += '<script>window.opener.location.reload(); setTimeout(function(){window.close();}, 3000);</script>';
+                        var msg = 'This Sales Order has been Cancelled. <br /><br />';
                         response.write(msg + script);
 
                     } else {

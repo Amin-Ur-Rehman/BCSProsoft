@@ -1804,13 +1804,13 @@ MagentoXmlWrapper = (function () {
          * @param netsuiteRefundObj
          * @param store
          */
-        createCustomerRefund: function(sessionID, cashRefund, store) {
+        createCustomerRefund: function (sessionID, cashRefund, store) {
             if (cashRefund.items.length === 0 && !cashRefund.adjustmentPositive) {
                 Utility.throwException(null, 'No item found to refund');
             }
             Utility.logDebug('cashRefund object', JSON.stringify(cashRefund));
             var params = this.getCustomerRefundRequestParameters(cashRefund, store);
-            var requestParam = {"data": JSON.stringify(params), "apiMethod" : "createCreditMemo"};
+            var requestParam = {"data": JSON.stringify(params), "apiMethod": "createCreditMemo"};
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
             var magentoCreditMemoCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
             Utility.logDebug('magentoCreditMemoCreationUrl', magentoCreditMemoCreationUrl);
@@ -1837,7 +1837,7 @@ MagentoXmlWrapper = (function () {
          * Get Credit Memo request parameters
          * @param cashRefundObj
          */
-        getCustomerRefundRequestParameters : function (cashRefundObj, store){
+        getCustomerRefundRequestParameters: function (cashRefundObj, store) {
             var params = {};
             params.order_increment_id = cashRefundObj.orderId;
             params.invoice_increment_id = cashRefundObj.invoiceId;
@@ -1845,7 +1845,10 @@ MagentoXmlWrapper = (function () {
             params.adjustment_positive = !!cashRefundObj.adjustmentPositive ? cashRefundObj.adjustmentPositive : 0;
             params.quantities = [];
             for (var i in cashRefundObj.items) {
-                params.quantities.push({order_item_id: cashRefundObj.items[i].orderItemId, qty: cashRefundObj.items[i].qty});
+                params.quantities.push({
+                    order_item_id: cashRefundObj.items[i].orderItemId,
+                    qty: cashRefundObj.items[i].qty
+                });
                 //params.quantities[cashRefundObj.items[i].orderItemId] = cashRefundObj.items[i].qty;
             }
 
@@ -1862,9 +1865,9 @@ MagentoXmlWrapper = (function () {
          * @param store
          * @returns {boolean}
          */
-        checkRefundPaymentCapturingMode : function(sOPaymentMethod, isSOFromOtherSystem, store) {
+        checkRefundPaymentCapturingMode: function (sOPaymentMethod, isSOFromOtherSystem, store) {
             var isOnlineMethod = this.isOnlineCapturingPaymentMethod(sOPaymentMethod, store);
-            if(!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && isOnlineMethod) {
+            if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && isOnlineMethod) {
                 return true;
             } else {
                 return false;
@@ -2412,6 +2415,115 @@ MagentoXmlWrapper = (function () {
                 }
             }
             return ccNumber;
+        },
+
+        getNsProductIdsByExtSysIds: function (magentoIds, enviornment) {
+            var cols = [];
+            var filterExpression = "";
+            var resultArray = [];
+            var result = {};
+            var magentoIdId;
+
+            if (enviornment === 'production') {
+                magentoIdId = 'custitem_magentoid';
+            } else {
+                //magentoIdId = 'custitem_magento_sku';
+                magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
+            }
+
+            result.errorMsg = '';
+
+            try {
+                /*filterExpression = "[[";
+                 for (var x = 0; x < magentoIds.length; x++) {
+                 // multiple store handling
+                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
+                 if ((x + 1) < magentoIds.length) {
+                 filterExpression = filterExpression + ",'or' ,";
+                 }
+                 }
+                 filterExpression = filterExpression + ']';
+                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
+                 Utility.logDebug(' filterExpression', filterExpression);
+                 filterExpression = eval(filterExpression);
+                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
+
+                filterExpression = "[[";
+                for (var x = 0; x < magentoIds.length; x++) {
+                    // multiple store handling
+                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                    if ((x + 1) < magentoIds.length) {
+                        filterExpression = filterExpression + ",'or' ,";
+                    }
+                }
+                filterExpression = filterExpression + ']';
+                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                Utility.logDebug(' filterExpression', filterExpression);
+                filterExpression = eval(filterExpression);
+                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));
+                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+
+                if (recs && recs.length > 0) {
+                    for (var i = 0; i < recs.length; i++) {
+                        var obj = {};
+                        obj.internalId = recs[i].getId();
+
+                        var itemid = recs[i].getValue('itemid');
+                        if (!Utility.isBlankOrNull(itemid)) {
+                            var itemidArr = itemid.split(':');
+                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        }
+                        obj.magentoID = itemid;
+                        resultArray[resultArray.length] = obj;
+                    }
+                }
+                result.data = resultArray;
+            } catch (ex) {
+                Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);
+                result.errorMsg = ex.toString();
+            }
+            return result;
+        },
+        /**
+         * Get Shopify Item Ids by NetSuite Item Ids
+         * @param itemIdsArr
+         * @return {Object}
+         */
+        getExtSysItemIdsByNsIds: function (itemIdsArr) {
+            var magentoItemIds = {};
+
+            if (itemIdsArr.length > 0) {
+                var fils = [];
+                var cols = [];
+                var result;
+
+                fils.push(new nlobjSearchFilter('internalid', null, 'anyof', itemIdsArr, null));
+                cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                cols.push(new nlobjSearchColumn('itemid', null, null));// this is purest specific
+
+                result = nlapiSearchRecord('item', null, fils, cols) || [];
+
+                if (result.length > 0) {
+                    for (var i in result) {
+                        var magentoId = result[i].getValue('itemid');
+                        magentoId = magentoId.split(':');
+                        magentoItemIds[result[i].getId()] = (magentoId[magentoId.length - 1]).trim();
+                        /*
+                         This logic will work for Magento and WOO b/c custom field contains product id
+                         in other systems as well as with Shopify
+                         var magentoId = result[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                         magentoId = !Utility.isBlankOrNull(magentoId) ? JSON.parse(magentoId) : [];
+                         magentoId = ConnectorCommon.getMagentoIdFromObjArray(magentoId, ConnectorConstants.CurrentStore.systemId);
+                         magentoItemIds[result[i].getId()] = magentoId;
+                         */
+                    }
+                }
+            }
+
+            return magentoItemIds;
         }
     };
 })();
