@@ -170,7 +170,7 @@ var RefundExportHelper = (function () {
                 var amount = creditMemoRecord.getLineItemValue('item', 'amount', line);
                 var itemId = creditMemoRecord.getLineItemValue('item', 'item', line);
                 var orderItemId = creditMemoRecord.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
-                if(adjustmentRefundItem != itemId) {
+                if (adjustmentRefundItem != itemId) {
                     if (!Utility.isBlankOrNull(orderItemId)) {
                         cashSaleItemsArray[orderItemId] = {qty: qty, amount: amount};
                     }
@@ -179,7 +179,7 @@ var RefundExportHelper = (function () {
                     adjustmentRefundAmount += parseFloat(amount);
                 }
             }
-            if(adjustmentRefundAmount > 0){
+            if (adjustmentRefundAmount > 0) {
                 creditMemoDataObject.adjustmentPositive = adjustmentRefundAmount;
             }
             Utility.logDebug('cashSaleItemsArray', JSON.stringify(cashSaleItemsArray));
@@ -187,7 +187,7 @@ var RefundExportHelper = (function () {
             // 'created from' would be either a cash sale or an invoice
             var createdFromId = creditMemoRecord.getFieldValue('createdfrom');
             var createdFromRecordType = this.getRecordTypeOfCreatedFromTransaction(createdFromId);
-            Utility.logDebug('createdFromId # createdFromRecordType', createdFromId+' # '+createdFromRecordType);
+            Utility.logDebug('createdFromId # createdFromRecordType', createdFromId + ' # ' + createdFromRecordType);
             var createdFromRec = nlapiLoadRecord(createdFromRecordType, createdFromId);
             var createdFromRecordLinesCount = createdFromRec.getLineItemCount('item');
             for (var line = 1; line <= createdFromRecordLinesCount; line++) {
@@ -230,9 +230,9 @@ var RefundExportHelper = (function () {
          * Get record type of the 'Created From' transaction
          * @param internalId
          */
-        getRecordTypeOfCreatedFromTransaction: function(internalId) {
+        getRecordTypeOfCreatedFromTransaction: function (internalId) {
             var records = nlapiSearchRecord('transaction', null, [new nlobjSearchFilter('internalid', null, 'is', internalId)]);
-            if(!!records && records.length > 0) {
+            if (!!records && records.length > 0) {
                 return records[0].getRecordType();
             }
             return '';
@@ -310,28 +310,38 @@ var RefundExportHelper = (function () {
         /**
          * Process credit memo to create memo in magento
          * @param record
+         * @param sessionID
          * @param store
          */
         processCustomerRefund: function (record, sessionID, store) {
-            var cashRefundNsId = record.getId();
+            var cashRefundNsId = record.internalId;
             try {
                 // get refund data
                 var cashRefund = this.getCustomerRefund(cashRefundNsId, store);
 
                 var responseBody = ConnectorConstants.CurrentWrapper.createCustomerRefund(sessionID, cashRefund, store);
-                if(!!responseBody.status) {
-                    if(!!responseBody.data.increment_id) {
+                if (!!responseBody.status) {
+                    if (!!responseBody.data.increment_id) {
                         ExportCustomerRefunds.setCashRefundMagentoId(responseBody.data.increment_id, cashRefundNsId);
                     } else {
                         Utility.logDebug('Error', 'Other system Credit Memo Increment Id not found');
+                        Utility.throwException("RECORD_DOES_NOT_EXIST", "Other system Credit Memo Increment Id not found");
                     }
                     Utility.logDebug('successfully', 'Other system credit memo created');
+                    // this handling is for maintaining order ids in custom record
+                    if (this.cashRefundsFromCustomRecord()) {
+                        RecordsToSync.markProcessed(record.id, RecordsToSync.Status.Processed);
+                    }
                 } else {
                     Utility.logException('Some error occurred while creating Other system credit memo', responseBody.error);
+                    Utility.throwException("RECORD_EXPORT", 'Some error occurred while creating Other system credit memo - ' + responseBody.error);
                 }
-
             } catch (e) {
                 Utility.logException('RefundExportHelper.processCustomerRefund', e);
+                // this handling is for maintaining order ids in custom record
+                if (this.cashRefundsFromCustomRecord()) {
+                    RecordsToSync.markProcessed(record.id, RecordsToSync.Status.ProcessedWithError);
+                }
                 ExportCustomerRefunds.markRecords(cashRefundNsId, e.toString());
             }
         },
@@ -340,7 +350,7 @@ var RefundExportHelper = (function () {
          * Get Credit Memo request parameters
          * @param cashRefundObj
          */
-        getRequestParameters : function (cashRefundObj, store){
+        getRequestParameters: function (cashRefundObj, store) {
             var params = {};
             params.order_increment_id = cashRefundObj.orderId;
             params.invoice_increment_id = cashRefundObj.invoiceId;
@@ -348,7 +358,10 @@ var RefundExportHelper = (function () {
             params.adjustment_positive = !!cashRefundObj.adjustmentPositive ? cashRefundObj.adjustmentPositive : 0;
             params.quantities = [];
             for (var i in cashRefundObj.items) {
-                params.quantities.push({order_item_id: cashRefundObj.items[i].orderItemId, qty: cashRefundObj.items[i].qty});
+                params.quantities.push({
+                    order_item_id: cashRefundObj.items[i].orderItemId,
+                    qty: cashRefundObj.items[i].qty
+                });
                 //params.quantities[cashRefundObj.items[i].orderItemId] = cashRefundObj.items[i].qty;
             }
 
@@ -361,9 +374,9 @@ var RefundExportHelper = (function () {
         /**
          * Check either payment of this Invoice should capture online or not
          */
-        checkPaymentCapturingMode : function(sOPaymentMethod, isSOFromOtherSystem, store) {
+        checkPaymentCapturingMode: function (sOPaymentMethod, isSOFromOtherSystem, store) {
             var isOnlineMethod = this.isOnlineCapturingPaymentMethod(sOPaymentMethod, store);
-            if(!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && isOnlineMethod) {
+            if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && isOnlineMethod) {
                 return true;
             } else {
                 return false;
@@ -374,7 +387,7 @@ var RefundExportHelper = (function () {
          * Check either payment method capturing is online supported or not??
          * @param sOPaymentMethodId
          */
-        isOnlineCapturingPaymentMethod : function (sOPaymentMethodId, store) {
+        isOnlineCapturingPaymentMethod: function (sOPaymentMethodId, store) {
             var onlineSupported = false;
             switch (sOPaymentMethodId) {
                 case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Discover:
@@ -427,7 +440,97 @@ var RefundExportHelper = (function () {
             Utility.logDebug('getCustomerRefund', JSON.stringify(cashRefundDataObject));
 
             return cashRefundDataObject;
+        },
+        cashRefundsFromCustomRecord: function () {
+            // if deployment id is this it means that we should fetch the orders from custom record instead searching blindly
+            return nlapiGetContext().getDeploymentId() === ConnectorConstants.SuiteScripts.ScheduleScript.CashRefundExportToExternalSystem.deploymentId;
+        },
+        getSalesOrdersFromCustomRecord: function (allStores, storeId) {
+            var fils = [];
+            var searchResults = null;
+            var results = [];
+
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.RecordType, null, "is", "cashrefund", null));
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Status, null, "is", RecordsToSync.Status.Pending, null));
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Operation, null, "is", RecordsToSync.Operation.EXPORT, null));
+            if (!allStores) {
+                fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'is', storeId, null));
+            } else {
+                fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
+            }
+
+            searchResults = RecordsToSync.lookup(fils);
+
+            for (var i in searchResults) {
+                var searchResult = searchResults[i];
+                var recordId = searchResult.getValue(RecordsToSync.FieldName.RecordId);
+                if (!!recordId) {
+                    results.push({
+                        internalId: recordId,
+                        id: searchResult.getId()
+                    });
+                }
+            }
+
+            return results;
+        },
+
+        getCashRefundsByStore: function (store) {
+            var fils = [];
+            var records = [];
+            var results;
+
+            try {
+                var ageOfRecordsToSyncInDays = store.entitySyncInfo.cashrefund.ageOfRecordsToSyncInDays;
+                Utility.logDebug('ageOfRecordsToSyncInDays', ageOfRecordsToSyncInDays);
+                var currentDate = Utility.getDateUTC(0);
+                var oldDate = nlapiAddDays(currentDate, '-' + ageOfRecordsToSyncInDays);
+                oldDate = nlapiDateToString(oldDate);
+                oldDate = oldDate.toLowerCase();
+                oldDate = nlapiDateToString(nlapiStringToDate(oldDate, 'datetime'), 'datetime');
+                Utility.logDebug('oldDate', oldDate);
+                fils.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', oldDate, null));
+
+                fils.push(new nlobjSearchFilter('mainline', null, 'is', 'T', null));
+                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoStore, null, 'is', store.systemId, null));
+                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'isnotempty', null, null));
+                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId, null, 'isempty', null, null));
+                //fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSync, null, 'is', 'T', null));
+                //fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSyncStatus, null, 'isempty', null, null));
+
+                results = nlapiSearchRecord('cashrefund', null, fils, null);
+
+                if (!!results) {
+                    for (var i in results) {
+                        var result = results[i];
+                        records.push({
+                            internalId: result.getId()
+                        });
+                    }
+                }
+            } catch (e) {
+                Utility.logException('ExportCustomerRefunds.getRecords', e);
+            }
+
+            return records;
+        },
+
+        /**
+         * Gets customer refunds search records/ids if exist for syncing
+         * @return {Array}
+         */
+        getRecords: function (store) {
+            var result = null;
+
+            if (this.cashRefundsFromCustomRecord()) {
+                result = this.getSalesOrdersFromCustomRecord(null, store.systemId);
+            } else {
+                result = this.getCashRefundsByStore(store);
+            }
+
+            return result;
         }
+
     };
 })();
 
@@ -509,19 +612,19 @@ var ExportCustomerRefunds = (function () {
          * @param customer
          * @param store
          */
-        processCustomer: function(customerId, magentoCustomerIds, store) {
+        processCustomer: function (customerId, magentoCustomerIds, store) {
 
             try {
                 var customerAlreadySynched = this.customerAlreadySyncToStore(magentoCustomerIds, store.systemId);
                 Utility.logDebug('magentoCustomerIds  #  store.systemId', magentoCustomerIds + '  #  ' + store.systemId);
                 Utility.logDebug('customerAlreadySynched', customerAlreadySynched);
-                if(!customerAlreadySynched) {
+                if (!customerAlreadySynched) {
                     var customerObj = {};
                     customerObj.internalId = customerId;
                     customerObj.magentoCustomerIds = magentoCustomerIds;
                     Utility.logDebug('customerObj.internalId', customerObj.internalId);
                     Utility.logDebug('customerObj.magentoCustomerIds', customerObj.magentoCustomerIds);
-                    if(!!customerObj.magentoCustomerIds) {
+                    if (!!customerObj.magentoCustomerIds) {
                         createCustomerInMagento(customerObj, store, customerObj.magentoCustomerIds);
                     } else {
                         createCustomerInMagento(customerObj, store);
@@ -538,7 +641,7 @@ var ExportCustomerRefunds = (function () {
          * @param magentoCustomerId
          * @param storeId
          */
-        customerAlreadySyncToStore: function(magentoCustomerId, storeId) {
+        customerAlreadySyncToStore: function (magentoCustomerId, storeId) {
             var alreadySync = false;
             try {
                 if (!!magentoCustomerId) {
@@ -612,11 +715,11 @@ var ExportCustomerRefunds = (function () {
                         var sessionID = '';
                         Utility.logDebug('debug', 'Step-2');
 
-                        var records = this.getRecords(store);
+                        var records = RefundExportHelper.getRecords(store);
 
                         if (records !== null && records.length > 0) {
                             Utility.logDebug('fetched refunds count', records.length);
-			                Utility.logDebug('debug', 'Step-3');
+                            Utility.logDebug('debug', 'Step-3');
                             this.processRecords(records, sessionID, store);
                         } else {
                             Utility.logDebug('ExportCustomerRefunds.scheduled', 'No records found to process - StoreId: ' + store.systemId);
@@ -629,6 +732,15 @@ var ExportCustomerRefunds = (function () {
                         Utility.logDebug('ExportCustomerRefunds.scheduled', ' Ends');
                     }
 
+                    if (RefundExportHelper.cashRefundsFromCustomRecord()) {
+                        var orders = RefundExportHelper.getSalesOrdersFromCustomRecord(true, null);
+                        if (orders.length > 0) {
+                            Utility.logDebug('startup', 'Reschedule');
+                            nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
+                            return;
+                        }
+                    }
+
                 } catch (e) {
                     Utility.logException('ExportCustomerRefunds.scheduled - Iterating Orders', e);
                 }
@@ -637,41 +749,6 @@ var ExportCustomerRefunds = (function () {
             } catch (e) {
                 Utility.logException('ExportCustomerRefunds.scheduled', e);
             }
-        },
-
-        /**
-         * Gets customer refunds search records/ids if exist for syncing
-         * @return {Array}
-         */
-        getRecords: function (store) {
-            var fils = [];
-            var records = null;
-
-            try {
-                var ageOfRecordsToSyncInDays = store.entitySyncInfo.cashrefund.ageOfRecordsToSyncInDays;
-                Utility.logDebug('ageOfRecordsToSyncInDays', ageOfRecordsToSyncInDays);
-                var currentDate = Utility.getDateUTC(0);
-                var oldDate = nlapiAddDays(currentDate, '-'+ageOfRecordsToSyncInDays);
-                oldDate = nlapiDateToString(oldDate);
-                oldDate = oldDate.toLowerCase();
-                oldDate = nlapiDateToString(nlapiStringToDate(oldDate, 'datetime'), 'datetime');
-                Utility.logDebug('oldDate', oldDate);
-                fils.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', oldDate, null));
-
-
-                fils.push(new nlobjSearchFilter('mainline', null, 'is', 'T', null));
-                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoStore, null, 'is', store.systemId, null));
-                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'isnotempty', null, null));
-                fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId, null, 'isempty', null, null));
-                //fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSync, null, 'is', 'T', null));
-                //fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSyncStatus, null, 'isempty', null, null));
-
-                records = nlapiSearchRecord('cashrefund', null, fils, null);
-            } catch (e) {
-                Utility.logException('ExportCustomerRefunds.getRecords', e);
-            }
-
-            return records;
         },
 
         /**

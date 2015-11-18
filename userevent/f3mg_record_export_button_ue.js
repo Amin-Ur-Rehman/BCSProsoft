@@ -16,6 +16,43 @@
  */
 var RecordExportButtonUE = (function () {
     return {
+        showSyncButton: function () {
+            var show = false;
+            var recordType = nlapiGetRecordType().toString();
+
+            var externalSystem;
+            var externalSystemId;
+            var externalSystemOrderId;
+
+            // getting value for external system id
+            if (recordType === ConnectorConstants.NSRecordTypes.SalesOrder) {
+                externalSystem = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
+                externalSystemId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+                if (!!externalSystem && !externalSystemId) {
+                    show = true;
+                }
+            }
+            if (recordType === ConnectorConstants.NSRecordTypes.CashRefund) {
+                externalSystem = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
+                externalSystemOrderId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+                externalSystemId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId);
+
+                if (!!externalSystem && !!externalSystemOrderId && !externalSystemId) {
+                    show = true;
+                }
+            }
+            if (recordType === ConnectorConstants.NSRecordTypes.PromotionCode) {
+                externalSystem = nlapiGetFieldValue(ConnectorConstants.PromoCode.Fields.MagentoStore);
+                externalSystemId = nlapiGetFieldValue(ConnectorConstants.PromoCode.Fields.MagentoId);
+                if (!!externalSystem && !externalSystemId) {
+                    show = true;
+                }
+            }
+
+            Utility.logDebug("showSyncButton", "recordType: " + recordType + " || externalSystem: " + externalSystem+ " || externalSystemId: " + externalSystemId + " || externalSystemOrderId: " + externalSystemOrderId);
+
+            return show;
+        },
         /**
          * The recordType (internal id) corresponds to the "Applied To" record in your script deployment.
          * @appliedtorecord recordType
@@ -35,16 +72,13 @@ var RecordExportButtonUE = (function () {
                     var executionContext = context.getExecutionContext();
                     if (executionContext.toString() === 'userinterface') {
                         if (type.toString() === 'view') {
+                            // donot show button if record is already synced
+                            if (!this.showSyncButton()) {
+                                return;
+                            }
                             // getting text value for external system in NetSuite record.
                             var externalSystemText = nlapiGetFieldText(ConnectorConstants.Transaction.Fields.MagentoStore);
                             externalSystemText = externalSystemText || nlapiGetFieldText(ConnectorConstants.PromoCode.Fields.MagentoStore);
-                            // getting value for external system id
-                            var externalSystemId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
-                            externalSystemId = externalSystemId || nlapiGetFieldValue(ConnectorConstants.PromoCode.Fields.MagentoId);
-                            // donot show button if record is already synced
-                            if (!!externalSystemId || !externalSystemText) {
-                                return;
-                            }
                             externalSystemText = externalSystemText || "External System";
                             var recordInternalId = nlapiGetRecordId();
                             var suiteletUrl = nlapiResolveURL('SUITELET', ConnectorConstants.SuiteScripts.Suitelet.GenericDataExport.id, ConnectorConstants.SuiteScripts.Suitelet.GenericDataExport.deploymentId);

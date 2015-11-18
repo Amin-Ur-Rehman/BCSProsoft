@@ -26,6 +26,7 @@ var OrderExportHelper = (function () {
 
             fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.RecordType, null, "is", "salesorder", null));
             fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Status, null, "is", RecordsToSync.Status.Pending, null));
+            fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Operation, null, "is", RecordsToSync.Operation.EXPORT, null));
             if (!allStores) {
                 fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'is', storeId, null));
             } else {
@@ -829,6 +830,15 @@ var ExportSalesOrders = (function () {
 
                         if (this.rescheduleIfNeeded(context, null)) {
                             return null;
+                        }
+                    }
+
+                    if (OrderExportHelper.ordersFromCustomRecord()) {
+                        var orders = OrderExportHelper.getSalesOrdersFromCustomRecord(true, null);
+                        if (orders.length > 0) {
+                            Utility.logDebug('startup', 'Reschedule');
+                            nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
+                            return;
                         }
                     }
 

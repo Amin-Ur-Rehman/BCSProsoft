@@ -23,22 +23,31 @@ var RecordsToSync = (function () {
             Status: 'custrecord_f3mg_rts_status',
             Data: 'custrecord_rectosyncdata',
             Comments: 'custrecord_rectosyncproccomnts',
-            ExternalSystem: 'custrecord_rts_external_system'
+            ExternalSystem: 'custrecord_rts_external_system',
+            Operation: 'custrecord_rts_operation'
         },
         RecordTypes : {
             Customer: 'customer',
             SalesOrder: 'salesorder',
-            GiftCertificateItem: 'giftcertificateitem'
+            GiftCertificateItem: 'giftcertificateitem',
+            CashRefund: 'cashrefund'
         },
         Actions : {
             ExportCustomer: 'ExportCustomer',
             SyncSoSystemNotes: 'SyncSoSystemNotes',
-            SyncGiftCertificates: 'SyncGiftCertificates'
+            SyncGiftCertificates: 'SyncGiftCertificates',
+            ExportSalesOrder: 'ExportSalesOrder',
+            ImportSalesOrder: 'ImportSalesOrder',
+            ExportCashRefund: 'ExportCashRefund'
         },
         Status : {
             Pending: 'Pending',
             Processed: 'Processed',
             ProcessedWithError: 'ProcessedWithError'
+        },
+        Operation: {
+            IMPORT: "IMPORT",
+            EXPORT: "EXPORT"
         },
         /**
          * Perform a record search using filters and columns.

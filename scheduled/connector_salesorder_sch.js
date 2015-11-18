@@ -78,7 +78,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     // Check if this SO already exists
                     if (ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId)) {
                         Utility.logDebug('Sales Order already exist with Magento Id: ', orders[i].increment_id);
-                        continue;
+                        Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
                     }
 
                     Utility.logDebug('isOrderSynced - ' + orders[i].increment_id, "NO");
@@ -91,7 +91,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!salesOrderDetails.status) {
                         Utility.logDebug('Could not fetch sales order information from Magento', 'orderId: ' + orders[i].increment_id);
                         result.errorMsg = salesOrderDetails.faultCode + '--' + salesOrderDetails.faultString;
-                        continue;
+                        Utility.throwException("FETCHING_ORDER_DETAIL", result.errorMsg + ' orderId: ' + orders[i].increment_id);
                     }
 
                     var shippingAddress = salesOrderDetails.shippingAddress;
@@ -107,7 +107,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!Utility.isBlankOrNull(netsuiteMagentoProductMap.errorMsg)) {
                         Utility.logDebug('result', JSON.stringify(result));
                         Utility.logDebug('COULD NOT EXECUTE Mapping perfectly', 'Please convey to Folio3');
-                        continue;
+                        Utility.throwException("ITEM_MAPPING", "Error in fetching item mapping.");
                     }
 
                     netsuiteMagentoProductMapData = netsuiteMagentoProductMap.data;
@@ -129,7 +129,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         // Check for feature availability
                         if (!FeatureVerification.isPermitted(Features.IMPORT_SO_GUEST_CUSTOMER, ConnectorConstants.CurrentStore.permissions)) {
                             Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_GUEST_CUSTOMER + ' NOT ALLOWED');
-                            continue;
+                            Utility.throwException("PERMISSION", Features.IMPORT_SO_GUEST_CUSTOMER + ' NOT ALLOWED');
                         }
                         Utility.logDebug('Guest Customer Exists', '');
 
@@ -147,7 +147,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             leadCreateAttemptResult = ConnectorConstants.Client.createLeadInNetSuite(customer[customerIndex], sessionID, true);
                             Utility.logDebug('Attempt to create lead', JSON.stringify(leadCreateAttemptResult));
                             if (!Utility.isBlankOrNull(leadCreateAttemptResult.errorMsg) || !Utility.isBlankOrNull(leadCreateAttemptResult.infoMsg)) {
-                                continue;
+                                Utility.throwException("CREATE_RECORD", "Error in creating lead record");
                             }
                             Utility.logDebug('End Creating Lead', '');
                             customerNSInternalId = leadCreateAttemptResult.id;
@@ -185,11 +185,10 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         else {
                             // if customer record not found in NetSuite, create a lead record in NetSuite
                             Utility.logDebug('Start Creating Lead', '');
-                            leadCreateAttemptResult =
-                                ConnectorConstants.Client.createLeadInNetSuite(customer[customerIndex], sessionID, false);
+                            leadCreateAttemptResult = ConnectorConstants.Client.createLeadInNetSuite(customer[customerIndex], sessionID, false);
                             Utility.logDebug('Attempt to create lead', JSON.stringify(leadCreateAttemptResult));
                             if (!Utility.isBlankOrNull(leadCreateAttemptResult.errorMsg) || !Utility.isBlankOrNull(leadCreateAttemptResult.infoMsg)) {
-                                continue;
+                                Utility.throwException("CREATE_RECORD", "Error in creating lead record");
                             }
                             Utility.logDebug('End Creating Lead', '');
                             customerNSInternalId = leadCreateAttemptResult.id;
@@ -202,6 +201,11 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         Utility.logDebug('ZEE->salesOrderObj', JSON.stringify(salesOrderObj));
                         // create sales order
                         ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+                    }
+
+                    // this handling is for maintaining order ids in custom record
+                    if (ordersFromCustomRecord()) {
+                        RecordsToSync.markProcessed(orders[i].id, RecordsToSync.Status.Processed);
                     }
 
                     // Write Code to handle Re-scheduling in case of going down than min Governance
@@ -224,6 +228,10 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                 }
                 catch (ex) {
                     Utility.logException('SO of Order ID ' + orders[i].increment_id + ' Failed', ex);
+                    // this handling is for maintaining order ids in custom record
+                    if (ordersFromCustomRecord()) {
+                        RecordsToSync.markProcessed(orders[i].id, RecordsToSync.Status.ProcessedWithError);
+                    }
                 }
 
                 // TODO: Just for testing purpose, remove it then
@@ -254,7 +262,11 @@ function syncSalesOrderMagento(sessionID, updateDate) {
  */
 function getSalesOrderList(soListParams, sessionID, store) {
     var responseMagentoOrders = null;
-    if (!!store.entitySyncInfo.common && !!store.entitySyncInfo.common.customRestApiUrl) {
+
+    if (ordersFromCustomRecord()) {
+        responseMagentoOrders = getSalesOrdersFromCustomRecord(null, store.systemId);
+    }
+    else if (!!store.entitySyncInfo.common && !!store.entitySyncInfo.common.customRestApiUrl) {
         Utility.logDebug('Inside MagentoRestApiWrapper', 'getSalesOrdersList call');
         var mgRestAPiWrapper = new MagentoRestApiWrapper();
         responseMagentoOrders = mgRestAPiWrapper.getSalesOrdersList(soListParams.updateDate, store.entitySyncInfo.salesorder.status, store);
@@ -263,6 +275,7 @@ function getSalesOrderList(soListParams, sessionID, store) {
     else {
         responseMagentoOrders = ConnectorConstants.CurrentWrapper.getSalesOrders(soListParams, sessionID);
     }
+
     return responseMagentoOrders;
 }
 function startup(type) {
@@ -340,10 +353,17 @@ function startup(type) {
                             var params = {};
                             params[ConnectorConstants.ScriptParameters.LastStoreIdSalesOrder] = system;
                             nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
+                            return;
                         }
-                        else {
-                            Utility.logDebug('startup', 'JOB RAN SUCCESSFULLyy');
+                        else if (ordersFromCustomRecord()) {
+                            var orders = getSalesOrdersFromCustomRecord(true, null);
+                            if (orders.length > 0) {
+                                Utility.logDebug('startup', 'Reschedule');
+                                nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
+                                return;
+                            }
                         }
+                        Utility.logDebug('startup', 'JOB RAN SUCCESSFULLyy');
                     }
 
                 } catch (ex) {
@@ -356,3 +376,45 @@ function startup(type) {
         }
     }
 }
+
+var ordersFromCustomRecord = function () {
+    // if deployment id is this it means that we should fetch the orders from custom record instead searching blindly
+    return nlapiGetContext().getDeploymentId() === ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderImportFromExternalSystem.deploymentId;
+};
+
+var getSalesOrdersFromCustomRecord = function (allStores, storeId) {
+    var fils = [];
+    var searchResults = null;
+    var results = {
+        orders: [],
+        status: false
+    };
+    var orders = [];
+
+    fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.RecordType, null, "is", "salesorder", null));
+    fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Status, null, "is", RecordsToSync.Status.Pending, null));
+    fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.Operation, null, "is", RecordsToSync.Operation.IMPORT, null));
+    if (!allStores) {
+        fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'is', storeId, null));
+    } else {
+        fils.push(new nlobjSearchFilter(RecordsToSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
+    }
+
+    searchResults = RecordsToSync.lookup(fils);
+
+    for (var i in searchResults) {
+        var searchResult = searchResults[i];
+        var recordId = searchResult.getValue(RecordsToSync.FieldName.RecordId);
+        if (!!recordId) {
+            orders.push({
+                increment_id: recordId,
+                id: searchResult.getId()
+            });
+        }
+    }
+
+    results.orders = orders;
+    results.status = true;
+
+    return results;
+};

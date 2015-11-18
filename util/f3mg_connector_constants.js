@@ -138,6 +138,14 @@ ConnectorConstants = (function () {
                 SalesOrderExportToExternalSystem: {
                     id: 'customscript_salesorder_export',
                     deploymentId: 'customdeploy_salesorder_export_using_cr'
+                },
+                SalesOrderImportFromExternalSystem: {
+                    id: 'customscript_connectororderimport',
+                    deploymentId: 'customdeploy_salesorder_import_using_cr'
+                },
+                CashRefundExportToExternalSystem: {
+                    id: 'customscript_cashrefund_export_sch',
+                    deploymentId: 'customdeploy_cashrefund_export_using_cr'
                 }
             }
         },
@@ -145,7 +153,8 @@ ConnectorConstants = (function () {
             PromotionCode: 'promotioncode',
             PriceLevel: 'pricelevel',
             PaymentTerm: 'term',
-            SalesOrder: 'salesorder'
+            SalesOrder: 'salesorder',
+            CashRefund: 'cashrefund'
         },
         RetryAction: {
             Messages: {

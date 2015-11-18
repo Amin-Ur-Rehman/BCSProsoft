@@ -256,9 +256,19 @@ var ConnectorDashboardApi = (function () {
         importSalesOrder: function(request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
+
+            var data = {};
+            data[RecordsToSync.FieldName.RecordId] = salesorderId;
+            data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+            data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.ImportSalesOrder;
+            data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+            data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.IMPORT;
+            data[RecordsToSync.FieldName.ExternalSystem] = storeId;
+            RecordsToSync.upsert(data);
+
             return this.executeScheduledScript(
                         'customscript_connectororderimport', 
-                        'customdeploy_connectororderimport2', 
+                        'customdeploy_salesorder_import_using_cr',
                         {
                             salesorderIds: [salesorderId]
                         }
@@ -268,9 +278,19 @@ var ConnectorDashboardApi = (function () {
         exportSalesOrder: function(request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
+
+            var data = {};
+            data[RecordsToSync.FieldName.RecordId] = salesorderId;
+            data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+            data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+            data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+            data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
+            data[RecordsToSync.FieldName.ExternalSystem] = storeId;
+            RecordsToSync.upsert(data);
+
             return this.executeScheduledScript(
                         'customscript_salesorder_export', 
-                        'customdeploy_salesorder_export_ondemand', 
+                        'customdeploy_salesorder_export_using_cr',
                         {
                             salesorderIds: [salesorderId]
                         }

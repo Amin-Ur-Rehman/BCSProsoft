@@ -525,19 +525,30 @@ function F3ClientBase() {
          * @param {nlobjRecord} rec
          * @param {float} discountAmount
          */
-        setDiscountLine: function (rec, discountAmount) {
-            Utility.logDebug("discountAmount", discountAmount);
+        setDiscountInOrder: function (rec, discountAmount) {
+            // Discount handling
+            Utility.logDebug('discountAmount setp-1', discountAmount);
             discountAmount = !Utility.isBlankOrNull(discountAmount) && !isNaN(discountAmount) ? parseFloat(Math.abs(discountAmount)) : 0;
-            Utility.logDebug("discountAmount", discountAmount);
-            if (discountAmount > 0) {
-                discountAmount = discountAmount * (-1);
+            Utility.logDebug('discountAmount step-2', discountAmount);
 
-                rec.selectNewLineItem("item");
-                rec.setCurrentLineItemValue("item", "item", ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.discountItem);
-                // set custom price level
-                rec.setCurrentLineItemValue("item", "price", "-1");
-                rec.setCurrentLineItemValue("item", "amount", discountAmount);
-                rec.commitLineItem("item");
+            if (!!discountAmount && parseFloat(discountAmount) !== 0) {
+                if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.setDiscountAtLineLevel
+                    && ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.setDiscountAtLineLevel === 'true') {
+                    // Line item level discount handling
+                    var currentLintItemCount = rec.getLineItemCount('item');
+                    //Utility.logDebug('currentLintItemCount: ', currentLintItemCount);
+                    //Utility.logDebug('Set SO Discount Item Id: ', ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.salesorderDiscountItem);
+                    rec.setLineItemValue('item', 'item', currentLintItemCount + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.salesorderDiscountItem);
+                    rec.setLineItemValue('item', 'price', currentLintItemCount + 1, '-1');
+                    rec.setLineItemValue('item', 'amount', currentLintItemCount + 1, '-' + (Math.abs(parseFloat(discountAmount))).toString());
+                    rec.setLineItemValue('item', 'taxcode', currentLintItemCount + 1, '-7');
+                }
+                else {
+                    // Body level discount handling
+                    rec.setFieldValue('discountitem', ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.salesorderDiscountItem);
+                    rec.setFieldValue('discountrate', '-' + (Math.abs(parseFloat(discountAmount))).toString());
+                }
+
             }
         }
 
@@ -865,8 +876,9 @@ function F3BaseV1Client() {
                 rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
             }
 
-            if (isSerial == 'T')
+            if (isSerial == 'T') {
                 containsSerialized = true;
+            }
 
 
             //    if( soprice != null )
@@ -874,11 +886,11 @@ function F3BaseV1Client() {
             //    rec.setLineItemValue('item','amount',x+1,95);
         }
 
-        var discountAmount = order.discount_amount;
-        currentClient.setDiscountLine(rec, discountAmount);
+        // set discount if found in order
+        currentClient.setDiscountInOrder(rec, order.discount_amount);
 
         var quoteId = order.quote_id;
-        if(!!quoteId) {
+        if (!!quoteId) {
             currentClient.setGiftCardLineItem(rec, quoteId);
         }
 
