@@ -13,10 +13,11 @@
     // TODO : need to implement inheritance to prevent duplicate code.
     // TODO : we should also consider moving server calls into separate angular services
 
-    function ExecuteSOSyncScriptController(f3Store, $http) {
+    function ExecuteSOSyncScriptController(f3Store, $http, $timeout) {
         console.log('ExecuteSOSyncScriptController');
 
         var viewModel = this;
+        viewModel.loading = false;
         viewModel.hasRecords = true;
 
         viewModel.hideAlert   = function() {
@@ -31,12 +32,13 @@
         viewModel.loadGrid = function(options) {
             console.log('datatype();');
 
+            viewModel.loading = true;
             var apiUrl = location.href.replace(location.hash, '') + '&method=getSOSyncScriptDeploymentInstances';
             $http.get(apiUrl)
                 .success(function (response) {
 
                     console.log('response: ', response);
-
+                    viewModel.loading = false;
                     viewModel.hasRecords = (response || []).length > 0;
 
                     console.log('viewModel.hasRecords: ', viewModel.hasRecords);
@@ -62,7 +64,7 @@
 
             _$grid.jqGrid({
                 autowidth: true,
-                forceFit: true,
+                //forceFit: true,
                 shrinkToFit: true,
                 styleUI: 'Bootstrap',
                 emptyrecords: "No records to view",
@@ -85,10 +87,10 @@
                     //self.onGridCompleteInner();
                 },
                 colModel: [
-                    {label: 'Sync Start Date', name: 'startdate', width: 35},
-                    {label: 'Sync End Date', name: 'enddate', width: 35},
-                    {label: 'Status', name: 'status', width: 30},
-                    {label: 'Percent Complete', name: 'percentcomplete', width: 150}
+                    {label: 'Sync Start Date', name: 'startdate', width: '25%'},
+                    {label: 'Sync End Date', name: 'enddate', width: '25%'},
+                    {label: 'Status', name: 'status', width: '25%'},
+                    {label: 'Percent Complete', name: 'percentcomplete', width: '25%'}
                 ],
                 viewrecords: true, // show records label in footer
                 height: '350px',
@@ -115,6 +117,14 @@
 
 
                     viewModel.loadGrid();
+
+
+                    var secondsToHideMessage = 5;
+                    $timeout(function(){
+                        viewModel.successMessage = null;
+                        viewModel.errorMessage = null;
+                        viewModel.executionStatus = null;
+                    }, secondsToHideMessage * 1000);
                 });
         };
     }

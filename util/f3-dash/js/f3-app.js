@@ -6,11 +6,12 @@
 
     'use strict';
 
-    angular.module("f3UC", [
-        "ui.bootstrap",
-        "ui.router",
-        "ngCookies",
-        "chart.js"
+    angular.module('f3UC', [
+        'ui.bootstrap',
+        'ui.router',
+        'ngCookies',
+        'chart.js',
+        'ngAnimate'
     ]);
 
 
@@ -31,6 +32,41 @@
 
 
 
+    angular.module("f3UC").directive('jqGrid', function () {
+        return {
+            restrict: 'E',
+                scope: {
+                config: '=',
+                data: '=',
+            },
+            link: function (scope, element, attrs) {
+                var table;
+
+                scope.$watch('config', function (newValue) {
+                  element.children().empty();
+                  table = angular.element('<table></table>');
+                  table[0].id = 'jqtable_' + (new Date()).getTime();
+                  element.append(table);
+
+                  newValue = newValue || {};
+
+                  $(table).jqGrid(newValue);
+                });
+
+                scope.$watch('data', function (newValue, oldValue) {
+                    
+                    if(newValue && newValue.length > 0) {
+                        $(table)[0].addJSONData(newValue);
+                    }
+                    else {
+                        $(table).clearGridData();
+                    }
+                });
+            }
+        };
+    });
+
+    
 
     // set height of sidebar dynamically.
     jQuery(function setHeight() {
@@ -60,6 +96,10 @@
 
         console.log('bindLinks(); // end');
     });
+
+
+
+    google.load("visualization", "1", {packages:["corechart"]});
 
 
 })();

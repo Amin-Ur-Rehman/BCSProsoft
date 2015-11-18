@@ -2,7 +2,7 @@
 <h2 class="view-heading">Synchronize Cash Refunds</h2>
 
 
-<br />
+<!--<br />-->
 <div>
     <a ng-click="viewModel.execute();" class="btn btn-success btn-lg">Start Cash Refund Synchronization</a>
 </div>
@@ -45,25 +45,79 @@
 
 
 
-<div ng-show="viewModel.hasRecords">
-
-    <h3>
+<div >
+    <div class="panel panel-default">
+        <div class="panel-heading">
+        	<i class="fa fa-tasks"></i> &nbsp; Recent Synchronization History &nbsp; &nbsp;
+            <a ng-click="viewModel.loadGrid()" href="javascript:;">
+                <!--<i class="fa fa-refresh"></i>-->
+                <i class="sidebar-icon icon-refresh f20" ng-class="{'fa-spin': viewModel.loading }"></i>
+            </a>
+        </div>
+    <!--<h3 class="sub_hd">
         Recent Synchronization History
 
         &nbsp; &nbsp;
         <a ng-click="viewModel.loadGrid()" href="javascript:;">
-            <i class="fa fa-refresh"></i>
+            <!-<i class="fa fa-refresh"></i>->
+            <i class="sidebar-icon icon-refresh"></i>            
         </a>
-    </h3>
+    </h3>-->
+    <div class="panel-body">
+		<div class="table-responsive" ng-show="viewModel.hasRecords">
+            <table id="jqGrid"></table>
+            <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
+            <div id="jqGridPager"></div>
+        </div>
 
-    <table id="jqGrid"></table>
-    <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
-    <div id="jqGridPager"></div>
+        <div ng-hide="viewModel.hasRecords" class="alert alert-info">
+            no records found.
+        </div>
+
+    </div>
+</div>
 </div>
 
 
-<div ng-hide="viewModel.hasRecords" class="alert alert-info">
-    no records found.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="row">
+
+    <div class="col-lg-4 col-md-8 col-xs-12">
+
+        <div class="panel panel-default" ng-init="viewModel.graphs.customers.loadData({limit: 5})">
+            <div class="panel-heading">
+                <i class="fa fa-tasks"></i> &nbsp;
+                Customers
+            </div>
+            <div class="panel-body">
+
+                <div ng-show="viewModel.graphs.customers.hasData">
+                    <div class=table-responsive>
+                        <div id="customers_pie_chart"></div>
+                    </div>
+                </div>
+
+                <div ng-hide="viewModel.graphs.customers.hasData" class="alert alert-info">
+                    no records found.
+                </div>
+
+            </div>
+        </div>
+    </div>
+
 </div>
 
 

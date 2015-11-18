@@ -12,8 +12,13 @@
     <link rel="stylesheet" href="<BASE_URL>f3-dash/lib/css/main.min.css"/>
     <link rel="stylesheet" href="<BASE_URL>f3-dash/lib/css/angular-chart.css"/>
     <link rel="stylesheet" href="<BASE_URL>f3-dash/lib/css/ui.jqgrid-bootstrap.css"/>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700,300" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="<BASE_URL>f3-dash/lib/css/custom.css"/>
+    <link rel="stylesheet" href="<BASE_URL>f3-dash/lib/css/simple-line-icons.css"/>
     <!-- SCRIPTS -->
 
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <script type="text/javascript" src="<BASE_URL>f3-dash/lib/js/main.min.js"></script>
     <script type="text/javascript" src="<BASE_URL>f3-dash/lib/js/Chart.min.js"></script>
     <script type="text/javascript" src="<BASE_URL>f3-dash/lib/js/angular-chart.min.js"></script>
@@ -40,19 +45,19 @@
     <script type="text/javascript" src="<BASE_URL>f3-dash/js/f3-actions-import-salesorder-controller.js"></script>
     <script type="text/javascript" src="<BASE_URL>f3-dash/js/dashboard.min.js"></script>
 </head>
-<body ng-controller="MasterController">
-<div id="page-wrapper" ng-class="{'open': toggle}" ng-cloak>
+<body ng-controller="MasterController as viewModel">
+<div id="page-wrapper" ng-class="{'open': viewModel.toggle, 'close_panel': !viewModel.toggle}" ng-cloak>
 
     <!-- Sidebar -->
     <div id="sidebar-wrapper">
         <ul class="sidebar" ng-controller="ActionsController as actionsController">
-            <li class="sidebar-main">
-                <a ng-click="toggleSidebar()">
-                     Dashboard
+            <li class="sidebar-main side_title">
+                <a ng-click="viewModel.toggleSidebar()">
+                    Folio3 Connector
                     <span class="menu-icon glyphicon glyphicon-transfer"></span>
                 </a>
             </li>
-[SIDE_BAR]
+            [SIDE_BAR]
         </ul>
     </div>
     <!-- End Sidebar -->
