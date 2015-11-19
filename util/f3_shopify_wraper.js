@@ -625,11 +625,28 @@ ShopifyWrapper = (function () {
      */
     function getSalesOrderPaymentDetails(orderRecord) {
         var paymentDetail = {};
-        var paymentInfo = orderRecord.paymentInfo;
-        paymentDetail.method_id = paymentInfo.paymentMethod;
-        paymentDetail.method_title = paymentInfo.paymentMethodTitle;
-        paymentDetail.paid = false;
+        //var paymentInfo = orderRecord.paymentInfo;
+        //paymentDetail.method_id = paymentInfo.paymentMethod;
+        //paymentDetail.method_title = paymentInfo.paymentMethodTitle;
+        //paymentDetail.paid = false;
         return paymentDetail;
+    }
+
+    /**
+     * This method returns an object of discount lines for sales order
+     * @param orderRecord
+     * @returns {{}}
+     */
+    function getSalesOrderDiscountLines(orderRecord) {
+        var discountLines = [];
+        if (orderRecord.discountAmount > 0) {
+            discountLines.push({
+                amount: orderRecord.discountAmount,
+                code: "NetSuite Discount",
+                type: "fixed_amount"
+            });
+        }
+        return discountLines;
     }
 
     /**
@@ -653,7 +670,22 @@ ShopifyWrapper = (function () {
         // set shipping lines
         data.order.shipping_lines = getSalesOrderShippingLines(orderRecord);
         // set payment details
-        //data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
+        data.order.payment_details = getSalesOrderPaymentDetails(orderRecord);
+        // set discount lines
+        data.order.discount_codes = getSalesOrderDiscountLines(orderRecord);
+        data.order.total_discounts = orderRecord.discountAmount > 0 ? orderRecord.discountAmount : 0;
+        data.order.processing_method = "manual";
+        data.order.payment_gateway_names = ["manual"];
+        data.order.gateway = "manual";
+        data.order.transactions = [
+            {
+                "kind": "authorization",
+                "status": "success",
+                "amount": orderRecord.orderTotal,// this might be causing error in future
+                "message": "Chay Script"
+            }
+        ];
+
         return data;
     }
 
@@ -924,7 +956,7 @@ ShopifyWrapper = (function () {
         var data = {};
         for (var i in lineItems) {
             var lineItem = lineItems[i];
-            data[lineItem.sku] = lineItem.variant_id.toString();
+            data[lineItem.sku] = lineItem.id.toString();
         }
         return data;
     }
@@ -1560,7 +1592,8 @@ ShopifyWrapper = (function () {
              * If SO is from shopify, and its SO payment method is either empty(equal to 'pending' of shopify) or
              * credit card
              */
-            if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && (isOnlineMethod || !sOPaymentMethod)) {
+            if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && (isOnlineMethod || !sOPaymentMethod)
+                || (isSOFromOtherSystem != 'T')) {// (isSOFromOtherSystem != 'T') is for exporting invoice from NS to Shopify
                 return true;
             } else {
                 return false;
