@@ -57,6 +57,9 @@ var GenericDataExportManager = (function () {
             else if (recordType == ConnectorConstants.NSRecordTypes.SalesOrder) {
                 result = this.exportSalesOrder(recordId, recordType);
             }
+            else if (recordType == ConnectorConstants.NSRecordTypes.CashRefund) {
+                result = this.exportCashRefund(recordId, recordType);
+            }
 
             return result;
         },
@@ -181,17 +184,19 @@ var GenericDataExportManager = (function () {
                 if (!!orderData[ConnectorConstants.Transaction.Fields.MagentoId]) {
                     msg = "Sales Order is already synced. Please close the window.";
                 }
-                else if (!!orderData[ConnectorConstants.Transaction.Fields.MagentoStore]) {
+                else if (!orderData[ConnectorConstants.Transaction.Fields.MagentoStore]) {
                     msg = "Please select External System first. Please close the window. ";
                 } else {
                     var data = {};
                     data[RecordsToSync.FieldName.RecordId] = recordId;
                     data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
-                    data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+                    data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.ExportSalesOrder;
                     data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+                    data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
                     data[RecordsToSync.FieldName.ExternalSystem] = nlapiLookupField(recordType, recordId, ConnectorConstants.Transaction.Fields.MagentoStore);
                     RecordsToSync.upsert(data);
-                    nlapiScheduleScript(ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.id, ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.deploymentId);
+                    var scriptStatus = nlapiScheduleScript(ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.id, ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderExportToExternalSystem.deploymentId);
+                    Utility.logDebug("Status", scriptStatus);
                     msg = "Please close the window. Sales Order will be synced in few minutes.";
                 }
             }
@@ -203,6 +208,57 @@ var GenericDataExportManager = (function () {
                     error = ex.toString();
                 }
                 nlapiLogExecution('ERROR', 'error in GenericDataExportManager.exportSalesOrder', error);
+            }
+
+            var result = {
+                status: status,
+                msg: msg,
+                error: error
+            };
+            return result;
+        },
+
+        exportCashRefund: function (recordId, recordType) {
+            var status = true;
+            var error = '';
+            var msg = '';
+            try {
+                var orderData = nlapiLookupField(recordType, recordId, [
+                    ConnectorConstants.Transaction.Fields.MagentoStore,
+                    ConnectorConstants.Transaction.Fields.MagentoId,
+                    ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId
+                ]);
+
+                if (!orderData[ConnectorConstants.Transaction.Fields.MagentoId]) {
+                    msg = "Please sync the order first and close the window.";
+                }
+                else if (!!orderData[ConnectorConstants.Transaction.Fields.CustomerRefundMagentoId]) {
+                    msg = "Cash Refund is already synced. Please close the window.";
+                }
+                else if (!orderData[ConnectorConstants.Transaction.Fields.MagentoStore]) {
+                    msg = "Please select External System first. Please close the window. ";
+                } else {
+                    var data = {};
+                    data[RecordsToSync.FieldName.RecordId] = recordId;
+                    data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.CashRefund;
+                    data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.ExportCashRefund;
+                    data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+                    data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
+                    data[RecordsToSync.FieldName.ExternalSystem] = nlapiLookupField(recordType, recordId, ConnectorConstants.Transaction.Fields.MagentoStore);
+                    RecordsToSync.upsert(data);
+                    var scriptStatus = nlapiScheduleScript(ConnectorConstants.SuiteScripts.ScheduleScript.CashRefundExportToExternalSystem.id, ConnectorConstants.SuiteScripts.ScheduleScript.CashRefundExportToExternalSystem.deploymentId);
+                    Utility.logDebug("Status", scriptStatus);
+                    msg = "Please close the window. Cash Refund will be synced in few minutes.";
+                }
+            }
+            catch (ex) {
+                status = false;
+                if (ex instanceof nlobjError) {
+                    error = 'Code: ' + ex.getCode() + ',  Detail: ' + ex.getDetails();
+                } else {
+                    error = ex.toString();
+                }
+                nlapiLogExecution('ERROR', 'error in GenericDataExportManager.exportCashRefund', error);
             }
 
             var result = {

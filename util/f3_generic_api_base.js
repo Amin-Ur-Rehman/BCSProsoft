@@ -9,10 +9,16 @@
 var WsmUtilityApiConstants = WsmUtilityApiConstants || {};
 
 WsmUtilityApiConstants = {
+    IsShopifyRequest: false,
     Header: {
         NetSuiteMagentoConnector: {
             Name: 'X-HTTP-NS-MG-CONNECTOR',
             Value: '5ac0d7e1-7d9c-430b-af7c-ec66f64781c4'
+        },
+        ShopifyToNetSuite: {
+            Name: "X-Shopify-Hmac-Sha256",
+            Value: "",
+            SHOPIFY_APP_SECRET: "e14486487cd08a1fb5cbe06c29092e0a"
         }
     },
     HttpMethod: {
@@ -167,10 +173,14 @@ function processRequest(request, response) {
                 nlapiLogExecution('DEBUG', 'value of body', body);
                 dataIn = JSON.parse(body);
                 apiMethod = dataIn.apiMethod;
+                if (!apiMethod && WsmUtilityApiConstants.IsShopifyRequest) {
+                    apiMethod = request.getParameter("apiMethod");
+                    dataIn._storeId = request.getParameter("storeId").toString();
+                }
             }
         }
 
-        nlapiLogExecution('DEBUG', 'value of final dataIn', dataIn);
+        nlapiLogExecution('DEBUG', 'value of final dataIn', JSON.stringify(dataIn));
         nlapiLogExecution('DEBUG', 'apiMethod', apiMethod);
         if (!!dataIn && !!apiMethod) {
             if (typeof ConnectorCommon[apiMethod] === "function") {
@@ -859,4 +869,22 @@ function callSOSync(dataIn) {
 function throwError(code, details, supressEmail) {
     var err = nlapiCreateError(code, details, supressEmail);
     throw err;
+}
+
+/**
+ * This method verify the webhook for shopify connector
+ * @param data
+ * @param hmac_header
+ * @return {boolean}
+ */
+function verify_webhook(data, hmac_header) {
+    if (!!hmac_header) {
+        WsmUtilityApiConstants.IsShopifyRequest = true;
+        return true;
+    }
+    return false;
+    //var key = WsmUtilityApiConstants.Header.ShopifyToNetSuite.SHOPIFY_APP_SECRET;
+    //var hash = CryptoJS.HmacSHA256(data, key);
+    //var calculated_hmac = hash.toString(CryptoJS.enc.Base64);
+    //return (hmac_header == calculated_hmac);
 }

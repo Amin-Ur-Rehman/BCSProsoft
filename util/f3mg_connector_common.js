@@ -151,27 +151,27 @@ var ConnectorCommon = (function () {
         setPayment: function (rec, payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
             var paypalPaymentMethod = netsuitePaymentTypes.PayPal;
             /*if (payment.method.toString() === 'ccsave') {
-                rec.setFieldValue('paymentmethod', this.getCCType(payment.ccType, netsuitePaymentTypes));
-                if(!!payment.authorizedId) {
-                    rec.setFieldValue('pnrefnum', payment.authorizedId);
-                }
-                rec.setFieldValue('ccapproved', 'T');
-                return;
-            }
-            //paypal_direct
-            else if (payment.method.toString() === 'paypal_direct') {
-                rec.setFieldValue('paymentmethod', this.getCCType(payment.ccType, netsuitePaymentTypes));
-                rec.setFieldValue('pnrefnum', payment.authorizedId);
-                rec.setFieldValue('ccapproved', 'T');
-                return;
-            }*/
+             rec.setFieldValue('paymentmethod', this.getCCType(payment.ccType, netsuitePaymentTypes));
+             if(!!payment.authorizedId) {
+             rec.setFieldValue('pnrefnum', payment.authorizedId);
+             }
+             rec.setFieldValue('ccapproved', 'T');
+             return;
+             }
+             //paypal_direct
+             else if (payment.method.toString() === 'paypal_direct') {
+             rec.setFieldValue('paymentmethod', this.getCCType(payment.ccType, netsuitePaymentTypes));
+             rec.setFieldValue('pnrefnum', payment.authorizedId);
+             rec.setFieldValue('ccapproved', 'T');
+             return;
+             }*/
 
 
             //paypal_express
-            Utility.logDebug('payment.ccType  #  payment.method', payment.ccType + '  #  ' +payment.method.toString());
+            Utility.logDebug('payment.ccType  #  payment.method', payment.ccType + '  #  ' + payment.method.toString());
             if (!!payment.ccType && magentoCCSupportedPaymentTypes.indexOf(payment.method.toLowerCase()) > -1) {
                 rec.setFieldValue('paymentmethod', this.getCCType(payment.ccType, netsuitePaymentTypes));
-                if(!!payment.authorizedId) {
+                if (!!payment.authorizedId) {
                     rec.setFieldValue('pnrefnum', payment.authorizedId);
                 }
                 rec.setFieldValue('ccapproved', 'T');
@@ -193,7 +193,7 @@ var ConnectorCommon = (function () {
                 Utility.logDebug("paymentMethodLookup_Key", otherPaymentMethod);
                 var paymentMethodLookupValue = FC_ScrubHandler.getMappedValue('PaymentMethod', otherPaymentMethod);
                 Utility.logDebug("paymentMethodLookup_Value", paymentMethodLookupValue);
-                if(!!paymentMethodLookupValue && paymentMethodLookupValue != otherPaymentMethod) {
+                if (!!paymentMethodLookupValue && paymentMethodLookupValue != otherPaymentMethod) {
                     rec.setFieldValue('paymentmethod', paymentMethodLookupValue);
                 }
             }
@@ -378,7 +378,7 @@ var ConnectorCommon = (function () {
          * Add/update addresses in customer record
          * @param rec
          * @param address
-         * @param customerAddresses
+         * @param type
          * @return {*}
          */
         setAddress: function (rec, address, type) {
@@ -950,6 +950,7 @@ var ConnectorCommon = (function () {
          * @param magentoId
          * @param type
          * @param existingId
+         * @param password
          * @return {*}
          */
         getMagentoIdObjectArrayString: function (storeId, magentoId, type, existingId, password) {
@@ -1401,8 +1402,7 @@ var ConnectorCommon = (function () {
 
         /**
          * Gets the value of object, based on row and column
-         * @param row
-         * @param cols
+         * @param records
          * @returns {*}
          */
         getObjects: function (records) {
@@ -1439,6 +1439,7 @@ var ConnectorCommon = (function () {
          * Gets the value of object, based on row and column
          * @param row
          * @param cols
+         * @param columnNames
          * @returns {*}
          */
         getObject: function (row, cols, columnNames) {
@@ -1485,7 +1486,8 @@ var ConnectorCommon = (function () {
                 ConnectorConstants.NSRecordTypes.PromotionCode,
                 ConnectorConstants.NSRecordTypes.PriceLevel,
                 ConnectorConstants.NSRecordTypes.PaymentTerm,
-                ConnectorConstants.NSRecordTypes.SalesOrder
+                ConnectorConstants.NSRecordTypes.SalesOrder,
+                ConnectorConstants.NSRecordTypes.CashRefund
             ];
             return eligibleRecordTypes;
         },
@@ -1494,6 +1496,7 @@ var ConnectorCommon = (function () {
          * Get netsuite record id for provided magento records incremental id
          * @param recordType
          * @param magentoIncrementId
+         * @param storeId
          * @returns {*}
          */
         getNetSuiteRecordInternalId: function (recordType, magentoIncrementId, storeId) {
@@ -1603,7 +1606,6 @@ var ConnectorCommon = (function () {
             //nlapiSubmitField(ConnectorConstants.NSTransactionTypes.SalesOrder, netsuiteSOInternalId, 'orderstatus', ConnectorConstants.SalesOrderStatus.Cancel);
         },
 
-
         createGiftCertificateItem: function (giftCertificateObject) {
             try {
                 Utility.logDebug('createGiftCertificateItem entry', JSON.stringify(giftCertificateObject));
@@ -1655,6 +1657,28 @@ var ConnectorCommon = (function () {
             } catch (ex) {
                 Utility.logException('Create Gift Certificate item failed', ex);
             }
+        },
+
+        /**
+         * This method adds the order id specific to the store getting from external system
+         * @param data
+         */
+        createOrder: function (data) {
+            var recData = {};
+            recData[RecordsToSync.FieldName.RecordId] = data.id.toString();
+            recData[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+            recData[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.ImportSalesOrder;
+            recData[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+            recData[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.IMPORT;
+            recData[RecordsToSync.FieldName.ExternalSystem] = data._storeId;
+            RecordsToSync.upsert(recData);
+            var status = nlapiScheduleScript(ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderImportFromExternalSystem.id, ConnectorConstants.SuiteScripts.ScheduleScript.SalesOrderImportFromExternalSystem.deploymentId);
+            Utility.logDebug("Sales Order will be synced in few minutes.", "status:" + status);
+
+            return {
+                message: "Sales Order will be synced in few minutes.",
+                scriptStatus: status
+            };
         }
     };
 })();

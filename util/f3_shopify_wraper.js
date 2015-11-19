@@ -60,8 +60,8 @@ ShopifyWrapper = (function () {
             localOrder.shippingAddress.firstname = serverOrder.shipping_address.first_name;
             localOrder.shippingAddress.lastname = serverOrder.shipping_address.last_name;
             localOrder.shippingAddress.postcode = serverOrder.shipping_address.zip;
-            localOrder.shippingAddress.region = serverOrder.shipping_address.province_code;
-            localOrder.shippingAddress.region_id = serverOrder.shipping_address.province_code;
+            localOrder.shippingAddress.region = serverOrder.shipping_address.province;// province_code
+            localOrder.shippingAddress.region_id = serverOrder.shipping_address.province;// province_code
             localOrder.shippingAddress.street = serverOrder.shipping_address.address1;
             localOrder.shippingAddress.telephone = serverOrder.shipping_address.phone;
             localOrder.shippingAddress.is_default_billing = false;
@@ -75,8 +75,8 @@ ShopifyWrapper = (function () {
             localOrder.billingAddress.firstname = serverOrder.billing_address.first_name;
             localOrder.billingAddress.lastname = serverOrder.billing_address.last_name;
             localOrder.billingAddress.postcode = serverOrder.billing_address.zip;
-            localOrder.billingAddress.region = serverOrder.billing_address.province_code;
-            localOrder.billingAddress.region_id = serverOrder.billing_address.province_code;
+            localOrder.billingAddress.region = serverOrder.billing_address.province;// province_code
+            localOrder.billingAddress.region_id = serverOrder.billing_address.province;// province_code
             localOrder.billingAddress.street = serverOrder.billing_address.address_1 + ' ' + serverOrder.billing_address.address_2;
             localOrder.billingAddress.telephone = serverOrder.billing_address.phone;
             localOrder.billingAddress.is_default_billing = true;
@@ -103,7 +103,8 @@ ShopifyWrapper = (function () {
     function parseSingleSalesOrderDetailsResponse(serverOrder) {
 
         var localOrder = ConnectorModels.salesOrderModel();
-
+        var address1;
+        var address2;
         localOrder.increment_id = serverOrder.id.toString();
         // hack for SO list logic changes
         localOrder.customer = {};
@@ -172,9 +173,11 @@ ShopifyWrapper = (function () {
             localOrder.shippingAddress.firstname = serverOrder.shipping_address.first_name;
             localOrder.shippingAddress.lastname = serverOrder.shipping_address.last_name;
             localOrder.shippingAddress.postcode = serverOrder.shipping_address.zip;
-            localOrder.shippingAddress.region = serverOrder.shipping_address.province_code;
-            localOrder.shippingAddress.region_id = serverOrder.shipping_address.province_code;
-            localOrder.shippingAddress.street = serverOrder.shipping_address.address1;
+            localOrder.shippingAddress.region = serverOrder.shipping_address.province;// province_code
+            localOrder.shippingAddress.region_id = serverOrder.shipping_address.province;// province_code
+            address1 = !!serverOrder.shipping_address.address1 ? serverOrder.shipping_address.address1 : "";
+            address2 = !!serverOrder.shipping_address.address2 ? serverOrder.shipping_address.address2 : "";
+            localOrder.shippingAddress.street = (address1 + " " + address2).trim();
             localOrder.shippingAddress.telephone = serverOrder.shipping_address.phone;
             localOrder.shippingAddress.is_default_billing = false;
             localOrder.shippingAddress.is_default_shipping = true;
@@ -187,9 +190,11 @@ ShopifyWrapper = (function () {
             localOrder.billingAddress.firstname = serverOrder.billing_address.first_name;
             localOrder.billingAddress.lastname = serverOrder.billing_address.last_name;
             localOrder.billingAddress.postcode = serverOrder.billing_address.zip;
-            localOrder.billingAddress.region = serverOrder.billing_address.province_code;
-            localOrder.billingAddress.region_id = serverOrder.billing_address.province_code;
-            localOrder.billingAddress.street = serverOrder.billing_address.address_1 + ' ' + serverOrder.billing_address.address_2;
+            localOrder.billingAddress.region = serverOrder.billing_address.province;// province_code
+            localOrder.billingAddress.region_id = serverOrder.billing_address.province;// province_code
+            address1 = !!serverOrder.billing_address.address1 ? serverOrder.billing_address.address1 : "";
+            address2 = !!serverOrder.billing_address.address2 ? serverOrder.billing_address.address2 : "";
+            localOrder.billingAddress.street = (address1 + " " + address2).trim();
             localOrder.billingAddress.telephone = serverOrder.billing_address.phone;
             localOrder.billingAddress.is_default_billing = true;
             localOrder.billingAddress.is_default_shipping = false;
@@ -369,8 +374,8 @@ ShopifyWrapper = (function () {
         localAddress.firstname = serverAddress.first_name;
         localAddress.lastname = serverAddress.last_name;
         localAddress.postcode = serverAddress.zip;
-        localAddress.region = serverAddress.province_code;
-        localAddress.region_id = serverAddress.province_code;
+        localAddress.region = serverAddress.province;//province_code
+        localAddress.region_id = serverAddress.province;//province_code
         localAddress.street = serverAddress.address1;
         localAddress.telephone = serverAddress.phone;
 
@@ -1063,6 +1068,10 @@ ShopifyWrapper = (function () {
                     serverFinalResponse.payment = orders[0].payment;
                     serverFinalResponse.products = orders[0].products;
                     serverFinalResponse.customer = orders[0].customer;
+                } else {
+                    serverFinalResponse.status = false;
+                    serverFinalResponse.faultCode = "RECORD_DOES_NOT_EXIST";
+                    serverFinalResponse.faultString = "Order is not found";
                 }
             }
 

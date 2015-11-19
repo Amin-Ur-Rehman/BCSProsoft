@@ -15,10 +15,20 @@
 function suite_api(request, response) {
     var outResponse = {};
     try {
-        //nlapiLogExecution('DEBUG', 'test_w', 'call is here');
-        var header = request.getHeader(WsmUtilityApiConstants.Header.NetSuiteMagentoConnector.Name);
+        /*var headers = request.getAllHeaders();
+        for (var header in headers) {
+            nlapiLogExecution('DEBUG', 'header: ' + header, 'value: ' + headers[header]);
+        }
 
-        if (header === WsmUtilityApiConstants.Header.NetSuiteMagentoConnector.Value) {
+        var params = request.getAllParameters();
+        for (var param in params) {
+            nlapiLogExecution('DEBUG', 'parameter: ' + param, 'value: ' + params[param]);
+        }*/
+
+        var header = request.getHeader(WsmUtilityApiConstants.Header.NetSuiteMagentoConnector.Name);
+        var shopifyHeader = request.getHeader(WsmUtilityApiConstants.Header.ShopifyToNetSuite.Name);
+
+        if (header === WsmUtilityApiConstants.Header.NetSuiteMagentoConnector.Value || verify_webhook(request.getBody(), shopifyHeader)) {
             outResponse = processRequest(request, response);
         } else {
             throwError('DEV_ERR', 'Invalid Call', true);
