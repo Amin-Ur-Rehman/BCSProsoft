@@ -6,12 +6,11 @@
 
     'use strict';
 
-    angular.module('f3UC', [
-        'ui.bootstrap',
-        'ui.router',
-        'ngCookies',
-        'chart.js',
-        'ngAnimate'
+    angular.module("f3UC", [
+        "ui.bootstrap",
+        "ui.router",
+        "ngCookies",
+        "chart.js"
     ]);
 
 
