@@ -17,7 +17,7 @@
 var SalesOrderScriptHelper = (function () {
     return {
         config: {
-            recordType :{
+            recordType: {
                 transaction: {
                     Fields: {
                         MagentoId: 'custbody_magentoid',
@@ -28,9 +28,29 @@ var SalesOrderScriptHelper = (function () {
                         CustomerRefundMagentoId: 'custbody_cash_refund_magentoid'
                     }
                 }
-            }
-            , messages: {
-                cancelConfirmation: "You Should Cancel Magento Sales Order before editing this Order to reflect changes in magento. Do want to proceed for cancellation button?"
+            },
+
+            messages: function () {
+                var storeText = nlapiGetFieldText(SalesOrderScriptHelper.config.recordType.transaction.Fields.MagentoStore);
+                return {
+                    cancelConfirmation: "You Should Cancel " + storeText + " Sales Order before editing this Order to reflect changes in " + storeText + ". Do want to proceed for cancellation button?"
+                };
+            },
+
+            isMagentoStore: function () {
+                var storeId = nlapiGetFieldValue(SalesOrderScriptHelper.config.recordType.transaction.Fields.MagentoStore);
+                try {
+                    if (!!storeId) {
+                        // quick fix
+                        var systemType = nlapiLookupField("customrecord_external_system_config", storeId, "custrecord_esc_system_type");
+                        if (systemType === "MAGENTO") {
+                            return true;
+                        }
+                    }
+                } catch (e) {
+                    Utility.logException("SalesOrderScriptHelper.isMagentoStore", e);
+                }
+                return false;
             }
         },
         /**
@@ -41,16 +61,18 @@ var SalesOrderScriptHelper = (function () {
          * @returns {Void}
          */
         clientPageInit: function (type) {
-            var magentoSync = nlapiGetFieldValue(this.config.recordType.transaction.Fields.MagentoSync);
-            var magentoId = nlapiGetFieldValue(this.config.recordType.transaction.Fields.MagentoId);
-            if(!!magentoId && magentoSync === 'T') {
-                if(confirm(this.config.messages.cancelConfirmation)) {
-                    //alert('redirection in its way.');
-                    var id = nlapiGetRecordId();
-                    var soViewUrl = nlapiResolveURL('RECORD', 'salesorder', id, 'VIEW');
-                    window.location.href = soViewUrl;
-                    //nlapiSetRedirectURL('RECORD', 'salesorder', id, false);
-                    return true;
+            if (this.config.isMagentoStore()) {
+                var magentoSync = nlapiGetFieldValue(this.config.recordType.transaction.Fields.MagentoSync);
+                var magentoId = nlapiGetFieldValue(this.config.recordType.transaction.Fields.MagentoId);
+                if (!!magentoId && magentoSync === 'T') {
+                    if (confirm(this.config.messages().cancelConfirmation)) {
+                        //alert('redirection in its way.');
+                        var id = nlapiGetRecordId();
+                        var soViewUrl = nlapiResolveURL('RECORD', 'salesorder', id, 'VIEW');
+                        window.location.href = soViewUrl;
+                        //nlapiSetRedirectURL('RECORD', 'salesorder', id, false);
+                        return true;
+                    }
                 }
             }
         },
