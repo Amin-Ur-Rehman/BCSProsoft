@@ -10,8 +10,19 @@
  * -
  */
 
+/*
+ SalesOrd:A         Sales Order:Pending Approval
+ SalesOrd:B         Sales Order:Pending Fulfillment
+ SalesOrd:C         Sales Order:Cancelled
+ SalesOrd:D         Sales Order:Partially Fulfilled
+ SalesOrd:E         Sales Order:Pending Billing/Partially Fulfilled
+ SalesOrd:F         Sales Order:Pending Billing
+ SalesOrd:G         Sales Order:Billed
+ SalesOrd:H         Sales Order:Closed
+ */
+
 /**
- * WotpClient class that has the actual functionality of client script.
+ * RecordExportButtonUE class that has the actual functionality of userevent script.
  * All business logic will be encapsulated in this class.
  */
 var RecordExportButtonUE = (function () {
@@ -23,12 +34,15 @@ var RecordExportButtonUE = (function () {
             var externalSystem;
             var externalSystemId;
             var externalSystemOrderId;
+            var nsOrderStatus;
+            var nsOrderStatusList = ["C", "H"];// Statuses are defined above
 
             // getting value for external system id
             if (recordType === ConnectorConstants.NSRecordTypes.SalesOrder) {
                 externalSystem = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
                 externalSystemId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
-                if (!!externalSystem && !externalSystemId) {
+                nsOrderStatus = nlapiGetFieldValue("orderstatus");
+                if (!!externalSystem && !externalSystemId && nsOrderStatusList.indexOf(nsOrderStatus) === -1) {
                     show = true;
                 }
             }
@@ -49,7 +63,7 @@ var RecordExportButtonUE = (function () {
                 }
             }
 
-            Utility.logDebug("showSyncButton", "recordType: " + recordType + " || externalSystem: " + externalSystem+ " || externalSystemId: " + externalSystemId + " || externalSystemOrderId: " + externalSystemOrderId);
+            Utility.logDebug("showSyncButton", "recordType: " + recordType + " || externalSystem: " + externalSystem + " || externalSystemId: " + externalSystemId + " || externalSystemOrderId: " + externalSystemOrderId);
 
             return show;
         },
