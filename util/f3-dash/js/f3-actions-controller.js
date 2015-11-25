@@ -127,7 +127,7 @@
             for (var i = this.actions.length - 1; i >= 0; i--) {
                 var action = this.actions[i];
                 action.selected = false;
-                if(action.actions) {
+                if(action.actions){
                     for (var j = action.actions.length - 1; j >= 0; j--) {
                         var subAction = action.actions[j];
                         subAction.selected = false;
@@ -138,11 +138,11 @@
 
             for (var i = this.actions.length - 1; i >= 0; i--) {
                 var action = this.actions[i];
-                if(action.key == key) {
+                if(action.key == key){
                     action.selected = true;
                     break;
                 }
-                if(action.actions) {
+                if(action.actions){
                     for (var j = action.actions.length - 1; j >= 0; j--) {
                         var subAction = action.actions[j];
                         if(subAction.key == key){

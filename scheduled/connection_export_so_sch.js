@@ -254,13 +254,13 @@ var OrderExportHelper = (function () {
             orderDataObject.customer = obj;
         },
         /**
-         * Append items data in orderDataObject for exporting sales order
+         * Append items and discount data in orderDataObject for exporting sales order
          * @param orderRecord
          * @param orderDataObject
          */
         appendItemsInDataObject: function (orderRecord, orderDataObject) {
             var arr = [];
-
+            var discountAmount = 0;
             try {
                 var itemId;
                 var skuOrId;
@@ -286,6 +286,8 @@ var OrderExportHelper = (function () {
                 }
 
                 var magentoItemsMap = ConnectorConstants.CurrentWrapper.getExtSysItemIdsByNsIds(itemIdsArr);
+                var setDiscountAtLineLevel = ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.setDiscountAtLineLevel;
+                var salesOrderDiscountItem = ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.salesorderDiscountItem;
 
                 for (line = 1; line <= totalLines; line++) {
                     itemId = orderRecord.getLineItemValue('item', 'item', line);
@@ -319,15 +321,24 @@ var OrderExportHelper = (function () {
                         giftInfo.giftCertAmount = giftCertAmount;
                     }
 
-                    var obj = {
-                        itemId: itemId,
-                        sku: skuOrId,
-                        quantity: itemQty,
-                        price: itemPrice,
-                        giftInfo: giftInfo
-                    };
-                    arr.push(obj);
+                    if (itemId != salesOrderDiscountItem) {
+                        var obj = {
+                            itemId: itemId,
+                            sku: skuOrId,
+                            quantity: itemQty,
+                            price: itemPrice,
+                            giftInfo: giftInfo
+                        };
+                        arr.push(obj);
+                    }
+                    else {
+                        var itemAmount = orderRecord.getLineItemValue('item', 'amount', line) || 0;
+                        discountAmount += (!!itemAmount ? parseFloat(itemAmount) : 0);
+                    }
                 }
+                // Handle body level discount
+                var bodyLevelDiscountAmount = orderRecord.getFieldValue('discounttotal');
+                discountAmount += (!!bodyLevelDiscountAmount ? parseFloat(bodyLevelDiscountAmount) : 0);
             }
             catch (e) {
                 Utility.logException('OrderExportHelper.appendItemsInDataObject', e);
@@ -335,6 +346,8 @@ var OrderExportHelper = (function () {
             }
 
             orderDataObject.items = arr;
+            orderDataObject.discountAmount = Math.abs(parseFloat(discountAmount));
+            orderDataObject.orderTotal = orderRecord.getFieldValue('total');
         },
         /**
          * Append Shipping information in orderDataObject for exporting sales order

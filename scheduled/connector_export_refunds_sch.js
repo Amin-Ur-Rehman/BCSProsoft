@@ -154,11 +154,13 @@ var RefundExportHelper = (function () {
 
         /**
          * Append items data in orderDataObject for exporting sales order
-         * @param orderRecord
-         * @param orderDataObject
+         * @param creditMemoRecord
+         * @param creditMemoDataObject
+         * @param store
          */
         appendItemsInDataObject: function (creditMemoRecord, creditMemoDataObject, store) {
             creditMemoDataObject.items = [];
+            var lineDiscount = 0;
             var adjustmentRefundItem = store.entitySyncInfo.cashrefund.adjustmentRefundItem;
             Utility.logDebug('adjustmentRefundItem', adjustmentRefundItem);
             var adjustmentRefundAmount = 0;
@@ -201,6 +203,11 @@ var RefundExportHelper = (function () {
                     creditMemoDataObject.items.push(obj);
                 }
             }
+
+            // discount amount handling for body field
+            var discountAmount = creditMemoRecord.getFieldValue("discounttotal");
+            discountAmount = !!discountAmount ? parseFloat(discountAmount) : 0;
+            creditMemoDataObject.adjustmentPositive = parseFloat(adjustmentRefundAmount) - Math.abs(discountAmount);
 
             /*for (var line = 1; line <= totalLines; line++) {
              var nsId = creditMemoRecord.getLineItemValue('item', 'item', line);
@@ -270,8 +277,9 @@ var RefundExportHelper = (function () {
         },
 
         /**
-         Sets Magento Id in the Order record
-         * @param parameter
+         * Sets Magento Id in the Order record
+         * @param magentoId
+         * @param orderId
          */
         setOrderExternalSystemId: function (magentoId, orderId) {
             try {
@@ -284,7 +292,8 @@ var RefundExportHelper = (function () {
 
         /**
          * Description of method setOrderMagentoSync
-         * @param parameter
+         * @param orderId
+         * @return {boolean}
          */
         setOrderMagentoSync: function (orderId) {
             var result = false;
@@ -349,6 +358,8 @@ var RefundExportHelper = (function () {
         /**
          * Get Credit Memo request parameters
          * @param cashRefundObj
+         * @param store
+         * @return {{}}
          */
         getRequestParameters: function (cashRefundObj, store) {
             var params = {};
@@ -386,6 +397,8 @@ var RefundExportHelper = (function () {
         /**
          * Check either payment method capturing is online supported or not??
          * @param sOPaymentMethodId
+         * @param store
+         * @return {boolean}
          */
         isOnlineCapturingPaymentMethod: function (sOPaymentMethodId, store) {
             var onlineSupported = false;
@@ -408,7 +421,9 @@ var RefundExportHelper = (function () {
 
         /**
          * Gets a credit memo data object
-         * @param parameter
+         * @param refundInternalId
+         * @param store
+         * @return {*}
          */
         getCustomerRefund: function (refundInternalId, store) {
             var cashRefundDataObject = null;
@@ -572,8 +587,9 @@ var ExportCustomerRefunds = (function () {
         },
 
         /**
-         Sets Magento Id in the Order record
-         * @param parameter
+         * Sets Magento Id in the Order record
+         * @param magentoId
+         * @param creditMemoId
          */
         setCashRefundMagentoId: function (magentoId, creditMemoId) {
             try {
@@ -609,7 +625,8 @@ var ExportCustomerRefunds = (function () {
 
         /**
          * sync customer belongs to current sales order if not synched to magento
-         * @param customer
+         * @param customerId
+         * @param magentoCustomerIds
          * @param store
          */
         processCustomer: function (customerId, magentoCustomerIds, store) {
@@ -808,6 +825,7 @@ var ExportCustomerRefunds = (function () {
         /**
          * Reschedules only there is any need
          * @param context Context Object
+         * @param params
          * @returns {boolean} true if rescheduling was necessary and done, false otherwise
          */
         rescheduleIfNeeded: function (context, params) {
@@ -839,6 +857,7 @@ var ExportCustomerRefunds = (function () {
         /**
          * Call this method to reschedule current schedule script
          * @param ctx nlobjContext Object
+         * @param params
          */
         rescheduleScript: function (ctx, params) {
             //var status = 'TEST RUN';
