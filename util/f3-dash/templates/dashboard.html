@@ -50,6 +50,51 @@
 
 <div class="row">
 
+    <div class="col-lg-12 col-md-8 col-xs-12">
+        <div class="panel panel-default" ng-init="viewModel.graphs.customers.loadData({limit: 5})">
+            <div class="panel-heading">
+                <i class="fa fa-tasks"></i> &nbsp;
+                Top Revenue Customers
+            </div>
+            <div class="panel-body">
+                <div ng-show="viewModel.graphs.customers.hasData">
+                    <div class=table-responsive>
+                        <div class="col-lg-6 col-md-8 col-xs-12 left_col">
+                            <div id="customers_top_sales_table"></div>
+                        </div>
+                        <div class="col-lg-6 col-md-8 col-xs-12 right_col">
+                            <div id="customers_top_sales_bar_chart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div ng-hide="viewModel.graphs.customers.hasData" class="alert alert-info">
+                    no records found.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-12 col-md-8 col-xs-12">
+        <div class="panel panel-default" ng-init="viewModel.graphs.dataSyncFrequency.loadData()">
+            <div class="panel-heading">
+                <i class="fa fa-tasks"></i> &nbsp;
+                Frequency
+            </div>
+            <div class="panel-body">
+                <div ng-show="viewModel.graphs.dataSyncFrequency.hasData">
+                    <div class=table-responsive>
+                        <div id="data_sync_frequency"></div>
+                    </div>
+                </div>
+                <div ng-hide="viewModel.graphs.dataSyncFrequency.hasData" class="alert alert-info">
+                    no records found.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
     <div class="col-lg-4 col-md-8 col-xs-12">
 
 

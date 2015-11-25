@@ -326,6 +326,41 @@ tr.ng-scope:nth-child(even),
 		background-color: #4cae4c;}
 
 
+/* Google PlugIn CSS Start */
+.google-visualization-table{border:none !important;}
+
+.google-visualization-table-table th,
+.google-visualization-table-table td{
+	border-right: none !important;
+	padding:5px 0.35em !important;
+	font-size: 14px;}
+
+.google-visualization-table-tr-head{
+	background-color:transparent !important;}
+
+.google-visualization-table-tr-sel{
+	background-color: #d6e9f8;}
+
+.google-visualization-table-tr-even,
+.google-visualization-table-tr-odd{
+	border-bottom:1px solid #eeeeee !important;}
+
+.col-lg-6.col-md-8.col-xs-12.left_col {
+    border-right: 1px solid #eeeeee;}
+
+th.google-visualization-table-th.gradient{
+	background-color: transparent;
+    background-image: none;
+	color: #6382a9;
+    text-transform: uppercase;
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: none;}
+
+
+/* Google PlugIn CSS End */
+
+
 @media (min-width: 768px){
 .mid_col{
 	margin-bottom:0;}
