@@ -749,7 +749,7 @@ var ExportCustomerRefunds = (function () {
                         Utility.logDebug('ExportCustomerRefunds.scheduled', ' Ends');
                     }
 
-                    if (RefundExportHelper.cashRefundsFromCustomRecord()) {
+                    if (!FeatureVerification.isPermitted(Features.EXPORT_CASH_REFUND_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions) && RefundExportHelper.cashRefundsFromCustomRecord()) {
                         var orders = RefundExportHelper.getSalesOrdersFromCustomRecord(true, null);
                         if (orders.length > 0) {
                             Utility.logDebug('startup', 'Reschedule');

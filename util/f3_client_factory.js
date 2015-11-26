@@ -1047,7 +1047,12 @@ function F3BaseV1Client() {
         if (Utility.isOneWorldAccount()) {
             rec.setFieldValue('subsidiary', ConnectorConstants.CurrentStore.entitySyncInfo.customer.subsidiary);
         }
-        rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
+
+        // if customer is guest then no need to set the external system id
+        if (!magentoCustomerObj._isGuestCustomer) {
+            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
+        }
+
         rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoSync, 'T');
         rec.setFieldValue('email', magentoCustomerObj.email);
         rec.setFieldValue('firstname', magentoCustomerObj.firstname);

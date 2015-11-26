@@ -126,6 +126,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
                     // if order comes with guest customer whose record is not existed in Magento
                     if (Utility.isBlankOrNull(salesOrderDetails.customer.customer_id)) {
+                        customer[customerIndex]._isGuestCustomer = true;
                         // Check for feature availability
                         if (!FeatureVerification.isPermitted(Features.IMPORT_SO_GUEST_CUSTOMER, ConnectorConstants.CurrentStore.permissions)) {
                             Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_GUEST_CUSTOMER + ' NOT ALLOWED');
