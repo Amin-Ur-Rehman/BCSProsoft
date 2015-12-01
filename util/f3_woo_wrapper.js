@@ -46,7 +46,7 @@ WooWrapper = (function () {
         }
 
         if (serverOrder.customer) {
-            localOrder.customer_id = serverOrder.customer.id;
+            localOrder.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.email = serverOrder.customer.email;
             localOrder.firstname = serverOrder.customer.first_name;
             localOrder.middlename = ' ';
@@ -61,7 +61,7 @@ WooWrapper = (function () {
             localOrder.customer_lastname = localOrder.lastname;
 
             // hack for SO list logic changes
-            localOrder.customer.customer_id = serverOrder.customer.id;
+            localOrder.customer.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.customer.email = serverOrder.customer.email;
             localOrder.customer.firstname = serverOrder.customer.first_name;
             localOrder.customer.middlename = ' ';
@@ -187,7 +187,7 @@ WooWrapper = (function () {
         localProduct.fulfillable_quantity = serverProduct.fulfillable_quantity;
         localProduct.total_discount = serverProduct.total_discount;
         localProduct.tax_lines = serverProduct.tax_lines;
-        localProduct.item_id = "";
+        localProduct.item_id = serverProduct.sku;
 
         return localProduct;
     }
@@ -598,7 +598,6 @@ WooWrapper = (function () {
         return couponsData;
     }
 
-
     function parseCouponsResponse(coupons) {
         var couponsList = [];
 
@@ -637,6 +636,81 @@ WooWrapper = (function () {
         couponObj.description = coupon.description;
 
         return couponObj;
+    }
+
+    /**
+     * Calculate total amount to refund on shopify
+     * @param cashRefundObj
+     */
+    function calculateAmountToRefund(cashRefundObj) {
+        var totalAmountToRefund = 0;
+        if (!!cashRefundObj.items && cashRefundObj.items.length > 0) {
+            for (var i = 0; i < cashRefundObj.items.length; i++) {
+                var obj = cashRefundObj.items[i];
+                totalAmountToRefund += parseFloat(obj.amount);
+            }
+        }
+        if (!!cashRefundObj.adjustmentPositive) {
+            totalAmountToRefund += parseFloat(cashRefundObj.adjustmentPositive);
+        }
+        if (!!cashRefundObj.shippingCost) {
+            totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
+        }
+        return totalAmountToRefund;
+    }
+
+    // TODO: cash refund
+    function getCreateRefundData(cashRefundObj) {
+        var refundingAmount = calculateAmountToRefund(cashRefundObj);
+
+        var refundData = {};
+
+        refundData.order_refund = {};
+        refundData.order_refund.amount = refundingAmount;
+        refundData.order_refund.reason = "Refund from NetSuite";
+        refundData.order_refund.line_items = [];
+
+        for (var i in cashRefundObj.items) {
+            var lineItemToRefund = {};
+            var item = cashRefundObj.items[i];
+            if (item.qty > 0) {
+                //lineItemToRefund.id = item.qty; product id
+                lineItemToRefund.sku = item.order_item_id; // product sku
+                lineItemToRefund.quantity = item.qty;
+                refundData.order_refund.line_items.push(lineItemToRefund);
+            }
+        }
+
+        return refundData;
+    }
+
+    function parseRefundSuccessResponse(serverResponse) {
+        var responseBody = {};
+        responseBody.status = 1;
+        responseBody.message = serverResponse.order_refund.message || '';
+        responseBody.data = {increment_id: serverResponse.order_refund.id.toString() || ''};
+        return responseBody;
+    }
+
+    function parseRefundFailureResponse(serverResponse) {
+
+        /*serverResponse = {
+            "errors": [{
+                "code": "woocommerce_api_create_order_refund_api_failed",
+                "message": "An error occurred while attempting to create the refund using the payment gateway API"
+            }]
+        };*/
+
+        var responseBody = {};
+        responseBody.status = 0;
+        if (!!serverResponse && !!serverResponse.errors
+            && serverResponse.errors.length > 0) {
+            responseBody.message = serverResponse.errors[0].message;
+            responseBody.error = serverResponse.errors[0].message;
+        } else {
+            responseBody.message = '';
+        }
+        return responseBody;
     }
 
     //function parseResponse(_serverResponse, _function, _type) {
@@ -1241,7 +1315,7 @@ WooWrapper = (function () {
          * @returns {boolean}
          */
         hasDifferentLineItemIds: function () {
-            return false;
+            return true;
         },
 
         /**
@@ -1451,15 +1525,31 @@ WooWrapper = (function () {
         /**
          * Create refund in wocommerce
          * @param sessionID
-         * @param netsuiteRefundObj
+         * @param cashRefundObj
          * @param store
          */
-        createCustomerRefund: function (sessionID, cashRefund, store) {
+        createCustomerRefund: function (sessionID, cashRefundObj, store) {
             // To be implement later
+            /*var responseBody = {};
+             responseBody.status = 1;
+             responseBody.message = '';
+             responseBody.data = {increment_id: ''};
+             return responseBody;*/
+
             var responseBody = {};
-            responseBody.status = 1;
-            responseBody.message = '';
-            responseBody.data = {increment_id: ''};
+            var orderId = cashRefundObj.orderId;
+            var httpRequestData = {
+                url: 'orders/' + orderId + '/refunds',
+                method: 'POST',
+                postData: getCreateRefundData(cashRefundObj)
+            };
+
+            var serverResponse = sendRequest(httpRequestData);
+            if (!!serverResponse.order_refund) {
+                responseBody = parseRefundSuccessResponse(serverResponse);
+            } else {
+                responseBody = parseRefundFailureResponse(serverResponse);
+            }
             return responseBody;
         },
         getPaymentInfoToExport: function (orderRecord, orderDataObject, store) {

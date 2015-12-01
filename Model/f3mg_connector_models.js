@@ -67,6 +67,8 @@ ConnectorModels = (function () {
             var result = [];
             var customer = {};
 
+            // not to populate external system id in lead or customer record if this check is on
+            customer._isGuestCustomer = false;
             customer.customer_id = order.customer_id;
             customer.email = order.email;
             customer.firstname = order.customer_firstname;
