@@ -61,7 +61,7 @@ var FC_SYNC_CONSTANTS = {
     },
     BundleInfo: {
         //Id: "suitebundle9090"
-        Id: "suitebundle" + "89131" // nlapiGetContext().getSetting('SCRIPT', 'custscript_fc_bundle_id')
+        Id: nlapiGetContext().getSetting('SCRIPT', 'custscript_fc_bundle_id') || ""
     },
     FileIds : {
         HtmlFileIdSuitelet2: "2959"

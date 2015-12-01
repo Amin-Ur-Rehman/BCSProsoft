@@ -252,10 +252,11 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
- 
-        importSalesOrder: function(request, response) {
+
+        importSalesOrder: function (request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
+            var params = {};
 
             var data = {};
             data[RecordsToSync.FieldName.RecordId] = salesorderId;
@@ -266,18 +267,24 @@ var ConnectorDashboardApi = (function () {
             data[RecordsToSync.FieldName.ExternalSystem] = storeId;
             RecordsToSync.upsert(data);
 
-            return this.executeScheduledScript(
-                        'customscript_connectororderimport', 
+            /*return this.executeScheduledScript(
+                        'customscript_connectororderimport',
                         'customdeploy_salesorder_import_using_cr',
                         {
                             salesorderIds: [salesorderId]
                         }
-                    );
+                    );*/
+            params[ConnectorConstants.ScriptParameters.SalesOrderImportStoreId] = storeId;
+            return this.executeScheduledScript(
+                'customscript_connectororderimport',
+                'customdeploy_salesorder_import_using_cr',
+                params);
         },
 
-        exportSalesOrder: function(request, response) {
+        exportSalesOrder: function (request, response) {
             var storeId = request.getParameter('store_id');
             var salesorderId = request.getParameter('record_id');
+            var params = {};
 
             var data = {};
             data[RecordsToSync.FieldName.RecordId] = salesorderId;
@@ -288,34 +295,51 @@ var ConnectorDashboardApi = (function () {
             data[RecordsToSync.FieldName.ExternalSystem] = storeId;
             RecordsToSync.upsert(data);
 
-            return this.executeScheduledScript(
+            /*return this.executeScheduledScript(
                         'customscript_salesorder_export', 
                         'customdeploy_salesorder_export_using_cr',
                         {
                             salesorderIds: [salesorderId]
                         }
-                    );
+                    );*/
+            params[ConnectorConstants.ScriptParameters.SalesOrderExportStoreId] = storeId;
+            return this.executeScheduledScript(
+                'customscript_salesorder_export',
+                'customdeploy_salesorder_export_using_cr',
+                params);
         },
 
-        executeCashRefundSyncScript: function(request, response) {
+        executeCashRefundSyncScript: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var params = {};
+            params[ConnectorConstants.ScriptParameters.CashRefundExportStoreId] = storeId;
             return this.executeScheduledScript(
-                        'customscript_cashrefund_export_sch', 
-                        'customdeploy_cashrefund_export_dep2'
-                    );
+                'customscript_cashrefund_export_sch',
+                'customdeploy_cashrefund_export_dep2',
+                params
+            );
         },
-        executeItemSyncScript: function(request, response) {
+        executeItemSyncScript: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var params = {};
+            params[ConnectorConstants.ScriptParameters.InventoryExportStoreId] = storeId;
             return this.executeScheduledScript(
-                        'customscript_magento_item_sync_sch', 
-                        'customdeploy_magento_item_sync_sch2'
-                    );
+                'customscript_magento_item_sync_sch',
+                'customdeploy_magento_item_sync_sch2',
+                params
+            );
         },
-        executeSOSyncScript: function(request, response) {
+        executeSOSyncScript: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var params = {};
+            params[ConnectorConstants.ScriptParameters.SalesOrderImportStoreId] = storeId;
             return this.executeScheduledScript(
-                        'customscript_connectororderimport', 
-                        'customdeploy_connectororderimport2'
-                    );
+                'customscript_connectororderimport',
+                'customdeploy_connectororderimport2',
+                params
+            );
         },
-        executeScheduledScript: function(scriptId, deploymentId, parameters) {
+        executeScheduledScript: function (scriptId, deploymentId, parameters) {
             var result = {
                 success: true,
                 error: false
@@ -323,7 +347,7 @@ var ConnectorDashboardApi = (function () {
 
 
             // TODO : need to pass parameters to following method
-            var status = nlapiScheduleScript(scriptId, deploymentId);
+            var status = nlapiScheduleScript(scriptId, deploymentId, parameters);
 
             var msg = 'scriptId: ' + scriptId + ' --- deploymentId: ' +deploymentId + ' --- status: ' + status;
             Utility.logDebug('executeScheduledScript(); ', msg);
@@ -813,8 +837,8 @@ var ConnectorDashboard = (function () {
             try {
                 var bundleId = FC_SYNC_CONSTANTS.BundleInfo.Id;
 
-                if (!bundleId || bundleId.length <= 0 || bundleId.toString() === 'suitebundle9090') {
-                    return "SuiteScripts/NS-SF-Con/util/";
+                if (!bundleId || bundleId.length <= 0) {
+                    return "SuiteScripts/NS-SF-Con/util/";//This will be change in future if necessary
                 } else {
                     return "SuiteBundles/Bundle " + bundleId.replace('suitebundle', '') + '/util/';
                 }

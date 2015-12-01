@@ -776,6 +776,11 @@ var ExportSalesOrders = (function () {
                 var context = nlapiGetContext();
                 var orderIds, externalSystemArr;
 
+                var specificStoreId, params = {};
+                // this handling is for specific store sync handling
+                specificStoreId = context.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SalesOrderExportStoreId);
+                Utility.logDebug("specificStoreId", specificStoreId);
+
                 context.setPercentComplete(0.00);
                 Utility.logDebug('Starting', '');
 
@@ -791,8 +796,16 @@ var ExportSalesOrders = (function () {
                     for (var i in externalSystemArr) {
 
                         var store = externalSystemArr[i];
-
                         ConnectorConstants.CurrentStore = store;
+
+                        // specific store handling
+                        if (!Utility.isBlankOrNull(specificStoreId)) {
+                            params[ConnectorConstants.ScriptParameters.SalesOrderExportStoreId] = specificStoreId;
+                            if (store.systemId != specificStoreId) {
+                                continue;
+                            }
+                        }
+
                         // Check for feature availability
                         if (!FeatureVerification.isPermitted(Features.EXPORT_SO_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                             Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_SO_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
@@ -835,13 +848,13 @@ var ExportSalesOrders = (function () {
                                         ExportSalesOrders.markRecords(orderObject.internalId, e.toString());
                                     }
                                 }
-                                if (this.rescheduleIfNeeded(context, null)) {
+                                if (this.rescheduleIfNeeded(context, params)) {
                                     return null;
                                 }
                             }
                         }
 
-                        if (this.rescheduleIfNeeded(context, null)) {
+                        if (this.rescheduleIfNeeded(context, params)) {
                             return null;
                         }
                     }

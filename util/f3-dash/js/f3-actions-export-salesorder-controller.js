@@ -28,7 +28,7 @@
 
 
             var apiUrl = location.href.replace(location.hash, '') +
-                '&method=exportSalesOrder&record_id=' + viewModel.salesorderId + '&store_id' + f3Store.id;
+                '&method=exportSalesOrder&record_id=' + viewModel.salesorderId + '&store_id=' + f3Store.id;
 
             viewModel.showLoadingIcon = true;
             $http.get(apiUrl)
