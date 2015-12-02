@@ -112,7 +112,12 @@ ConnectorConstants = (function () {
             LastStoreIdCusttomer: 'custscript_last_store_id_customer',
 
             LastInternalId: 'custscriptcustscriptinternalid',
-            ScriptStartDate: 'custscript_start_date'
+            ScriptStartDate: 'custscript_start_date',
+
+            SalesOrderExportStoreId: "custscript_salesorder_exp_storeid",
+            SalesOrderImportStoreId: "custscript_salesorder_imp_storeid",
+            CashRefundExportStoreId: "custscript_cashrefund_exp_storeid",
+            InventoryExportStoreId: "custscript_inventory_exp_storeid"
         },
         SuiteScripts: {
             Suitelet: {

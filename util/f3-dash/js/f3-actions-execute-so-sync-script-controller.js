@@ -106,7 +106,7 @@
         this.execute = function () {
             viewModel.showLoadingIcon = true;
 
-            var apiUrl = location.href.replace(location.hash, '') + '&method=executeSOSyncScript&store_id' + f3Store.id;
+            var apiUrl = location.href.replace(location.hash, '') + '&method=executeSOSyncScript&store_id=' + f3Store.id;
 
             $http.get(apiUrl)
                 .success(function(response) {

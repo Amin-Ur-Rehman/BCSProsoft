@@ -133,12 +133,12 @@ function syncProduct(product, productRecordtype, product_id, sessionID, isParent
         // check if Magento Item is in NetSuite
         if (!Utility.isBlankOrNull(product.magentoSKU)) {
             var magID = null;
-            if(ConnectorConstants.CurrentStore.entitySyncInfo.IdentifierType === "sku"){
+            if (ConnectorConstants.CurrentStore.entitySyncInfo.IdentifierType === "sku") {
                 var response = ConnectorConstants.CurrentWrapper.getProduct(sessionID, product);
                 if (response.status) {
                     magID = response.product.id;
                 }
-            }else{
+            } else {
                 magID = product.magentoSKU
             }
 
@@ -156,7 +156,7 @@ function syncProduct(product, productRecordtype, product_id, sessionID, isParent
                 Utility.logDebug(" Error From Magento ", msg);
             } else {
                 // Updated Successfully
-                nlapiLogExecution("AUDIT", 'SUCCESS SYNED - Item Id: ' + product_id, 'Price: '+product.price + ' Quantity: ' + product.quatity);
+                nlapiLogExecution("AUDIT", 'SUCCESS SYNED - Item Id: ' + product_id, 'Price: ' + product.price + ' Quantity: ' + product.quatity);
                 // Check for feature availability
                 if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TIERED_PRICING, ConnectorConstants.CurrentStore.permissions)) {
                     Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_TIERED_PRICING + ' NOT ALLOWED');
@@ -185,10 +185,22 @@ function ws_soaftsubm(type) {
         // getting configuration
         var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
         var context = nlapiGetContext();
+        var specificStoreId, params = {};
+        // this handling is for specific store sync handling
+        specificStoreId = context.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.InventoryExportStoreId);
+        Utility.logDebug("specificStoreId", specificStoreId);
+
         // it is for item sync
         var externalSystemArr = [];
 
         externalSystemConfig.forEach(function (store) {
+            // specific store handling
+            if (!Utility.isBlankOrNull(specificStoreId)) {
+                params[ConnectorConstants.ScriptParameters.InventoryExportStoreId] = specificStoreId;
+                if (store.systemId != specificStoreId) {
+                    return;
+                }
+            }
             ConnectorConstants.CurrentStore = store;
             ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
             ConnectorConstants.CurrentWrapper.initialize(store);
@@ -343,7 +355,6 @@ function ws_soaftsubm(type) {
                             var usageRemaining = context.getRemainingUsage();
                             if (usageRemaining < 2000) {
                                 Utility.logDebug('checkpoint', '12');
-                                var params = [];
                                 params[ConnectorConstants.ScriptParameters.LastInternalId] = product_id;
                                 params[ConnectorConstants.ScriptParameters.ScriptStartDate] = scriptStartDate;
                                 Utility.logDebug('Scheduled', product_id);
@@ -366,7 +377,9 @@ function ws_soaftsubm(type) {
 
             // update date in custom record
             Utility.logDebug('Last Run Date', scriptStartDate);
-            InventorySyncScript.updateStatus('Last Run Date', scriptStartDate);
+            if (Utility.isBlankOrNull(specificStoreId)) {
+                InventorySyncScript.updateStatus('Last Run Date', scriptStartDate);
+            }
 
         } catch (e) {
             Utility.logException('ws_soaftsubm', e);

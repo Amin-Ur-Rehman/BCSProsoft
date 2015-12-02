@@ -49,7 +49,7 @@
             console.log(_self.salesorderId);
 
             var apiUrl = location.href.replace(location.hash, '') +
-                '&method=searchSalesOrder&record_id=' + _self.salesorderId + '&store_id' + f3Store.id;
+                '&method=searchSalesOrder&record_id=' + _self.salesorderId + '&store_id=' + f3Store.id;
 
             $http.get(apiUrl)
                 .success(function(response) {

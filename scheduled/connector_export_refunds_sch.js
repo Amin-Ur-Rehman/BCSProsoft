@@ -701,6 +701,10 @@ var ExportCustomerRefunds = (function () {
                 var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
                 var context = nlapiGetContext();
                 var records, externalSystemArr;
+                var specificStoreId, params = {};
+                // this handling is for specific store sync handling
+                specificStoreId = context.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.CashRefundExportStoreId);
+                Utility.logDebug("specificStoreId", specificStoreId);
 
                 context.setPercentComplete(0.00);
                 Utility.logDebug('Starting', '');
@@ -717,8 +721,16 @@ var ExportCustomerRefunds = (function () {
                     for (var i in externalSystemArr) {
 
                         var store = externalSystemArr[i];
-
                         ConnectorConstants.CurrentStore = store;
+
+                        // specific store handling
+                        if (!Utility.isBlankOrNull(specificStoreId)) {
+                            params[ConnectorConstants.ScriptParameters.CashRefundExportStoreId] = specificStoreId;
+                            if (store.systemId != specificStoreId) {
+                                continue;
+                            }
+                        }
+
                         // Check for feature availability
                         if (!FeatureVerification.isPermitted(Features.EXPORT_CASH_REFUND_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                             Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_CASH_REFUND_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
@@ -742,7 +754,7 @@ var ExportCustomerRefunds = (function () {
                             Utility.logDebug('ExportCustomerRefunds.scheduled', 'No records found to process - StoreId: ' + store.systemId);
                         }
 
-                        if (this.rescheduleIfNeeded(context, null)) {
+                        if (this.rescheduleIfNeeded(context, params)) {
                             return null;
                         }
 

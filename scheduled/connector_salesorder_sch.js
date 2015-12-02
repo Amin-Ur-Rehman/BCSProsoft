@@ -292,21 +292,38 @@ function startup(type) {
             var soUpdateDate;
             var lastStoreId;
             var store;
+            var specificStoreId;
 
             // getting last store id if script has been rescheduled
             lastStoreId = context.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.LastStoreIdSalesOrder);
             // TODO: remove hard coding
             lastStoreId = Utility.isBlankOrNull(lastStoreId) ? 1 : parseInt(lastStoreId);
 
-            for (var system = lastStoreId; system < externalSystemConfig.length; system++) {
+            // this handling is for specific store sync handling
+            specificStoreId = context.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SalesOrderImportStoreId);
+            Utility.logDebug("specificStoreId", specificStoreId);
+            if (!Utility.isBlankOrNull(specificStoreId)) {
+                lastStoreId = specificStoreId;
+            }
+
+            for (var system = lastStoreId, specificStoreCount = 0; system < externalSystemConfig.length; system++, specificStoreCount++) {
                 // Add a Check whether categories synched or not , if not then stop and give msg that ensure the sync of categories first
                 try {
+
+                    // if specific store id exist then iterate loop only for one time
+                    if (!Utility.isBlankOrNull(specificStoreId) && specificStoreCount !== 0) {
+                        break;
+                    }
+
                     // getting store/system object
                     store = externalSystemConfig[system];
                     if (!store) {
                         //Utility.logDebug('store ' + system, 'This store is null');
                         continue;
                     }
+
+                    Utility.logDebug("StoreId", system.toString());
+
                     // set the percent complete parameter to 0.00
                     context.setPercentComplete(0.00);
                     // set store for ustilizing in other functions
@@ -353,25 +370,34 @@ function startup(type) {
                             Utility.logDebug('startup', 'Reschedule');
                             var params = {};
                             params[ConnectorConstants.ScriptParameters.LastStoreIdSalesOrder] = system;
+                            params[ConnectorConstants.ScriptParameters.SalesOrderImportStoreId] = specificStoreId;
                             nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
                             return;
                         }
                         else if (ordersFromCustomRecord()) {
-                            var orders = getSalesOrdersFromCustomRecord(true, null);
+                            var orders;
+                            var params = {};
+
+                            // specific store handling
+                            if (!Utility.isBlankOrNull(specificStoreId)) {
+                                orders = getSalesOrdersFromCustomRecord(false, specificStoreId);
+                                params[ConnectorConstants.ScriptParameters.SalesOrderImportStoreId] = specificStoreId;
+                            } else {
+                                orders = getSalesOrdersFromCustomRecord(true, null);
+                            }
+
                             if (orders.length > 0) {
                                 Utility.logDebug('startup', 'Reschedule');
-                                nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), null);
+                                nlapiScheduleScript(context.getScriptId(), context.getDeploymentId(), params);
                                 return;
                             }
                         }
                         Utility.logDebug('startup', 'JOB RAN SUCCESSFULLyy');
                     }
-
                 } catch (ex) {
                     Utility.logException('startup', ex);
                 }
             }
-
         } else {
             Utility.logDebug('Validate', 'License has expired');
         }
