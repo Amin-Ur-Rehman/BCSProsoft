@@ -119,6 +119,13 @@ var RecordExportButtonUE = (function () {
          */
         userEventBeforeSubmit: function (type) {
             //TODO: Write Your code here
+            if (type.toString() === 'edit') {
+                var date = new Date(),
+                    netSuiteSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.NetSuiteSalesOrderModifiedAt;
+                var dateString =nlapiDateToString(date, 'datetimetz');
+                Utility.logDebug('Updating ' + netSuiteSalesOrderModifiedAt, dateString);
+                nlapiSetFieldValue(netSuiteSalesOrderModifiedAt, dateString);
+            }
         },
 
         /**

@@ -56,7 +56,10 @@ ConnectorConstants = (function () {
                 CustomerRefundMagentoId: 'custbody_cash_refund_magentoid',
                 DontSyncToMagento: 'custbody_f3mg_dont_sync_to_magento',
                 FromOtherSystem: 'custbody_f3_so_from_other_system',
-                MagentoInvoiceId: 'custbody_f3mg_invoice_id'
+                MagentoInvoiceId: 'custbody_f3mg_invoice_id',
+                ExternalSystemSalesOrderModifiedAt: 'custbody_f3mg_external_modified_time',
+                NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time'
+
             },
             Columns: {
                 MagentoOrderId: 'custcol_mg_order_item_id'

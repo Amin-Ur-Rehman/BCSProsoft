@@ -787,11 +787,13 @@ function F3BaseV1Client() {
         var magentoIdId;
         var magentoSyncId;
         var isDummyItemSetInOrder = '';
+        var externalSystemSalesOrderModifiedAt;
         var containsSerialized = false;
         var netSuiteItemID;
 
         magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
         magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
 
         var rec = nlapiCreateRecord('salesorder', null);
         Utility.logDebug('setting payment ', '');
@@ -914,6 +916,7 @@ function F3BaseV1Client() {
         try {
             rec.setFieldValue(magentoSyncId, 'T');
             rec.setFieldValue(magentoIdId, order.increment_id.toString());
+            rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
             //rec.setFieldValue('memo', 'Test Folio3');
             if (isDummyItemSetInOrder) {
                 // A = Pending Approval

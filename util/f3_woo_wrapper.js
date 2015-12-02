@@ -35,6 +35,7 @@ WooWrapper = (function () {
         // hack for SO list logic changes
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.order_number.toString();
+        localOrder.customer.updatedAt = serverOrder.updated_at;
 
         if (serverOrder.shipping_lines && serverOrder.shipping_lines.length > 0) {
             localOrder.shipping_amount = serverOrder.shipping_lines[0].total;
