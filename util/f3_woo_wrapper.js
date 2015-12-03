@@ -188,7 +188,7 @@ WooWrapper = (function () {
         localProduct.fulfillable_quantity = serverProduct.fulfillable_quantity;
         localProduct.total_discount = serverProduct.total_discount;
         localProduct.tax_lines = serverProduct.tax_lines;
-        localProduct.item_id = serverProduct.sku;
+        localProduct.item_id = serverProduct.id;
 
         return localProduct;
     }

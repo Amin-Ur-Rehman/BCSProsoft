@@ -119,7 +119,9 @@ var RecordExportButtonUE = (function () {
          */
         userEventBeforeSubmit: function (type) {
             //TODO: Write Your code here
-            if (type.toString() === 'edit') {
+            var context = nlapiGetContext().getExecutionContext();
+            Utility.logDebug('Context', context.toString() !== 'scheduled');
+            if (type.toString() === 'edit' && context.toString() !== 'scheduled') {
                 var date = new Date(),
                     netSuiteSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.NetSuiteSalesOrderModifiedAt;
                 var dateString =nlapiDateToString(date, 'datetimetz');
