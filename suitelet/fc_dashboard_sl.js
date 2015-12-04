@@ -27,7 +27,7 @@ var ConnectorDashboardApi = (function () {
                 case 'getCustomersCount':
                     return this.getCustomersCount(request, response);
                     break;
-                
+
                 case 'getSalesOrderCount':
                     return this.getSalesOrderCount(request, response);
                     break;
@@ -98,6 +98,12 @@ var ConnectorDashboardApi = (function () {
                     break;
                 case 'executeItemSyncScript':
                     return this.executeItemSyncScript(request, response);
+                    break;
+                case 'executeItemExportScript':
+                    return this.executeItemExportScript(request, response);
+                    break;
+                case 'getItemExportScriptDeploymentInstances':
+                    return this.getItemExportScriptDeploymentInstances(request, response);
                     break;
                 case 'executeCashRefundSyncScript':
                     return this.executeCashRefundSyncScript(request, response);
@@ -234,7 +240,7 @@ var ConnectorDashboardApi = (function () {
         getItemsCount: function(request, response) {
             var storeId = request.getParameter('store_id');
             var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_item_count_by_store',
-                                    'custitem_f3mg_magento_stores');
+                'custitem_f3mg_magento_stores');
             return finalResponse;
         },
 
@@ -268,12 +274,12 @@ var ConnectorDashboardApi = (function () {
             RecordsToSync.upsert(data);
 
             /*return this.executeScheduledScript(
-                        'customscript_connectororderimport',
-                        'customdeploy_salesorder_import_using_cr',
-                        {
-                            salesorderIds: [salesorderId]
-                        }
-                    );*/
+             'customscript_connectororderimport',
+             'customdeploy_salesorder_import_using_cr',
+             {
+             salesorderIds: [salesorderId]
+             }
+             );*/
             params[ConnectorConstants.ScriptParameters.SalesOrderImportStoreId] = storeId;
             return this.executeScheduledScript(
                 'customscript_connectororderimport',
@@ -296,12 +302,12 @@ var ConnectorDashboardApi = (function () {
             RecordsToSync.upsert(data);
 
             /*return this.executeScheduledScript(
-                        'customscript_salesorder_export', 
-                        'customdeploy_salesorder_export_using_cr',
-                        {
-                            salesorderIds: [salesorderId]
-                        }
-                    );*/
+             'customscript_salesorder_export',
+             'customdeploy_salesorder_export_using_cr',
+             {
+             salesorderIds: [salesorderId]
+             }
+             );*/
             params[ConnectorConstants.ScriptParameters.SalesOrderExportStoreId] = storeId;
             return this.executeScheduledScript(
                 'customscript_salesorder_export',
@@ -327,6 +333,13 @@ var ConnectorDashboardApi = (function () {
                 'customscript_magento_item_sync_sch',
                 'customdeploy_magento_item_sync_sch2',
                 params
+            );
+        },
+        executeItemExportScript: function(request, response) {
+            return this.executeScheduledScript(
+                'customscript_item_export_sch',
+                'customdeploy_item_export_sch_dash',
+                null
             );
         },
         executeSOSyncScript: function (request, response) {
@@ -368,31 +381,31 @@ var ConnectorDashboardApi = (function () {
 
         getCashRefundSyncLogs: function(request, response) {
             return this.getExecutionLogs(
-                    'customscript_cashrefund_export_sch', 
-                    'customdeploy_cashrefund_export_dep2', 
-                    request
-                );
+                'customscript_cashrefund_export_sch',
+                'customdeploy_cashrefund_export_dep2',
+                request
+            );
         },
         getItemSyncLogs: function(request, response) {
             return this.getExecutionLogs(
-                    'customscript_magento_item_sync_sch', 
-                    'customdeploy_magento_item_sync_sch2', 
-                    request
-                );
+                'customscript_magento_item_sync_sch',
+                'customdeploy_magento_item_sync_sch2',
+                request
+            );
         },
         getFulfilmentSyncLogs: function(request, response) {
             return this.getExecutionLogs(
-                    'customscript_magento_fulfillment_ue', 
-                    'customdeploy_magento_fulfillment_ue', 
-                    request
-                );
+                'customscript_magento_fulfillment_ue',
+                'customdeploy_magento_fulfillment_ue',
+                request
+            );
         },
         getSOSyncLogs: function(request, response) {
             return this.getExecutionLogs(
-                    'customscript_connectororderimport', 
-                    'customdeploy_connectororderimport2', 
-                    request
-                );
+                'customscript_connectororderimport',
+                'customdeploy_connectororderimport2',
+                request
+            );
         },
         getExecutionLogs: function(scriptId, deploymentId, request) {
 
@@ -426,7 +439,7 @@ var ConnectorDashboardApi = (function () {
             else if (!startDate &&  endDate) {
                 filters.push(new nlobjSearchFilter('date', null, 'onorbefore', endDate));
             }
-            
+
             if ( !!logType ) {
                 filters.push(new nlobjSearchFilter('type', null, 'anyof', [logType]));
             }
@@ -441,21 +454,27 @@ var ConnectorDashboardApi = (function () {
 
         getSOSyncScriptDeploymentInstances: function (request, response){
             return this.getScriptDeploymentInstances(
-                    'customscript_connectororderimport', 
-                    'customdeploy_connectororderimport2'
-                );
+                'customscript_connectororderimport',
+                'customdeploy_connectororderimport2'
+            );
         },
         getItemSyncScriptDeploymentInstances: function (request, response){
             return this.getScriptDeploymentInstances(
-                    'customscript_magento_item_sync_sch', 
-                    'customdeploy_magento_item_sync_sch2'
-                );
+                'customscript_magento_item_sync_sch',
+                'customdeploy_magento_item_sync_sch2'
+            );
+        },
+        getItemExportScriptDeploymentInstances: function (request, response){
+            return this.getScriptDeploymentInstances(
+                'customscript_item_export_sch',
+                'customdeploy_item_export_sch_dash'
+            );
         },
         getCashRefundSyncScriptDeploymentInstances: function (request, response){
             return this.getScriptDeploymentInstances(
-                    'customscript_cashrefund_export_sch', 
-                    'customdeploy_cashrefund_export_dep2'
-                );
+                'customscript_cashrefund_export_sch',
+                'customdeploy_cashrefund_export_dep2'
+            );
         },
         getScriptDeploymentInstances: function(scriptId, deploymentId) {
 
@@ -707,6 +726,35 @@ var ConnectorDashboardApi = (function () {
                             });
                             break;
 
+                        case 'EXPORT_ITEM_TO_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'synchronize-exportitems',
+                                menuOrder: 2,
+                                group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
+                                icon: 'icon-list',
+                                title: 'Items Export',
+                                url: "/itemsexport",
+                                templateUrl: "/f3-dash/templates/actions-execute-item-export-sync-script.html",
+                                controller: 'ExecuteItemExportScriptController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        //Todo: Enable this specific item export later
+                        /*case 'EXPORT_ITEM_TO_EXTERNAL_SYSTEM':
+                         menu.push({
+                         key: 'export-item',
+                         menuOrder: 11,
+                         title: 'Export Specific Item',
+                         icon: 'icon-cloud-upload',
+                         url: '/export-specific-item',
+                         templateUrl: "/f3-dash/templates/actions-export-item.html",
+                         controller: 'ExportSalesorderController',
+                         controllerAs: 'viewModel'
+                         });
+                         break;*/
+
                         case 'UPDATE_ITEM_TO_EXTERNAL_SYSTEM':
                             menu.push({
                                 key: 'synchronize-items',
@@ -714,7 +762,7 @@ var ConnectorDashboardApi = (function () {
                                 group: 'Synchronize',
                                 groupIcon: 'icon-refresh',
                                 icon: 'icon-list',
-                                title: 'Items',
+                                title: 'Items Inventory',
                                 url: "/items",
                                 templateUrl: "/f3-dash/templates/actions-execute-item-sync-script.html",
                                 controller: 'ExecuteItemSyncScriptController',

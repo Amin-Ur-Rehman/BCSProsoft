@@ -1946,6 +1946,32 @@ ShopifyWrapper = (function () {
                 }
             }
             return magentoItemIds;
+        },
+        /**
+         * Set inventory item related fields in Item Object
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         */
+        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+
+        },
+        /**
+         * Export Inventory Item to WooCommerce Store
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         */
+        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+            var responseBody = {};
+            responseBody.status = 1;
+            responseBody.message = '';
+            responseBody.data = {
+            };
+            return responseBody;
         }
     };
 
