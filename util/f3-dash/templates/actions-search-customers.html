@@ -74,23 +74,28 @@
                 <table class="table ">
                     <thead>
                         <tr>
-                            <th>NS Internal Id</th>
+                            <th>Last Modified Date</th>
+                            <th>External System Id</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Last Modified Date</th>
-                            
+                            <th>Bill Address</th>
+                            <th>Ship Address</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr ng-repeat="item in viewModel.customers.data">
+                            <td>{{ item.lastmodifieddate }}</td>
+                            <td>{{ item.custentity_magento_custid }}</td>
                             <td>
                                 <a ng-href="/app/common/entity/custjob.nl?id={{ item.id }}" target="_blank">
-                                    {{ item.id }}
+                                    {{ (item.isperson ? (item.firstname + ' ' + item.lastname) : item.companyname) || item.entityid }}
                                 </a>
                             </td>
-                            <td>{{ item.isperson ? (item.firstname + ' ' + item.lastname) : item.companyname }}</td>
+
                             <td>{{ item.email }}</td>
-                            <td>{{ item.lastmodifieddate }}</td>
+                            <td>{{ item.billaddress }}</td>
+                            <td>{{ item.shipaddress }}</td>
+
                         </tr>
                     </tbody>
                 </table>

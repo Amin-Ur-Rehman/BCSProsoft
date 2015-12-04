@@ -1112,7 +1112,7 @@ function F3BaseV1Client() {
         }
         catch (ex) {
             Utility.logException('F3BaseV1Client.updateSalesOrder', ex);
-            Utility.throwException("CREATE_ORDER", "Error in updating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
+            Utility.throwException("UPDATE_ORDER", "Error in updating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
         }
         Utility.logDebug("F3BaseV1Client.updateSalesOrder", "End");
     };

@@ -332,14 +332,14 @@
 <div class="row">
     <div class="col-lg-12">
         <div class="panel panel-default">
-          <div class="panel-heading"><i class="fa fa-tasks"></i>Failed Sales Orders</div>
+          <div class="panel-heading"><i class="fa fa-tasks"></i>Failed Exported Sales Orders</div>
           <div class="panel-body">
             <div class=table-responsive>
                     <table class="table" ng-if="!!viewModel.failedSalesOrders && !!viewModel.failedSalesOrders.length">
                         <thead>
                         <tr>
                             <th class=text-center>ID</th>
-                            <th>Number</th>
+                            <th>Order Number</th>
                             <th>Date</th>
                             <th>Details</th>
                         </tr>
@@ -375,18 +375,20 @@
                     <table class="table" ng-if="!!viewModel.failedSalesOrdersImported && !!viewModel.failedSalesOrdersImported.length">
                         <thead>
                         <tr>
-                            <th class=text-center>ID</th>
-                            <th>Number</th>
                             <th>Date</th>
-                            <th>Details</th>
+                            <th>Order Number</th>
+                            <th>Action</th>
+                            <th>Error</th>
+                            <th>Error Details</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr ng-repeat="x in viewModel.failedSalesOrdersImported track by $index">
-                            <td class=text-center><a target="_blank" href="{{ x.url }}">{{ x.internalid }}</a></td>
-                            <td>{{ x.tranid }}</td>
-                            <td>{{ x.trandate }}</td>
-                            <td>{{ x.custbody_f3mg_magento_sync_status }}</td>
+                            <td>{{ x.created }}</td>
+                            <td>{{ x.custrecord_f3_ml_record_id }}</td>
+                            <td>{{ x.custrecord_f3_ml_action.text }}</td>
+                            <td>{{ x.custrecord_f3_ml_message }}</td>
+                            <td>{{ x.custrecord_f3_ml_message_details }}</td>
                         </tr>
                         </tbody>
                     </table>

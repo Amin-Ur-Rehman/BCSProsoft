@@ -37,13 +37,14 @@ var ConnectorDashboardApi = (function () {
                 case 'getFailedSalesOrders':
                     return this.getFailedSalesOrders(request, response);
                     break;
-
+                case 'getFailedSalesOrdersImported':
+                    return this.getFailedSalesOrdersImported(request, response);
+                    break;
 
 
                 case 'getCustomersGraph':
                     return this.getCustomersGraph(request, response);
                     break;
-
 
 
                 case 'getSalesOrders':
@@ -65,7 +66,6 @@ var ConnectorDashboardApi = (function () {
                     break;
 
 
-
                 case 'getSOSyncLogs':
                     return this.getSOSyncLogs(request, response);
                     break;
@@ -80,7 +80,6 @@ var ConnectorDashboardApi = (function () {
                     break;
 
 
-
                 case 'getSOSyncScriptDeploymentInstances':
                     return this.getSOSyncScriptDeploymentInstances(request, response);
                     break;
@@ -90,7 +89,6 @@ var ConnectorDashboardApi = (function () {
                 case 'getCashRefundSyncScriptDeploymentInstances':
                     return this.getCashRefundSyncScriptDeploymentInstances(request, response);
                     break;
-
 
 
                 case 'executeSOSyncScript':
@@ -110,7 +108,6 @@ var ConnectorDashboardApi = (function () {
                     break;
 
 
-
                 case 'searchSalesOrder':
                     return this.searchSalesOrder(request, response);
                     break;
@@ -122,8 +119,6 @@ var ConnectorDashboardApi = (function () {
                     break;
 
 
-
-
                 case 'getMenu':
                     return this.getMenu(request, response);
                     break;
@@ -132,13 +127,13 @@ var ConnectorDashboardApi = (function () {
             return [];
         },
 
-        getCustomersCount: function(request, response) {
+        getCustomersCount: function (request, response) {
             var storeId = request.getParameter('store_id');
             var finalResponse = [];
-            var searchText = '[{"StoreId":"'+ storeId +'"';
+            var searchText = '[{"StoreId":"' + storeId + '"';
             var storeFilter = new nlobjSearchFilter('custentity_magento_custid', null, 'contains', searchText);
-            var searchCol = new nlobjSearchColumn('internalid',null, 'COUNT');
-            var results = nlapiSearchRecord('customer',null, storeFilter, searchCol);
+            var searchCol = new nlobjSearchColumn('internalid', null, 'COUNT');
+            var results = nlapiSearchRecord('customer', null, storeFilter, searchCol);
 
             if (results != null && results.length > 0) {
                 finalResponse = ConnectorCommon.getObjects(results);
@@ -146,15 +141,15 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
-        getSalesOrderCount: function(request, response) {
+        getSalesOrderCount: function (request, response) {
             var storeId = request.getParameter('store_id');
-            var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_so_count_by_store');
+            var finalResponse = this.getResultFromSavedSearch(storeId, 'customsearch_f3_so_count_by_store');
             return finalResponse;
         },
 
         getResultFromSavedSearch: function (storeId, savedSearchName, storeField) {
             var finalResponse = [];
-            storeField  = storeField || 'custbody_f3mg_magento_store';
+            storeField = storeField || 'custbody_f3mg_magento_store';
 
             var storeFilter = new nlobjSearchFilter(storeField, null, 'anyof', storeId);
             var results = nlapiSearchRecord(null, savedSearchName, storeFilter);
@@ -168,28 +163,32 @@ var ConnectorDashboardApi = (function () {
         },
 
 
-        getCustomersGraph: function(request, response){
+        getCustomersGraph: function (request, response) {
             var storeId = request.getParameter('store_id');
 
             return this.getResultFromSavedSearch(storeId, 'customsearch_f3_graph_top_rev_cust');
         },
 
-        getExternalSystemRecords : function(recordType, storeId) {
+        getExternalSystemRecords: function (recordType, storeId) {
 
             var finalResponse = [];
             var filters = [];
             var cols = [];
 
-            if ( recordType === 'salesorder') {
+            if (recordType === 'salesorder') {
                 filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', [storeId]));
+                filters.push(new nlobjSearchFilter('custbody_magentoid', null, 'isnotempty', ""));
                 filters.push(new nlobjSearchFilter('mainline', null, 'is', 'T'));
                 cols.push(new nlobjSearchColumn('status'));
                 cols.push(new nlobjSearchColumn('tranid'));
                 cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
                 cols.push(new nlobjSearchColumn('custbody_magentoid').setLabel('externalSystemRecordId'));
+                cols.push(new nlobjSearchColumn('entity'));
+                cols.push(new nlobjSearchColumn('total'));
+                cols.push(new nlobjSearchColumn('status'));
             }
-            else if ( recordType === 'customer') {
-                var searchText = '{"StoreId":"'+ storeId +'"';
+            else if (recordType === 'customer') {
+                var searchText = '{"StoreId":"' + storeId + '"';
                 filters.push(new nlobjSearchFilter('custentity_magento_custid', null, 'contains', searchText));
                 cols.push(new nlobjSearchColumn('companyname'));
                 cols.push(new nlobjSearchColumn('email'));
@@ -199,9 +198,12 @@ var ConnectorDashboardApi = (function () {
                 cols.push(new nlobjSearchColumn('custentity_magento_custid'));
                 cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
                 cols.push(new nlobjSearchColumn('entitystatus'));
+                cols.push(new nlobjSearchColumn('billaddress'));
+                cols.push(new nlobjSearchColumn('shipaddress'));
+                cols.push(new nlobjSearchColumn('entityid'));
             }
-            else if(recordType === 'item') {
-                var searchText = '{"StoreId":"'+ storeId +'"';
+            else if (recordType === 'item') {
+                var searchText = '{"StoreId":"' + storeId + '"';
                 filters.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoId, null, 'contains', searchText));
                 cols.push(new nlobjSearchColumn('itemid'));
                 cols.push(new nlobjSearchColumn('displayname'));
@@ -213,21 +215,34 @@ var ConnectorDashboardApi = (function () {
                 finalResponse = ConnectorCommon.getObjects(results);
             }
 
+            for(var i in finalResponse){
+                var finalResponseTemp = finalResponse[i].custentity_magento_custid;
+                if(!!finalResponseTemp){
+                    finalResponseTemp = JSON.parse(finalResponseTemp);
+                    for(var j in finalResponseTemp){
+                        if(finalResponseTemp[j].StoreId == storeId){
+                            finalResponse[i].custentity_magento_custid = finalResponseTemp[j].MagentoId;
+                            break;
+                        }
+                    }
+                }
+            }
+
             return finalResponse;
         },
-        getSalesOrders: function(request, response) {
+        getSalesOrders: function (request, response) {
             var storeId = request.getParameter('store_id');
 
             return this.getExternalSystemRecords('salesorder', storeId);
         },
-        getCustomers: function(request, response) {
+        getCustomers: function (request, response) {
 
             var storeId = request.getParameter('store_id');
 
             return this.getExternalSystemRecords('customer', storeId);
         },
 
-        getItems: function(request, response) {
+        getItems: function (request, response) {
 
             var storeId = request.getParameter('store_id');
 
@@ -235,18 +250,16 @@ var ConnectorDashboardApi = (function () {
         },
 
 
-
-
-        getItemsCount: function(request, response) {
+        getItemsCount: function (request, response) {
             var storeId = request.getParameter('store_id');
-            var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_item_count_by_store',
+            var finalResponse = this.getResultFromSavedSearch(storeId, 'customsearch_f3_item_count_by_store',
                 'custitem_f3mg_magento_stores');
             return finalResponse;
         },
 
-        getFailedSalesOrders: function(request, response) {
+        getFailedSalesOrders: function (request, response) {
             var storeId = request.getParameter('store_id');
-            var finalResponse = this.getResultFromSavedSearch(storeId,  'customsearch_f3_failed_so_by_store',
+            var finalResponse = this.getResultFromSavedSearch(storeId, 'customsearch_f3_failed_so_by_store',
                 'custbody_f3mg_magento_store');
 
             if (finalResponse != null && finalResponse.length > 0) {
@@ -255,6 +268,29 @@ var ConnectorDashboardApi = (function () {
                 }
             }
 
+            return finalResponse;
+        },
+
+        getFailedSalesOrdersImported: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var finalResponse = [];
+            var fils = [];
+            var cols = [];
+
+            fils.push(new nlobjSearchFilter(F3Message.FieldName.ExternalSystem, null, 'is', storeId));
+            fils.push(new nlobjSearchFilter(F3Message.FieldName.RecordType, null, 'is', F3Message.RecordType.SALES_ORDER));
+            cols.push(new nlobjSearchColumn(F3Message.FieldName.Message, null, null));
+            cols.push(new nlobjSearchColumn(F3Message.FieldName.MessageDetails, null, null));
+            cols.push(new nlobjSearchColumn(F3Message.FieldName.RecordId, null, null));
+            cols.push(new nlobjSearchColumn(F3Message.FieldName.Action, null, null));
+            cols.push(new nlobjSearchColumn("created", null, null).setSort(true));
+
+            var results = nlapiSearchRecord(F3Message.InternalId, null, fils, cols);
+
+            if (!!results && results.length > 0) {
+                //Utility.logDebug('results', JSON.stringify(results));
+                finalResponse = ConnectorCommon.getObjects(results);
+            }
             return finalResponse;
         },
 
@@ -335,7 +371,7 @@ var ConnectorDashboardApi = (function () {
                 params
             );
         },
-        executeItemExportScript: function(request, response) {
+        executeItemExportScript: function (request, response) {
             return this.executeScheduledScript(
                 'customscript_item_export_sch',
                 'customdeploy_item_export_sch_dash',
@@ -362,7 +398,7 @@ var ConnectorDashboardApi = (function () {
             // TODO : need to pass parameters to following method
             var status = nlapiScheduleScript(scriptId, deploymentId, parameters);
 
-            var msg = 'scriptId: ' + scriptId + ' --- deploymentId: ' +deploymentId + ' --- status: ' + status;
+            var msg = 'scriptId: ' + scriptId + ' --- deploymentId: ' + deploymentId + ' --- status: ' + status;
             Utility.logDebug('executeScheduledScript(); ', msg);
 
             result.status = status;
@@ -379,35 +415,35 @@ var ConnectorDashboardApi = (function () {
             return result;
         },
 
-        getCashRefundSyncLogs: function(request, response) {
+        getCashRefundSyncLogs: function (request, response) {
             return this.getExecutionLogs(
                 'customscript_cashrefund_export_sch',
                 'customdeploy_cashrefund_export_dep2',
                 request
             );
         },
-        getItemSyncLogs: function(request, response) {
+        getItemSyncLogs: function (request, response) {
             return this.getExecutionLogs(
                 'customscript_magento_item_sync_sch',
                 'customdeploy_magento_item_sync_sch2',
                 request
             );
         },
-        getFulfilmentSyncLogs: function(request, response) {
+        getFulfilmentSyncLogs: function (request, response) {
             return this.getExecutionLogs(
                 'customscript_magento_fulfillment_ue',
                 'customdeploy_magento_fulfillment_ue',
                 request
             );
         },
-        getSOSyncLogs: function(request, response) {
+        getSOSyncLogs: function (request, response) {
             return this.getExecutionLogs(
                 'customscript_connectororderimport',
                 'customdeploy_connectororderimport2',
                 request
             );
         },
-        getExecutionLogs: function(scriptId, deploymentId, request) {
+        getExecutionLogs: function (scriptId, deploymentId, request) {
 
             var finalResponse = [];
             var cols = [];
@@ -436,11 +472,11 @@ var ConnectorDashboardApi = (function () {
             else if (startDate && !endDate) {
                 filters.push(new nlobjSearchFilter('date', null, 'onorafter', startDate));
             }
-            else if (!startDate &&  endDate) {
+            else if (!startDate && endDate) {
                 filters.push(new nlobjSearchFilter('date', null, 'onorbefore', endDate));
             }
 
-            if ( !!logType ) {
+            if (!!logType) {
                 filters.push(new nlobjSearchFilter('type', null, 'anyof', [logType]));
             }
 
@@ -452,31 +488,31 @@ var ConnectorDashboardApi = (function () {
             return finalResponse;
         },
 
-        getSOSyncScriptDeploymentInstances: function (request, response){
+        getSOSyncScriptDeploymentInstances: function (request, response) {
             return this.getScriptDeploymentInstances(
                 'customscript_connectororderimport',
                 'customdeploy_connectororderimport2'
             );
         },
-        getItemSyncScriptDeploymentInstances: function (request, response){
+        getItemSyncScriptDeploymentInstances: function (request, response) {
             return this.getScriptDeploymentInstances(
                 'customscript_magento_item_sync_sch',
                 'customdeploy_magento_item_sync_sch2'
             );
         },
-        getItemExportScriptDeploymentInstances: function (request, response){
+        getItemExportScriptDeploymentInstances: function (request, response) {
             return this.getScriptDeploymentInstances(
                 'customscript_item_export_sch',
                 'customdeploy_item_export_sch_dash'
             );
         },
-        getCashRefundSyncScriptDeploymentInstances: function (request, response){
+        getCashRefundSyncScriptDeploymentInstances: function (request, response) {
             return this.getScriptDeploymentInstances(
                 'customscript_cashrefund_export_sch',
                 'customdeploy_cashrefund_export_dep2'
             );
         },
-        getScriptDeploymentInstances: function(scriptId, deploymentId) {
+        getScriptDeploymentInstances: function (scriptId, deploymentId) {
 
             var finalResponse = [];
             var filters = [];
@@ -492,7 +528,6 @@ var ConnectorDashboardApi = (function () {
 
             return finalResponse;
         },
-
 
 
         searchCashRefund: function (request, response) {
@@ -523,7 +558,7 @@ var ConnectorDashboardApi = (function () {
          * @param recordType
          * @param recordId
          */
-        searchExternalSystemRecord: function(recordType, recordId, storeId) {
+        searchExternalSystemRecord: function (recordType, recordId, storeId) {
             var netSuiteRecordId = {
                 status: false,
                 data: null
@@ -578,7 +613,7 @@ var ConnectorDashboardApi = (function () {
         },
 
 
-        getMenu: function(request, response) {
+        getMenu: function (request, response) {
             var storeId = request.getParameter('store_id');
             var menu = [];
             var productList = ExternalSystemConfig.getAll();
@@ -607,7 +642,7 @@ var ConnectorDashboardApi = (function () {
             return menu;
         },
 
-        generateMenuFromPermission: function(permissions){
+        generateMenuFromPermission: function (permissions) {
 
             Utility.logDebug('ConnectorDashboardApi.generateMenuFromPermission(); // permissions: ', JSON.stringify(permissions));
 
@@ -876,7 +911,6 @@ var ConnectorDashboard = (function () {
         //                     '</li>',
 
 
-
         /**
          * Description of method getFileUrl
          * @param parameter
@@ -918,7 +952,6 @@ var ConnectorDashboard = (function () {
             return indexPageValue;
 
         },
-
 
 
         handleApiRequest: function (method, request, response) {
@@ -1026,7 +1059,7 @@ var ConnectorDashboard = (function () {
                 //var template = this.SIDEBAR_TEMPLATE;
                 //finalResult = finalResult + template;
 
-                return { stores: stores, sidebarHtml :  template, selectedStore: selectedStore };
+                return {stores: stores, sidebarHtml: template, selectedStore: selectedStore};
 
             } catch (e) {
                 Utility.logException('Error during main createSideBar', e);
