@@ -696,11 +696,11 @@ WooWrapper = (function () {
     function parseRefundFailureResponse(serverResponse) {
 
         /*serverResponse = {
-            "errors": [{
-                "code": "woocommerce_api_create_order_refund_api_failed",
-                "message": "An error occurred while attempting to create the refund using the payment gateway API"
-            }]
-        };*/
+         "errors": [{
+         "code": "woocommerce_api_create_order_refund_api_failed",
+         "message": "An error occurred while attempting to create the refund using the payment gateway API"
+         }]
+         };*/
 
         var responseBody = {};
         responseBody.status = 0;
@@ -866,6 +866,38 @@ WooWrapper = (function () {
         }
 
         return serverResponse;
+    }
+
+    /**
+     * Parse item export success response
+     * @param serverResponse
+     */
+    function parseItemSuccessResponse(serverResponse) {
+        var responseBody = {};
+        responseBody.status = 1;
+        responseBody.message = serverResponse.product.message || '';
+        responseBody.data = {
+            externalSystemItemId: serverResponse.product.id.toString() || '',
+            sku: serverResponse.product.sku.toString() || ''
+        };
+        return responseBody;
+    }
+
+    /**
+     * Parse item export failure response
+     * @param serverResponse
+     */
+    function parseItemFailureResponse(serverResponse) {
+        var responseBody = {};
+        responseBody.status = 0;
+        if (!!serverResponse && !!serverResponse.errors
+            && serverResponse.errors.length > 0) {
+            responseBody.message = serverResponse.errors[0].message;
+            responseBody.error = serverResponse.errors[0].message;
+        } else {
+            responseBody.message = '';
+        }
+        return responseBody;
     }
 
     //endregion
@@ -1678,7 +1710,68 @@ WooWrapper = (function () {
             }
 
             return magentoItemIds;
+        },
+
+        /**
+         * Set inventory item related fields in Item Object
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         */
+        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+            if(itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
+                itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
+            }
+            itemObject.otherSystemItemType = 'simple';
+        },
+        /**
+         * Export Inventory Item to WooCommerce Store
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         */
+        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+
+            var httpRequestData = {
+                url: 'products' + (!!itemObject.currentExternalSystemId ? '/'+itemObject.currentExternalSystemId : ''),
+                method: (!!itemObject.currentExternalSystemId ? 'PUT' : 'POST'),
+                postData: this.getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
+            };
+            Utility.logDebug('exportInventoryItem.httpRequestData', JSON.stringify(httpRequestData));
+            var responseBody = {};
+            var serverResponse = sendRequest(httpRequestData);
+            Utility.logDebug('exportInventoryItem.serverResponse', JSON.stringify(serverResponse));
+            if (!!serverResponse.product) {
+                responseBody = parseItemSuccessResponse(serverResponse);
+            } else {
+                responseBody = parseItemFailureResponse(serverResponse);
+            }
+            return responseBody;
+        },
+        /**
+         * Get post data object for inventory item
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         */
+        getPostDataObjectForInventoryItem: function(store, itemInternalId, itemType, itemObject) {
+            var postData = {
+                "product": {
+                    "title": itemObject.displayName || itemObject.itemId,
+                    "type": itemObject.otherSystemItemType,
+                    "sku": itemObject.itemId,
+                    "regular_price": itemObject.price,
+                    "description": itemObject.storeDetailedDescription,
+                    "short_description": itemObject.storeDescription
+                }
+            };
+            return postData;
         }
+
     };
 
     //endregion
