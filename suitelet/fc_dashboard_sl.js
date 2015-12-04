@@ -177,7 +177,7 @@ var ConnectorDashboardApi = (function () {
             if ( recordType === 'salesorder') {
                 filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', [storeId]));
                 filters.push(new nlobjSearchFilter('mainline', null, 'is', 'T'));
-
+                cols.push(new nlobjSearchColumn('status'));
                 cols.push(new nlobjSearchColumn('tranid'));
                 cols.push(new nlobjSearchColumn('lastmodifieddate').setSort(true));
                 cols.push(new nlobjSearchColumn('custbody_magentoid').setLabel('externalSystemRecordId'));
