@@ -1024,8 +1024,7 @@ function F3BaseV1Client() {
             netSuiteItemID = objIDPlusIsSerial.netsuiteId;
             var isSerial = objIDPlusIsSerial.isSerial;
             Utility.logDebug('Netsuite Item ID', netSuiteItemID);
-            Utility.logDebug('Item Found ',  parseInt(rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString())));
-            var lineNumber = parseInt(rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString()));
+            var lineNumber = rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString());
             lineNumber = lineNumber > 0 ?  lineNumber :  newLineNumber;
             Utility.logDebug('lineNumber', lineNumber);
             Utility.logDebug('products[x].item_id.toString()', products[x].item_id.toString());
