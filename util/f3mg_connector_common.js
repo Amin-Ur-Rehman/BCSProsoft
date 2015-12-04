@@ -318,9 +318,26 @@ var ConnectorCommon = (function () {
             var res = nlapiSearchRecord('transaction', null, fils, null);
 
             if (res && res.length > 0) {
-                return true;
+                return res[0].getId();
             }
             return false;
+        },
+
+        isOrderUpdated: function(orderId, storeId, updateDate) {
+            var fils = [];
+
+            fils.push(new nlobjSearchFilter('type', null, 'anyof', 'SalesOrd', null));
+            fils.push(new nlobjSearchFilter('mainline', null, 'is', 'T', null));
+            fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoStore, null, 'is', storeId.toString(), null));
+            fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'is', orderId.toString(), null));
+            fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSync, null, 'is', 'T', null));
+            fils.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt, null, 'is', updateDate, null));
+            var res = nlapiSearchRecord('transaction', null, fils, null);
+
+            if (res && res.length > 0) {
+                return false;
+            }
+            return true;
         },
         getUpdateDate: function (days, format) {
             var currentDate = new Date();
