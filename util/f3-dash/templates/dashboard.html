@@ -29,8 +29,8 @@
                 <!--<div class="widget-icon red pull-left"><i class="fa fa-tasks"></i></div>-->
                 <div class="info-box-icon"><i class="icon-notebook"></i></div>
                 <div class=title>{{viewModel.salesOrderCount}}</div>
-                <div class=comment>Sales Orders</div> 
-                
+                <div class=comment>Sales Orders</div>
+
             </rd-widget-body>
         </rd-widget>
     </div>
@@ -51,12 +51,14 @@
 <div class="row">
 
     <div class="col-lg-12 col-md-8 col-xs-12">
+
         <div class="panel panel-default" ng-init="viewModel.graphs.customers.loadData({limit: 5})">
             <div class="panel-heading">
                 <i class="fa fa-tasks"></i> &nbsp;
                 Top Revenue Customers
             </div>
             <div class="panel-body">
+
                 <div ng-show="viewModel.graphs.customers.hasData">
                     <div class=table-responsive>
                         <div class="col-lg-6 col-md-8 col-xs-12 left_col">
@@ -67,13 +69,17 @@
                         </div>
                     </div>
                 </div>
+
                 <div ng-hide="viewModel.graphs.customers.hasData" class="alert alert-info">
                     no records found.
                 </div>
+
             </div>
         </div>
     </div>
+
 </div>
+
 <div class="row">
     <div class="col-lg-12 col-md-8 col-xs-12">
         <div class="panel panel-default" ng-init="viewModel.graphs.dataSyncFrequency.loadData()">
@@ -82,25 +88,96 @@
                 Frequency
             </div>
             <div class="panel-body">
+
                 <div ng-show="viewModel.graphs.dataSyncFrequency.hasData">
-                    <div class=table-responsive>
-                        <div id="data_sync_frequency"></div>
+                    <div id="data_sync_frequency_dashboard" class="table-responsive">
+                        <div class="row">
+                            <div class="col-lg-3 col-md-8 col-xs-12 left_col">
+                                <div id="data_sync_frequency_controller"></div>
+                            </div>
+                            <div class="col-lg-9 col-md-8 col-xs-12 right_col">
+                                <div id="data_sync_frequency"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
                 <div ng-hide="viewModel.graphs.dataSyncFrequency.hasData" class="alert alert-info">
                     no records found.
                 </div>
+
             </div>
         </div>
     </div>
 </div>
+
 <div class="row">
+    <div class="col-lg-12 col-md-8 col-xs-12">
+        <div class="panel panel-default" ng-init="viewModel.graphs.soStatus.loadData()">
+            <div class="panel-heading">
+                <i class="fa fa-check"></i> &nbsp;
+                Sales Order Status
+            </div>
+            <div class="panel-body">
+
+                <div ng-show="viewModel.graphs.soStatus.hasData">
+                    <div class=table-responsive>
+                        <div class="row">
+                            <div class="col-lg-6 col-md-8 col-xs-12 left_col">
+                                <div id="data_so_status_bar"></div>
+                            </div>
+                            <div class="col-lg-6 col-md-8 col-xs-12 right_col">
+                                <div id="data_so_status_pie"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div ng-hide="viewModel.graphs.soStatus.hasData" class="alert alert-info">
+                    no records found.
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--
+<div class="row">
+    <div class="col-lg-12 col-md-8 col-xs-12">
+        <div class="panel panel-default" ng-init="viewModel.graphs.soCompareMonthly.load()">
+            <div class="panel-heading">
+                <i class="fa fa-bar-chart"></i> &nbsp;
+                Sales Comparison Monthly With Previous Year
+            </div>
+            <div class="panel-body">
+                <div ng-show="viewModel.graphs.soCompareMonthly.hasData">
+                    <div class=table-responsive>
+                        <div class="row">
+                            <div class="col-lg-12 col-md-8 col-xs-12 right_col">
+                                <div id="data_so_compare"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div ng-hide="viewModel.graphs.soCompareMonthly.hasData" class="alert alert-info">
+                    no records found.
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+-->
+
+<div class="row">
+
     <div class="col-lg-4 col-md-8 col-xs-12">
 
 
 
 
-<div class="panel panel-default" ng-init="viewModel.customers.loadData({limit: 5})"> 
+<div class="panel panel-default" ng-init="viewModel.customers.loadData({limit: 5})">
     <div class="panel-heading">
         <i class="icon-users padright_10"></i>Recent Customers
           &nbsp; &nbsp;
@@ -110,7 +187,7 @@
 
     </div>
     <div class="panel-body">
-                  
+
         <div ng-show="viewModel.customers.hasData">
             <div class=table-responsive>
                 <table class="table ">
@@ -119,7 +196,7 @@
                             <th>ID</th>
                             <th>Name</th>
                             <th>Modified</th>
-                            
+
                         </tr>
                     </thead>
                     <tbody>
@@ -159,7 +236,7 @@
 
             </div>
             <div class="panel-body">
-                          
+
                 <div ng-show="viewModel.salesorders.hasData">
                     <div class=table-responsive>
                         <table class="table ">
@@ -211,7 +288,7 @@
 
             </div>
             <div class="panel-body">
-                          
+
                 <div ng-show="viewModel.items.hasData">
                     <div class=table-responsive>
                         <table class="table ">

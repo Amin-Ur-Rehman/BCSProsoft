@@ -379,4 +379,14 @@ th.google-visualization-table-th.gradient{
     display: inline-block;
     border-radius: 0;}
 
-
+/*
+* For Pie Chart
+*/
+#data_so_status_pie {
+	width: 550px;
+	height: 300px;
+	margin-top: -50px;
+}
+#data_sync_frequency {
+	margin-top: -50px;
+}
