@@ -96,9 +96,8 @@
         console.log('bindLinks(); // end');
     });
 
-
-
-    google.load("visualization", "1", {packages:["corechart", "table"]});
-
+    google.load("visualization", "1", {
+        packages: ["corechart", "table", "controls", "gauge", "bar"]
+    });
 
 })();
