@@ -874,7 +874,7 @@ function F3BaseV1Client() {
                 rec.setLineItemValue('item', 'item', x + 1, ConnectorConstants.DummyItem.Id);
                 isDummyItemSetInOrder = true;
                 rec.setLineItemValue('item', 'amount', x + 1, '0');
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
                 rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
             }
 
@@ -1006,15 +1006,27 @@ function F3BaseV1Client() {
         // Clearing Discount Fields
        // this.clearDiscountFields(rec);
 
+
+        var productId = [];
+        for (var i = 0; i < products.length; i++) {
+            productId.push(products[i].item_id.toString());
+        }
+
+        // remove unwanted line items
+
+        this.clearExtraItemLines(rec, productId);
+
         for (var x = 0; x < products.length; x++) {
             Utility.logDebug('products.length is createSalesOrder', products.length);
             Utility.logDebug('products[x].product_id in createSalesOrder', products[x].product_id);
-
+            var newLineNumber = rec.getLineItemCount('item') + 1;
             var objIDPlusIsSerial = ConnectorCommon.getNetsuiteProductIdByMagentoIdViaMap(netsuiteMagentoProductMap, products[x].product_id);
             netSuiteItemID = objIDPlusIsSerial.netsuiteId;
             var isSerial = objIDPlusIsSerial.isSerial;
             Utility.logDebug('Netsuite Item ID', netSuiteItemID);
-            var lineNumber = parseInt(nlapiFindLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString())) || x + 1;
+            Utility.logDebug('Item Found ',  parseInt(rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString())));
+            var lineNumber = parseInt(rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString()));
+            lineNumber = lineNumber > 0 ?  lineNumber :  newLineNumber;
             Utility.logDebug('lineNumber', lineNumber);
             Utility.logDebug('products[x].item_id.toString()', products[x].item_id.toString());
 
@@ -1040,7 +1052,7 @@ function F3BaseV1Client() {
                     rec.setLineItemValue('item', 'taxcode', lineNumber, '-7');// -Not Taxable-
                 }
 
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id);
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id.toString());
                 // set tax amount
                 var taxAmount = products[x].tax_amount;
                 taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
@@ -1060,7 +1072,7 @@ function F3BaseV1Client() {
                 rec.setLineItemValue('item', 'item', lineNumber, ConnectorConstants.DummyItem.Id);
                 isDummyItemSetInOrder = true;
                 rec.setLineItemValue('item', 'amount', lineNumber, '0');
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id);
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id.toString());
                 rec.setLineItemValue('item', 'taxcode',lineNumber, '-7');// -Not Taxable-
             }
 
@@ -1119,6 +1131,16 @@ function F3BaseV1Client() {
         return address;
     };
 
+
+    currentClient.clearExtraItemLines = function (rec, productId) {
+        var lineCount = rec.getLineItemCount('item');
+        for (var i = lineCount; i >= 1; i--) {
+            if (productId.indexOf(rec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, i)) < 0) {
+                rec.removeLineItem('item', i);
+            }
+        }
+
+    };
     currentClient.clearDiscountFields =  function (rec) {
         // Line item level discount handling
         var currentLintItemCount = rec.getLineItemCount('item');
