@@ -75,17 +75,29 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                 try {
                     Utility.logDebug('orders[' + i + ']', JSON.stringify(orders[i]));
                     Utility.logDebug('ConnectorConstants.CurrentStore.systemId', ConnectorConstants.CurrentStore.systemId);
+                    var nsId;
+                    var isUpdated = false;
+                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
+                    Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
                     // Check if this SO already exists
                     if (ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId)) {
                         Utility.logDebug('Sales Order already exist with Magento Id: ', orders[i].increment_id);
-                        Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
+                        nsId = ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId);
+                        Utility.logDebug('Sales Order already exist with NetSuite ID: ', nsId);
+                        // check if order updated
+                        isUpdated = ConnectorCommon.isOrderUpdated(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId, salesOrderDetails.customer.updatedAt);
+                        Utility.logDebug('isUpdate', isUpdated);
+                        if(!isUpdated) {
+                            Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
+                        }
                     }
 
                     Utility.logDebug('isOrderSynced - ' + orders[i].increment_id, "NO");
 
-                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
-                    Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
+
                     //Utility.logDebug('stages_w', 'Step-c');
+
+
 
                     // Could not fetch sales order information from Magento
                     if (!salesOrderDetails.status) {
@@ -164,7 +176,12 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
                             Utility.logDebug('ZEE->salesOrderObj', JSON.stringify(salesOrderObj));
 
-                            ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+                            if(!!nsId) {
+                                ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
+                            } else {
+                                ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+                            }
+
                         }
                     }
                     else {
@@ -200,8 +217,13 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             salesOrderDetails.customer, '', products, netsuiteMagentoProductMapData, customerNSInternalId, '',
                             shippingAddress, billingAddress, payment);
                         Utility.logDebug('ZEE->salesOrderObj', JSON.stringify(salesOrderObj));
-                        // create sales order
-                        ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+
+                        // create/update sales order
+                        if(!!nsId) {
+                            ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
+                        } else {
+                            ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+                        }
                     }
 
                     // this handling is for maintaining order ids in custom record

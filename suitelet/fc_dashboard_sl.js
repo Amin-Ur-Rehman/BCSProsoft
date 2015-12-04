@@ -175,7 +175,7 @@ var ConnectorDashboardApi = (function () {
             var cols = [];
 
             if ( recordType === 'salesorder') {
-                filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', storeId));
+                filters.push(new nlobjSearchFilter('custbody_f3mg_magento_store', null, 'anyof', [storeId]));
                 filters.push(new nlobjSearchFilter('mainline', null, 'is', 'T'));
 
                 cols.push(new nlobjSearchColumn('tranid'));

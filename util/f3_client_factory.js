@@ -787,11 +787,13 @@ function F3BaseV1Client() {
         var magentoIdId;
         var magentoSyncId;
         var isDummyItemSetInOrder = '';
+        var externalSystemSalesOrderModifiedAt;
         var containsSerialized = false;
         var netSuiteItemID;
 
         magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
         magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
 
         var rec = nlapiCreateRecord('salesorder', null);
         Utility.logDebug('setting payment ', '');
@@ -852,7 +854,7 @@ function F3BaseV1Client() {
                     rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
                 }
 
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
                 // set tax amount
                 var taxAmount = products[x].tax_amount;
                 taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
@@ -872,7 +874,7 @@ function F3BaseV1Client() {
                 rec.setLineItemValue('item', 'item', x + 1, ConnectorConstants.DummyItem.Id);
                 isDummyItemSetInOrder = true;
                 rec.setLineItemValue('item', 'amount', x + 1, '0');
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
                 rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
             }
 
@@ -914,6 +916,7 @@ function F3BaseV1Client() {
         try {
             rec.setFieldValue(magentoSyncId, 'T');
             rec.setFieldValue(magentoIdId, order.increment_id.toString());
+            rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
             //rec.setFieldValue('memo', 'Test Folio3');
             if (isDummyItemSetInOrder) {
                 // A = Pending Approval
@@ -941,6 +944,213 @@ function F3BaseV1Client() {
             // }
         }
         Utility.logDebug("F3BaseV1Client.createSalesOrder", "End");
+    };
+
+    currentClient.updateSalesOrder = function (salesOrderObj, nsSalesOrderId) {
+        Utility.logDebug("F3BaseV1Client.updateSalerOrder", "Start ID: " + nsSalesOrderId);
+        Utility.logDebug("F3BaseV1Client.salesOrderObj", JSON.stringify(salesOrderObj));
+
+        var order = salesOrderObj.order;
+        var products = salesOrderObj.products;
+        var netsuiteMagentoProductMap = salesOrderObj.netsuiteMagentoProductMap;
+        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
+        var payment = salesOrderObj.payment;
+
+        var magentoIdId;
+        var magentoSyncId;
+        var isDummyItemSetInOrder = '';
+        var externalSystemSalesOrderModifiedAt;
+        var containsSerialized = false;
+        var netSuiteItemID;
+
+        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
+        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
+
+        var rec = nlapiLoadRecord('salesorder', nsSalesOrderId);
+
+        var addresses = this.getDefaultAddresses(rec.getFieldValue('entity'));
+
+        Utility.logDebug('default addresses', JSON.stringify(addresses));
+        // setting default addresses
+        if(!!addresses) {
+            rec.setFieldValue('shipaddresslist', addresses.shipAddress);
+            rec.setFieldValue('billaddresslist', addresses.shipAddress);
+        }
+
+        Utility.logDebug('setting payment ', '');
+        Utility.logDebug('outside check', '');
+        Utility.logDebug('order.shipment_method', order.shipment_method);
+        Utility.logDebug('products', JSON.stringify(products));
+
+        if (!order.shipment_method && this.checkAllProductsAreGiftCards(products)) {
+            Utility.logDebug('inside check', '');
+            // If shipment_method iss empty, and all products in order are 'gift cards',
+            // (Note: No shipping information required if you add only gift cards product in an order)
+            salesOrderObj.order.shipment_method = "DEFAULT_NS";
+        }
+
+        // set customer in order
+        rec.setFieldValue('entity', netsuiteCustomerId);
+
+        // set shipping information
+        this.setShippingInformation(salesOrderObj, rec);
+
+        // set payment details
+        this.setPayment(rec
+            , payment
+            , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.netsuitePaymentTypes
+            , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.magentoCCSupportedPaymentTypes);
+
+
+        // Clearing Discount Fields
+       // this.clearDiscountFields(rec);
+
+
+        var productId = [];
+        for (var i = 0; i < products.length; i++) {
+            productId.push(products[i].item_id.toString());
+        }
+
+        // remove unwanted line items
+
+        this.clearExtraItemLines(rec, productId);
+
+        for (var x = 0; x < products.length; x++) {
+            Utility.logDebug('products.length is createSalesOrder', products.length);
+            Utility.logDebug('products[x].product_id in createSalesOrder', products[x].product_id);
+            var newLineNumber = rec.getLineItemCount('item') + 1;
+            var objIDPlusIsSerial = ConnectorCommon.getNetsuiteProductIdByMagentoIdViaMap(netsuiteMagentoProductMap, products[x].product_id);
+            netSuiteItemID = objIDPlusIsSerial.netsuiteId;
+            var isSerial = objIDPlusIsSerial.isSerial;
+            Utility.logDebug('Netsuite Item ID', netSuiteItemID);
+            var lineNumber = rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString());
+            lineNumber = lineNumber > 0 ?  lineNumber :  newLineNumber;
+            Utility.logDebug('lineNumber', lineNumber);
+            Utility.logDebug('products[x].item_id.toString()', products[x].item_id.toString());
+
+            if (!!netSuiteItemID) {
+                rec.setLineItemValue('item', 'item', lineNumber, netSuiteItemID);
+                rec.setLineItemValue('item', 'quantity', lineNumber, products[x].qty_ordered);
+                rec.setLineItemValue('item', 'price', lineNumber, 1);
+                if (products[x].product_type === ConnectorConstants.MagentoProductTypes.GiftCard
+                    && !!products[x].product_options) {
+                    var certificateNumber = '';
+                    rec.setLineItemValue('item', 'giftcertrecipientemail', lineNumber, products[x].product_options.aw_gc_recipient_email);
+                    rec.setLineItemValue('item', 'giftcertfrom', lineNumber, products[x].product_options.aw_gc_sender_name);
+                    rec.setLineItemValue('item', 'giftcertrecipientname', lineNumber, products[x].product_options.aw_gc_recipient_name);
+                    rec.setLineItemValue('item', 'giftcertmessage', lineNumber, '');
+                    if (!!products[x].product_options.aw_gc_created_codes && products[x].product_options.aw_gc_created_codes.length > 0) {
+                        certificateNumber = products[x].product_options.aw_gc_created_codes[0];
+                    }
+                    rec.setLineItemValue('item', 'giftcertnumber', lineNumber, certificateNumber);
+                    // set price level 'custom'
+                    rec.setLineItemValue('item', 'price', lineNumber, '-1');
+                    // set custom amount
+                    rec.setLineItemValue('item', 'amount', lineNumber, products[x].product_options.aw_gc_amounts);
+                    rec.setLineItemValue('item', 'taxcode', lineNumber, '-7');// -Not Taxable-
+                }
+
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id.toString());
+                // set tax amount
+                var taxAmount = products[x].tax_amount;
+                taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
+
+                // tax handling for line items
+                if (taxAmount > 0) {
+                    rec.setLineItemValue('item', 'taxcode', lineNumber, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxCode);
+                }
+            }
+            else {
+                // Check for feature availability
+                if (!FeatureVerification.isPermitted(Features.IMPORT_SO_DUMMMY_ITEM, ConnectorConstants.CurrentStore.permissions)) {
+                    Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                    Utility.throwException("FEATURE_PERMISSION", Features.IMPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
+                }
+                Utility.logDebug('Set Dummy Item Id: ', ConnectorConstants.DummyItem.Id);
+                rec.setLineItemValue('item', 'item', lineNumber, ConnectorConstants.DummyItem.Id);
+                isDummyItemSetInOrder = true;
+                rec.setLineItemValue('item', 'amount', lineNumber, '0');
+                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id.toString());
+                rec.setLineItemValue('item', 'taxcode',lineNumber, '-7');// -Not Taxable-
+            }
+
+            if (isSerial == 'T') {
+                containsSerialized = true;
+            }
+
+        }
+
+
+
+        // set discount if found in order
+        currentClient.setDiscountInOrder(rec, order.discount_amount);
+
+        var quoteId = order.quote_id;
+        if (!!quoteId) {
+            currentClient.setGiftCardLineItem(rec, quoteId);
+        }
+
+        try {
+            rec.setFieldValue(magentoSyncId, 'T');
+            rec.setFieldValue(magentoIdId, order.increment_id.toString());
+            rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+
+            if (isDummyItemSetInOrder) {
+                rec.setFieldValue('orderstatus', 'A');
+            } else {
+                rec.setFieldValue('orderstatus', 'B');
+            }
+
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
+
+            // TODO generalize
+            Utility.logDebug('Going to submit SO', 'Submitting');
+            var id = nlapiSubmitRecord(rec, true, true);
+            Utility.logDebug('Netsuite SO-ID for magento order ' + order.increment_id, id);
+        }
+        catch (ex) {
+            Utility.logException('F3BaseV1Client.updateSalesOrder', ex);
+        }
+        Utility.logDebug("F3BaseV1Client.updateSalesOrder", "End");
+    };
+
+    currentClient.getDefaultAddresses = function (entityId) {
+        var customer = nlapiLoadRecord('customer', entityId);
+        var address = {};
+        for(var i = 1; i <= customer.getLineItemCount('addressbook'); i++) {
+            if(customer.getLineItemValue('addressbook', 'defaultbilling', i) === 'T') {
+                address.billAddress = customer.getLineItemValue('addressbook', 'internalid', i);
+            }
+            if(customer.getLineItemValue('addressbook', 'defaultshipping', i) === 'T') {
+                address.shipAddress = customer.getLineItemValue('addressbook', 'internalid', i);
+            }
+        }
+        return address;
+    };
+
+
+    currentClient.clearExtraItemLines = function (rec, productId) {
+        var lineCount = rec.getLineItemCount('item');
+        for (var i = lineCount; i >= 1; i--) {
+            if (productId.indexOf(rec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, i)) < 0) {
+                rec.removeLineItem('item', i);
+            }
+        }
+
+    };
+    currentClient.clearDiscountFields =  function (rec) {
+        // Line item level discount handling
+        var currentLintItemCount = rec.getLineItemCount('item');
+        for (var i = 1; i<= currentLintItemCount; i++) {
+            rec.setLineItemValue('item', 'price', i, '-7');
+            rec.setLineItemValue('item', 'amount', i, '0');
+            rec.setLineItemValue('item', 'taxcode', i, '-7');
+        }
+        // Body level discount handling
+        rec.setFieldValue('discountitem', '');
+        rec.setFieldValue('discountrate', '');
     };
 
     currentClient.setPayment = function (rec, payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
