@@ -60,6 +60,18 @@ function syncSalesOrderMagento(sessionID, updateDate) {
         // If some problem
         if (!serverOrdersResponse.status) {
             result.errorMsg = serverOrdersResponse.faultCode + '--' + serverOrdersResponse.faultString;
+
+            ErrorLogNotification.logAndNotify({
+                externalSystem: ConnectorConstants.CurrentStore.systemId,
+                recordType: F3Message.RecordType.SALES_ORDER,
+                recordId: "",
+                action: F3Message.Action.SALES_ORDER_IMPORT,
+                message: "Error in fetching sales orders list from external system",
+                messageDetails: result.errorMsg,
+                status: F3Message.Status.ERROR,
+                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+            });
+
             return result;
         }
 
@@ -87,7 +99,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         // check if order updated
                         isUpdated = ConnectorCommon.isOrderUpdated(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId, salesOrderDetails.customer.updatedAt);
                         Utility.logDebug('isUpdate', isUpdated);
-                        if(!isUpdated) {
+                        if (!isUpdated) {
                             Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
                         }
                     }
@@ -98,12 +110,21 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     //Utility.logDebug('stages_w', 'Step-c');
 
 
-
                     // Could not fetch sales order information from Magento
                     if (!salesOrderDetails.status) {
                         Utility.logDebug('Could not fetch sales order information from Magento', 'orderId: ' + orders[i].increment_id);
                         result.errorMsg = salesOrderDetails.faultCode + '--' + salesOrderDetails.faultString;
                         Utility.throwException("FETCHING_ORDER_DETAIL", result.errorMsg + ' orderId: ' + orders[i].increment_id);
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: F3Message.RecordType.SALES_ORDER,
+                            recordId: orders[i].increment_id,
+                            action: F3Message.Action.SALES_ORDER_IMPORT,
+                            message: "Error in fetching sales orders information from external system",
+                            messageDetails: result.errorMsg,
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        });
                     }
 
                     var shippingAddress = salesOrderDetails.shippingAddress;
@@ -120,6 +141,16 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         Utility.logDebug('result', JSON.stringify(result));
                         Utility.logDebug('COULD NOT EXECUTE Mapping perfectly', 'Please convey to Folio3');
                         Utility.throwException("ITEM_MAPPING", "Error in fetching item mapping.");
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: F3Message.RecordType.SALES_ORDER,
+                            recordId: orders[i].increment_id,
+                            action: F3Message.Action.SALES_ORDER_IMPORT,
+                            message: "Error in fetching sales orders item mapping in NetSuite against external system's products",
+                            messageDetails: result.errorMsg,
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        });
                     }
 
                     netsuiteMagentoProductMapData = netsuiteMagentoProductMap.data;
@@ -160,7 +191,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             leadCreateAttemptResult = ConnectorConstants.Client.createLeadInNetSuite(customer[customerIndex], sessionID, true);
                             Utility.logDebug('Attempt to create lead', JSON.stringify(leadCreateAttemptResult));
                             if (!Utility.isBlankOrNull(leadCreateAttemptResult.errorMsg) || !Utility.isBlankOrNull(leadCreateAttemptResult.infoMsg)) {
-                                Utility.throwException("CREATE_RECORD", "Error in creating lead record");
+                                continue;
                             }
                             Utility.logDebug('End Creating Lead', '');
                             customerNSInternalId = leadCreateAttemptResult.id;
@@ -176,7 +207,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
                             Utility.logDebug('ZEE->salesOrderObj', JSON.stringify(salesOrderObj));
 
-                            if(!!nsId) {
+                            if (!!nsId) {
                                 ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
                             } else {
                                 ConnectorConstants.Client.createSalesOrder(salesOrderObj);
@@ -195,7 +226,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
                         // if customer record found in NetSuite, update the customer record
                         if (customerSearchObj.status) {
-                            ConnectorConstants.Client.updateCustomerInNetSuite(
+                            var objUpdateCustomer = ConnectorConstants.Client.updateCustomerInNetSuite(
                                 customerSearchObj.netSuiteInternalId, customer[customerIndex], sessionID);
                             customerNSInternalId = customerSearchObj.netSuiteInternalId;
                             Utility.logDebug('Customer Updated in NetSuite', 'Customer Id: ' + customerNSInternalId);
@@ -206,7 +237,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             leadCreateAttemptResult = ConnectorConstants.Client.createLeadInNetSuite(customer[customerIndex], sessionID, false);
                             Utility.logDebug('Attempt to create lead', JSON.stringify(leadCreateAttemptResult));
                             if (!Utility.isBlankOrNull(leadCreateAttemptResult.errorMsg) || !Utility.isBlankOrNull(leadCreateAttemptResult.infoMsg)) {
-                                Utility.throwException("CREATE_RECORD", "Error in creating lead record");
+                                continue;
                             }
                             Utility.logDebug('End Creating Lead', '');
                             customerNSInternalId = leadCreateAttemptResult.id;
@@ -219,7 +250,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                         Utility.logDebug('ZEE->salesOrderObj', JSON.stringify(salesOrderObj));
 
                         // create/update sales order
-                        if(!!nsId) {
+                        if (!!nsId) {
                             ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
                         } else {
                             ConnectorConstants.Client.createSalesOrder(salesOrderObj);
@@ -251,6 +282,18 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                 }
                 catch (ex) {
                     Utility.logException('SO of Order ID ' + orders[i].increment_id + ' Failed', ex);
+                    if (!(ex instanceof nlobjError && ex.getCode().toString() === "ORDER_EXIST")) {
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: F3Message.RecordType.SALES_ORDER,
+                            recordId: orders[i].increment_id,
+                            action: F3Message.Action.SALES_ORDER_IMPORT,
+                            message: "Error in importing sales orders in NetSuite from external system",
+                            messageDetails: ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString(),
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        });
+                    }
                     // this handling is for maintaining order ids in custom record
                     if (ordersFromCustomRecord()) {
                         RecordsToSync.markProcessed(orders[i].id, RecordsToSync.Status.ProcessedWithError);
@@ -350,9 +393,20 @@ function startup(type) {
                     context.setPercentComplete(0.00);
                     // set store for ustilizing in other functions
                     ConnectorConstants.CurrentStore = store;
+                    ConnectorCommon.initiateEmailNotificationConfig();
                     // Check for feature availability
                     if (!FeatureVerification.isPermitted(Features.IMPORT_SO_FROM_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                         Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: F3Message.RecordType.SALES_ORDER,
+                            recordId: nlapiGetRecordId(),
+                            action: F3Message.Action.SALES_ORDER_IMPORT,
+                            message: Features.IMPORT_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED',
+                            messageDetails: "Please convey to Folio3.",
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        });
                         return;
                     }
                     ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
