@@ -1696,6 +1696,16 @@ var ConnectorCommon = (function () {
                 message: "Sales Order will be synced in few minutes.",
                 scriptStatus: status
             };
+        },
+        /**
+         * Initialize Logging Configuration
+         */
+        initiateEmailNotificationConfig: function () {
+            var author = ConnectorConstants.CurrentStore.entitySyncInfo.common.emailFrom;
+            var recipients = ConnectorConstants.CurrentStore.entitySyncInfo.common.emailTo;
+            var logInCustomRecord = ConnectorConstants.CurrentStore.entitySyncInfo.common.logInCustomRecord;
+            var sendEmail = ConnectorConstants.CurrentStore.entitySyncInfo.common.sendEmail;
+            ErrorLogNotification.Init(author, recipients, logInCustomRecord, sendEmail);
         }
     };
 })();

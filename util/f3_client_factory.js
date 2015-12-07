@@ -941,6 +941,7 @@ function F3BaseV1Client() {
             //generateErrorEmail(emailMsg, configuration, 'order');
 
             Utility.logException('F3BaseV1Client.createSalesOrder', ex);
+            Utility.throwException("CREATE_ORDER", "Error in creating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
             // }
         }
         Utility.logDebug("F3BaseV1Client.createSalesOrder", "End");
@@ -973,7 +974,7 @@ function F3BaseV1Client() {
 
         Utility.logDebug('default addresses', JSON.stringify(addresses));
         // setting default addresses
-        if(!!addresses) {
+        if (!!addresses) {
             rec.setFieldValue('shipaddresslist', addresses.shipAddress);
             rec.setFieldValue('billaddresslist', addresses.shipAddress);
         }
@@ -1004,7 +1005,7 @@ function F3BaseV1Client() {
 
 
         // Clearing Discount Fields
-       // this.clearDiscountFields(rec);
+        // this.clearDiscountFields(rec);
 
 
         var productId = [];
@@ -1025,7 +1026,7 @@ function F3BaseV1Client() {
             var isSerial = objIDPlusIsSerial.isSerial;
             Utility.logDebug('Netsuite Item ID', netSuiteItemID);
             var lineNumber = rec.findLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, products[x].item_id.toString());
-            lineNumber = lineNumber > 0 ?  lineNumber :  newLineNumber;
+            lineNumber = lineNumber > 0 ? lineNumber : newLineNumber;
             Utility.logDebug('lineNumber', lineNumber);
             Utility.logDebug('products[x].item_id.toString()', products[x].item_id.toString());
 
@@ -1072,7 +1073,7 @@ function F3BaseV1Client() {
                 isDummyItemSetInOrder = true;
                 rec.setLineItemValue('item', 'amount', lineNumber, '0');
                 rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, lineNumber, products[x].item_id.toString());
-                rec.setLineItemValue('item', 'taxcode',lineNumber, '-7');// -Not Taxable-
+                rec.setLineItemValue('item', 'taxcode', lineNumber, '-7');// -Not Taxable-
             }
 
             if (isSerial == 'T') {
@@ -1080,7 +1081,6 @@ function F3BaseV1Client() {
             }
 
         }
-
 
 
         // set discount if found in order
@@ -1112,6 +1112,7 @@ function F3BaseV1Client() {
         }
         catch (ex) {
             Utility.logException('F3BaseV1Client.updateSalesOrder', ex);
+            Utility.throwException("UPDATE_ORDER", "Error in updating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
         }
         Utility.logDebug("F3BaseV1Client.updateSalesOrder", "End");
     };
@@ -1119,11 +1120,11 @@ function F3BaseV1Client() {
     currentClient.getDefaultAddresses = function (entityId) {
         var customer = nlapiLoadRecord('customer', entityId);
         var address = {};
-        for(var i = 1; i <= customer.getLineItemCount('addressbook'); i++) {
-            if(customer.getLineItemValue('addressbook', 'defaultbilling', i) === 'T') {
+        for (var i = 1; i <= customer.getLineItemCount('addressbook'); i++) {
+            if (customer.getLineItemValue('addressbook', 'defaultbilling', i) === 'T') {
                 address.billAddress = customer.getLineItemValue('addressbook', 'internalid', i);
             }
-            if(customer.getLineItemValue('addressbook', 'defaultshipping', i) === 'T') {
+            if (customer.getLineItemValue('addressbook', 'defaultshipping', i) === 'T') {
                 address.shipAddress = customer.getLineItemValue('addressbook', 'internalid', i);
             }
         }
@@ -1140,10 +1141,10 @@ function F3BaseV1Client() {
         }
 
     };
-    currentClient.clearDiscountFields =  function (rec) {
+    currentClient.clearDiscountFields = function (rec) {
         // Line item level discount handling
         var currentLintItemCount = rec.getLineItemCount('item');
-        for (var i = 1; i<= currentLintItemCount; i++) {
+        for (var i = 1; i <= currentLintItemCount; i++) {
             rec.setLineItemValue('item', 'price', i, '-7');
             rec.setLineItemValue('item', 'amount', i, '0');
             rec.setLineItemValue('item', 'taxcode', i, '-7');
@@ -1213,6 +1214,16 @@ function F3BaseV1Client() {
             if (!responseMagento.status) {
                 result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
                 Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
+                ErrorLogNotification.logAndNotify({
+                    externalSystem: ConnectorConstants.CurrentStore.systemId,
+                    recordType: F3Message.RecordType.SALES_ORDER,
+                    recordId: magentoCustomerObj.customer_id,
+                    action: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
+                    message: "Error in importing customer addresses in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
+                    messageDetails: result.errorMsg,
+                    status: F3Message.Status.ERROR,
+                    externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                });
                 return result;
             }
 
@@ -1275,6 +1286,16 @@ function F3BaseV1Client() {
         } catch (ex) {
             result.errorMsg = ex.toString();
             Utility.logException('createLeadInNetSuite', ex);
+            ErrorLogNotification.logAndNotify({
+                externalSystem: ConnectorConstants.CurrentStore.systemId,
+                recordType: F3Message.RecordType.SALES_ORDER,
+                recordId: magentoCustomerObj.customer_id,
+                action: F3Message.Action.CUSTOMER_IMPORT,
+                message: "Error in importing customer in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
+                messageDetails: (ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()) + " - Error: " + result.errorMsg,
+                status: F3Message.Status.ERROR,
+                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+            });
         }
 
         Utility.logDebug("currentClient.createLeadInNetSuite", "End");
@@ -1332,6 +1353,16 @@ function F3BaseV1Client() {
         if (!responseMagento.status) {
             result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
             Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
+            ErrorLogNotification.logAndNotify({
+                externalSystem: ConnectorConstants.CurrentStore.systemId,
+                recordType: F3Message.RecordType.SALES_ORDER,
+                recordId: magentoCustomerObj.customer_id,
+                action: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
+                message: "Error in importing customer addresses for updating in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
+                messageDetails: result.errorMsg,
+                status: F3Message.Status.ERROR,
+                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+            });
             return result;
         }
 
@@ -1345,7 +1376,20 @@ function F3BaseV1Client() {
         rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
 
         // zee: get customer address list: end
-        var id = nlapiSubmitRecord(rec, true, true);
+        try {
+            var id = nlapiSubmitRecord(rec, true, true);
+        } catch (ex) {
+            ErrorLogNotification.logAndNotify({
+                externalSystem: ConnectorConstants.CurrentStore.systemId,
+                recordType: F3Message.RecordType.SALES_ORDER,
+                recordId: magentoCustomerObj.customer_id,
+                action: F3Message.Action.CUSTOMER_IMPORT,
+                message: "Error in importing customer in NetSuite for update from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
+                messageDetails: ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString(),
+                status: F3Message.Status.ERROR,
+                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+            });
+        }
         Utility.logDebug('Customer updated in NetSuite', 'Customer Id: ' + id);
         Utility.logDebug("F3BaseV1Client.updateCustomerInNetSuite", "End");
     };

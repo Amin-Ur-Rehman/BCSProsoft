@@ -78,18 +78,28 @@
                         <tr>
                             <th>Last Modified Date</th>
                             <th>Sales Order #</th>
-                            <th>NS Internal Id</th>
+                            <th>External System Id</th>
+                            <th>Customer</th>
+                            <th>Status</th>
+                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr ng-repeat="item in viewModel.salesorders.data">
                             <td>{{ item.lastmodifieddate }}</td>
-                            <td>{{ item.tranid }}</td>
                             <td>
                                 <a ng-href="/app/accounting/transactions/salesord.nl?id={{ item.id }}" target="_blank">
-                                    {{ item.id }}
+                                    {{ item.tranid }}
                                 </a>
                             </td>
+                            <td>{{ item.externalsystemrecordid }}</td>
+                            <td>
+                                <a ng-href="/app/common/entity/custjob.nl?id={{ item.entity.value }}" target="_blank">
+                                    {{ item.entity.text }}
+                                </a>
+                            </td>
+                            <td>{{ item.status.text }}</td>
+                            <td>{{ item.total }}</td>
                         </tr>
                     </tbody>
                 </table>
