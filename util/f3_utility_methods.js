@@ -198,7 +198,7 @@ Utility = (function () {
         isMultiLocInvt: function () {
             return nlapiGetContext().getFeature('MULTILOCINVT');
         },
-	/**
+        /**
          * Throw Custom NetSuite Expcetion
          * @param code
          * @param message
@@ -212,33 +212,67 @@ Utility = (function () {
         isMultiCurrency: function () {
             return nlapiGetContext().getFeature('MULTICURRENCY');
         },
-        addMinutes : function(date, minutes)
-        {
+        addMinutes: function (date, minutes) {
             return new Date(date.getTime() + minutes * 60000);
+        },
+        getRecords: function (recordType, savedSearchId, filters, columns, pages) {
+            var result = [];
+            // TODO: improve and implement facade
+            var savedSearch;
+            try {
+                if (!!savedSearchId) {
+                    savedSearch = nlapiLoadSearch(null, savedSearchId);
+                } else {
+                    savedSearch = nlapiCreateSearch(recordType, filters, columns);
+                }
+            } catch (ex) {
+                nlapiLogExecution('DEBUG', 'getRecords', ex);
+                return result;
+            }
+
+            var runSearch = savedSearch.runSearch();
+            var start = 0, end = 1000;
+            var page = 1;
+            var chunk = runSearch.getResults(start, end);
+
+            if (!!chunk) {
+                result = result.concat(chunk);
+                while (chunk.length === 1000 && (!!pages ? page < pages : true)) {
+                    start += 1000;
+                    end += 1000;
+                    chunk = runSearch.getResults(start, end);
+                    if (chunk !== null) {
+                        result = result.concat(chunk);
+                    }
+                    page = !!pages ? ++page : null;
+                }
+            }
+
+            return result;
         }
     };
 })();
 
-if ( !Date.prototype.toISOString ) {
-    ( function() {
+if (!Date.prototype.toISOString) {
+    ( function () {
 
         function pad(number) {
             var r = String(number);
-            if ( r.length === 1 ) {
+            if (r.length === 1) {
                 r = '0' + r;
             }
             return r;
         }
 
-        Date.prototype.toISOString = function() {
+        Date.prototype.toISOString = function () {
             return this.getUTCFullYear()
-              + '-' + pad( this.getUTCMonth() + 1 )
-              + '-' + pad( this.getUTCDate() )
-              + 'T' + pad( this.getUTCHours() )
-              + ':' + pad( this.getUTCMinutes() )
-              + ':' + pad( this.getUTCSeconds() )
-              + '.' + String( (this.getUTCMilliseconds()/1000).toFixed(3) ).slice( 2, 5 )
-              + 'Z';
+                + '-' + pad(this.getUTCMonth() + 1)
+                + '-' + pad(this.getUTCDate())
+                + 'T' + pad(this.getUTCHours())
+                + ':' + pad(this.getUTCMinutes())
+                + ':' + pad(this.getUTCSeconds())
+                + '.' + String((this.getUTCMilliseconds() / 1000).toFixed(3)).slice(2, 5)
+                + 'Z';
         };
 
     }() );

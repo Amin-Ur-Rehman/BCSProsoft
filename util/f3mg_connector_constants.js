@@ -27,6 +27,12 @@ ConnectorConstants = (function () {
         ScheduleScriptInvokedFormUserEvent: 'custscript_sch_invoke_from_ue',
         ExternalSystemConfig: [],
         CurrentStore: {},
+        ItemConfigRecords: {
+            ExternalSystemItemAttributes: null,
+            ExternalSystemItemAttributeSets: null,
+            ExternalSystemMatrixFieldMap: null,
+            ExternalSystemMatrixFieldValues: null
+        },
         FeatureVerification: null,
         /**
          * Current Wrapper that is being referred to in Scheduled Scripts and User Events
@@ -207,6 +213,12 @@ ConnectorConstants = (function () {
         },
         initializeScrubList: function () {
             this.ScrubsList = FC_ScrubHandler.getAllScrubsList();
+        },
+        loadItemConfigRecords: function () {
+            this.ItemConfigRecords.ExternalSystemItemAttributes = ItemConfigRecordHandler.getAllExternalSystemAttributeList();
+            this.ItemConfigRecords.ExternalSystemItemAttributeSets = ItemConfigRecordHandler.getAllExternalSystemAttributeSetList();
+            this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
+            this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
         },
         initializeDummyItem: function () {
             this.DummyItem.Id = ConnectorCommon.getDummyItemId(this.DummyItem.ItemId);

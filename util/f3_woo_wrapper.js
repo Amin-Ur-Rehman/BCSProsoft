@@ -22,6 +22,13 @@ WooWrapper = (function () {
 
     //region Private Methods
 
+    var ItemTypes = {
+        Simple: 'simple',
+        Variable: 'variable',
+        Grouped: 'grouped',
+        External: 'external'
+    };
+
     /**
      * Parses Single Sales Order Response
      * @param serverOrder
@@ -714,6 +721,22 @@ WooWrapper = (function () {
         return responseBody;
     }
 
+    /**
+     * Return WOO Item Type depending on NetSuite Item data
+     * @param itemType
+     * @param itemObject
+     * @returns {*}
+     */
+    function getItemType(itemType, itemObject) {
+        var type;
+        switch (itemType) {
+            case ItemExportLibrary.configData.ItemTypes.InventoryItem:
+                type = itemObject.isMatrix ? ItemTypes.Variable : ItemTypes.Simple;
+                break;
+        }
+        return type;
+    }
+
     //function parseResponse(_serverResponse, _function, _type) {
     //    var serverResponse;
     //    var error = getErrorIfExist(_serverResponse, _type);
@@ -898,6 +921,76 @@ WooWrapper = (function () {
             responseBody.message = '';
         }
         return responseBody;
+    }
+
+    /**
+     * Get post data object for inventory item
+     * @param store
+     * @param itemInternalId
+     * @param itemType
+     * @param itemObject
+     */
+    function getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject) {
+        var postdData;
+        switch (itemObject.otherSystemItemType) {
+            case ItemTypes.Simple:
+                getPostDataObjectForSimpleProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case  ItemTypes.Variable:
+                getPostDataObjectForVariableProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case ItemTypes.Grouped:
+                getPostDataObjectForGroupedProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case  ItemTypes.External:
+                getPostDataObjectForExternalProduct(store, itemInternalId, itemType, itemObject);
+                break;
+        }
+        return postData;
+    }
+
+    function getPostDataObjectForSimpleProduct(store, itemInternalId, itemType, itemObject) {
+        var postData = {};
+
+        postData.product = {};
+        postData.product.title = itemObject.displayName || itemObject.itemId;
+        postData.product.type = itemObject.otherSystemItemType;
+        postData.product.sku = itemObject.itemId;
+        postData.product.regular_price = itemObject.price;
+        postData.product.description = itemObject.storeDetailedDescription;
+        postData.product.short_description = itemObject.storeDescription;
+
+        return postData;
+    }
+
+    function getPostDataObjectForVariableProduct(store, itemInternalId, itemType, itemObject) {
+        var postData = {};
+
+        postData.product = {};
+        postData.product.title = itemObject.displayName || itemObject.itemId;
+        postData.product.type = itemObject.otherSystemItemType;
+        postData.product.sku = itemObject.itemId;
+        postData.product.regular_price = itemObject.price;
+        postData.product.description = itemObject.storeDetailedDescription;
+        postData.product.short_description = itemObject.storeDescription;
+
+        // todo: make data packet for matrix parent & child
+        if (itemObject.isMatrixParentItem) {
+
+        }
+        if (itemObject.isMatrixChildItem) {
+
+        }
+
+        return postData;
+    }
+
+    function getPostDataObjectForGroupedProduct(store, itemInternalId, itemType, itemObject) {
+        Utility.throwException("NOT_SUPPORTED", "Export Grouped Product to WOO is not Supported")
+    }
+
+    function getPostDataObjectForExternalProduct(store, itemInternalId, itemType, itemObject) {
+        Utility.throwException("NOT_SUPPORTED", "Export External Product to WOO is not Supported")
     }
 
     //endregion
@@ -1720,11 +1813,11 @@ WooWrapper = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
-            if(itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
+        setInventoryItemFields: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            if (itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
                 itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
             }
-            itemObject.otherSystemItemType = 'simple';
+            itemObject.otherSystemItemType = getItemType(itemType, itemObject);
         },
         /**
          * Export Inventory Item to WooCommerce Store
@@ -1733,12 +1826,12 @@ WooWrapper = (function () {
          * @param itemType
          * @param itemObject
          */
-        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {
 
             var httpRequestData = {
-                url: 'products' + (!!itemObject.currentExternalSystemId ? '/'+itemObject.currentExternalSystemId : ''),
+                url: 'products' + (!!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : ''),
                 method: (!!itemObject.currentExternalSystemId ? 'PUT' : 'POST'),
-                postData: this.getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
+                postData: getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
             };
             Utility.logDebug('exportInventoryItem.httpRequestData', JSON.stringify(httpRequestData));
             var responseBody = {};
@@ -1750,28 +1843,7 @@ WooWrapper = (function () {
                 responseBody = parseItemFailureResponse(serverResponse);
             }
             return responseBody;
-        },
-        /**
-         * Get post data object for inventory item
-         * @param store
-         * @param itemInternalId
-         * @param itemType
-         * @param itemObject
-         */
-        getPostDataObjectForInventoryItem: function(store, itemInternalId, itemType, itemObject) {
-            var postData = {
-                "product": {
-                    "title": itemObject.displayName || itemObject.itemId,
-                    "type": itemObject.otherSystemItemType,
-                    "sku": itemObject.itemId,
-                    "regular_price": itemObject.price,
-                    "description": itemObject.storeDetailedDescription,
-                    "short_description": itemObject.storeDescription
-                }
-            };
-            return postData;
         }
-
     };
 
     //endregion
