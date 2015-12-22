@@ -966,20 +966,66 @@ WooWrapper = (function () {
     function getPostDataObjectForVariableProduct(store, itemInternalId, itemType, itemObject) {
         var postData = {};
 
-        postData.product = {};
-        postData.product.title = itemObject.displayName || itemObject.itemId;
-        postData.product.type = itemObject.otherSystemItemType;
-        postData.product.sku = itemObject.itemId;
-        postData.product.regular_price = itemObject.price;
-        postData.product.description = itemObject.storeDetailedDescription;
-        postData.product.short_description = itemObject.storeDescription;
-
-        // todo: make data packet for matrix parent & child
         if (itemObject.isMatrixParentItem) {
+            postData.product = {};
+            postData.product.title = itemObject.displayName || itemObject.itemId;
+            postData.product.type = itemObject.otherSystemItemType;
+            postData.product.sku = itemObject.itemId;
+            postData.product.regular_price = itemObject.price;
+            postData.product.description = itemObject.storeDetailedDescription;
+            postData.product.short_description = itemObject.storeDescription;
 
+            postData.product.attributes = [];
+
+            var matrixParentAttributes = itemObject.matrixParentAttributes;
+            for (var i in matrixParentAttributes) {
+                var matrixParentAttribute = matrixParentAttributes[i];
+                var attribute = {};
+                attribute.name = matrixParentAttribute.itemAttributeName;
+                attribute.slug = matrixParentAttribute.itemAttributeCode;
+                attribute.position = i;
+                attribute.visible = false;
+                attribute.variation = true;
+                attribute.options = [];
+
+                var options = matrixParentAttribute.itemAttributeValues;
+                for (var o in options) {
+                    var option = options[o];
+                    attribute.options.push(option);
+                }
+
+                postData.product.attributes.push(attribute);
+            }
         }
         if (itemObject.isMatrixChildItem) {
+            var matrixChild = itemObject;
+            // matrix parent object exist if we are exporting child product
+            var matrixParent = itemObject.MatrixParent;
 
+            postData.product = {};
+            postData.product.title = matrixParent.displayName || matrixParent.itemId;
+            postData.product.type = matrixParent.otherSystemItemType;
+            postData.product.sku = matrixParent.itemId;
+            postData.product.regular_price = matrixParent.price;
+            postData.product.description = matrixParent.storeDetailedDescription;
+            postData.product.short_description = matrixParent.storeDescription;
+
+            postData.product.variations = [];
+
+            var matrixChildAttributes = matrixChild.matrixChildAttributes;
+            var currentVariation = {};
+            currentVariation.id = !!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : '';
+            currentVariation.regular_price = "";
+            currentVariation.attributes = [];
+            for (var i in matrixChildAttributes) {
+                var matrixChildAttribute = matrixChildAttributes[i];
+                var attribute = {};
+                attribute.name = matrixChildAttribute.itemAttributeName;
+                attribute.slug = matrixChildAttribute.itemAttributeCode;
+                attribute.option = matrixChildAttribute.itemAttributeValue;
+                currentVariation.attributes.push(attribute);
+            }
+            postData.product.variations.push(currentVariation);
         }
 
         return postData;
@@ -1827,10 +1873,15 @@ WooWrapper = (function () {
          * @param itemObject
          */
         exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {
-
+            var id = "";
+            if (itemObject.isMatrixParentItem) {
+                id = !!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : ''
+            } else if (itemObject.isMatrixChildItem) {
+                id = !!itemObject.MatrixParent.currentExternalSystemId ? '/' + itemObject.MatrixParent.currentExternalSystemId : ''
+            }
             var httpRequestData = {
-                url: 'products' + (!!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : ''),
-                method: (!!itemObject.currentExternalSystemId ? 'PUT' : 'POST'),
+                url: 'products' + id,
+                method: (!!id ? 'PUT' : 'POST'),
                 postData: getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
             };
             Utility.logDebug('exportInventoryItem.httpRequestData', JSON.stringify(httpRequestData));
