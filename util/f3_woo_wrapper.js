@@ -1886,7 +1886,9 @@ WooWrapper = (function () {
             };
             Utility.logDebug('exportInventoryItem.httpRequestData', JSON.stringify(httpRequestData));
             var responseBody = {};
-            var serverResponse = sendRequest(httpRequestData);
+            var serverResponse = {};//test
+            // todo: undo after testing
+            //var serverResponse = sendRequest(httpRequestData);
             Utility.logDebug('exportInventoryItem.serverResponse', JSON.stringify(serverResponse));
             if (!!serverResponse.product) {
                 responseBody = parseItemSuccessResponse(serverResponse);
