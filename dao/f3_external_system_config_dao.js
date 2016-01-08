@@ -66,6 +66,7 @@ ExternalSystemConfig = (function () {
                 var internalId = config.getId();
                 var systemId = config.getValue(this.FieldName.SystemId, null, null);
                 var systemDisplayName = config.getText(this.FieldName.SystemDisplayName, null, null);
+                var systemDisplayNameValue = config.getValue(this.FieldName.SystemDisplayName, null, null);
                 var userName = config.getValue(this.FieldName.UserName, null, null);
                 var password = config.getValue(this.FieldName.Password, null, null);
                 var endpoint = config.getValue(this.FieldName.Endpoint, null, null);
@@ -79,6 +80,7 @@ ExternalSystemConfig = (function () {
                     internalId:internalId,
                     systemId: systemId,
                     systemDisplayName: systemDisplayName,
+                    systemDisplayNameValue: systemDisplayNameValue,
                     userName: userName,
                     password: password,
                     endpoint: endpoint,

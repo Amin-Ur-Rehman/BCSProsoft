@@ -577,6 +577,8 @@ MagentoXmlWrapper = (function () {
                             nlapiLogExecution('Error', 'Error in unserializing product options.', 'product_id: ' + product.product_id);
                         }
                     }
+                    product.price = nlapiSelectValue(products[i], 'price');
+                    product.original_price = nlapiSelectValue(products[i], 'original_price');
                     product.product_options = unSerializedObject;
                     // get ammount for dummy item
                     result[result.length] = product;
@@ -1339,6 +1341,22 @@ MagentoXmlWrapper = (function () {
             return giftCertificatesXml;
         },
         /**
+         * Additional data xml
+         * @param orderDataObject
+         * @returns {string}
+         */
+        getAdditionalData: function (orderDataObject) {
+            var xml = '';
+
+            xml += '<additionalData>';
+            xml += '<discount_amount>' + orderDataObject.discountAmount + '</discount_amount>';
+            xml += '<ns_tran_id>' + orderDataObject.nsTranId + '</ns_tran_id>';
+            xml += '<ns_internal_id>' + orderDataObject.nsInternalId + '</ns_internal_id>';
+            xml += '</additionalData>';
+
+            return xml;
+        },
+        /**
          * Creates XML for Sales Order and returns
          * @param orderCreationInfo
          * @param sessionId
@@ -1362,6 +1380,7 @@ MagentoXmlWrapper = (function () {
             var historyXml = this.getHistoryXml(history);
             var statusXml = this.getStatusXml(status);
             var giftCertificatesXml = this.getGiftCertificatesXml(giftCertificates);
+            var additionalDataXml = this.getAdditionalData(orderCreationInfo);
 
             orderXml = this.XmlHeader;
             orderXml = orderXml + '<urn:folio3_salesOrderCreateSalesOrder soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
@@ -1374,6 +1393,7 @@ MagentoXmlWrapper = (function () {
             orderXml = orderXml + historyXml;
             orderXml = orderXml + statusXml;
             orderXml = orderXml + giftCertificatesXml;
+            orderXml = orderXml + additionalDataXml;
             orderXml = orderXml + '</urn:folio3_salesOrderCreateSalesOrder>';
             orderXml = orderXml + this.XmlFooter;
 
@@ -2550,6 +2570,72 @@ MagentoXmlWrapper = (function () {
             responseBody.data = {
             };
             return responseBody;
+        },
+
+        getCustomerListXML: function (obj, sessionID) {
+            var customerXML = "";
+
+            customerXML += this.XmlHeader;
+            customerXML += '<urn:customerCustomerList>';
+            customerXML += '<sessionId urn:type="xsd:string">' + sessionID + '</sessionId>';
+
+            customerXML += '<filters>';
+
+            // making simple associative array
+            if (obj.hasOwnProperty("filters") && obj.filters instanceof Array) {
+                var filters = customer.filters;
+                if (filters.length > 0) {
+                    customerXML += '<filter>';
+                    for (var i in filters) {
+                        customerXML += '<associativeEntity>';
+                        customerXML += '<key xs:type="type:string">' + filters[i].key + '</key>';
+                        customerXML += '<value xs:type="type:string">' + filters[i].value + '</value>';
+                        customerXML += '</associativeEntity>';
+                    }
+                    customerXML += '</filter>';
+                }
+            }
+
+            if (obj.hasOwnProperty("complexFilters") && obj.complexFilters instanceof Array) {
+                // TODO: implement in future
+            }
+            customerXML += '</filters>';
+
+            customerXML += '</urn:customerCustomerList>';
+            customerXML += this.XmlFooter;
+
+            return customerXML;
+        },
+
+        getCustomerList: function (obj) {
+            var result = [];
+            var xml = this.getCustomerListXML(obj, ConnectorConstants.CurrentStore.sessionID);
+            var responseMagento = this.validateResponseCustomer(this.soapRequestToMagento(xml));
+            if (!responseMagento.status) {
+                result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
+            } else {
+                if (!!responseMagento.customers) {
+                    result = responseMagento.customers;
+                }
+            }
+            return result;
+        },
+
+        getCustomer:function(customerObj){
+            var customer = null;
+            var email = customerObj.email;
+
+            var filters = [];
+            filters.push({key: "email", value: email});
+            customerObj.filters = filters;
+
+            var customerList = this.getCustomerList(customerObj);
+
+            if (customerList instanceof Array && customerList.length > 0) {
+                customer = customerList[0];
+            }
+
+            return customer;
         }
     };
 })();

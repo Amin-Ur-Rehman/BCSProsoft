@@ -82,6 +82,8 @@ WooWrapper = (function () {
             localOrder.customer.customer_firstname = localOrder.customer.firstname;
             localOrder.customer.customer_middlename = localOrder.customer.middlename;
             localOrder.customer.customer_lastname = localOrder.customer.lastname;
+
+            localOrder.customer.discount_amount = serverOrder.total_discount.toString();
         }
 
         if (serverOrder.shipping_address) {
@@ -180,7 +182,12 @@ WooWrapper = (function () {
         localProduct.gift_card = serverProduct.gift_card;
         localProduct.grams = serverProduct.grams;
         localProduct.id = serverProduct.id;
-        localProduct.price = serverProduct.price;
+        // calculate unit price
+        localProduct.price = (serverProduct.subtotal / serverProduct.qty_ordered).toFixed(2);
+        // discount will be handling usig total discounts of the order. because in api there is no actual
+        // discount value of a unit quantity is found and we'll have to calculate unit price after discount which
+        // will cause precision errors
+        localProduct.original_price = "0";
         localProduct.requires_shipping = serverProduct.requires_shipping;
         localProduct.sku = serverProduct.sku;
         localProduct.taxable = serverProduct.taxable;
@@ -1039,6 +1046,39 @@ WooWrapper = (function () {
         Utility.throwException("NOT_SUPPORTED", "Export External Product to WOO is not Supported")
     }
 
+    function parseSingleCustomerResponse(customer) {
+        var data = {};
+
+        data.customer_id = customer.id.toString();
+        data.email = customer.email;
+        data.firstname = customer.first_name;
+        data.middlename = "";
+        data.lastname = customer.first_name;
+        data.group_id = "";
+        data.prefix = "";
+        data.suffix = "";
+        data.dob = "";
+
+        // addresses
+        data.addresses = [];
+        // handle in future if it is required
+
+        return data;
+    }
+
+    function parseCustomerListResponse(customers){
+        var customerList = [];
+
+        if(!(customers instanceof Array)){
+            return customerList;
+        }
+
+        for(var i in customers){
+            customerList.push(parseSingleCustomerResponse(customers[i]));
+        }
+
+        return customerList;
+    }
     //endregion
 
     //region Public Methods
@@ -1896,6 +1936,69 @@ WooWrapper = (function () {
                 responseBody = parseItemFailureResponse(serverResponse);
             }
             return responseBody;
+        },
+
+        getCustomerList: function (customerObj) {
+            var serverResponse = null;
+
+            // Make Call and Get Data
+            var serverFinalResponse = {
+                status: false,
+                faultCode: '',
+                faultString: '',
+                product: {}
+            };
+
+            var query = "";
+            if(customerObj.hasOwnProperty("query") && !!customerObj.query){
+                query = customerObj.query;
+            }
+
+            var httpRequestData = {
+                additionalUrl: 'customers' + query,
+                method: 'GET'
+            };
+            try {
+                serverResponse = sendRequest(httpRequestData);
+                serverFinalResponse.status = true;
+
+            } catch (e) {
+                Utility.logException('Error during getCustomerList', e);
+            }
+
+            if (!!serverResponse && serverResponse.customer) {
+                serverFinalResponse.customers = parseCustomerListResponse([serverResponse.customer]);
+            }
+
+            // If some problem
+            if (!serverFinalResponse.status) {
+                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
+            }
+
+            return serverFinalResponse;
+
+        },
+
+        getCustomer: function (customerObj) {
+            var customer = null;
+            var email = customerObj.email;
+
+            var query = "query=";
+            query += "/email/" + email;
+            customerObj.query = query;
+
+            var customerList;
+            var customerListResponse = this.getCustomerList(customerObj);
+
+            if(customerListResponse.hasOwnProperty("customers")){
+                customerList = customerListResponse.customers;
+            }
+
+            if (customerList instanceof Array && customerList.length) {
+                customer = customerList[0];
+            }
+
+            return customer;
         }
     };
 

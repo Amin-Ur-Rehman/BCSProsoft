@@ -15,6 +15,15 @@ var errorMsg = '';
 
 function customerExportAfterSubmit(type) {
     try {
+        //["userinterface", "webservices", "csvimport", "portlet", "scheduled", "suitelet", "custommassupdate", "workflow", "webstore", "userevent"];
+        var executionContextsNotAllowed = ["scheduled"];
+
+        var context = nlapiGetContext();
+        var executionContext = context.getExecutionContext();
+        if(executionContextsNotAllowed.indexOf(executionContext) !== -1){
+            Utility.logDebug('Context: ' + executionContext, 'Type: ' + type);
+            return;
+        }
         Utility.logDebug('Customer Export Script entry', 'type: ' + type);
         if (type.toString() === 'create' || type.toString() === 'edit') {
 

@@ -64,8 +64,8 @@ ConnectorConstants = (function () {
                 FromOtherSystem: 'custbody_f3_so_from_other_system',
                 MagentoInvoiceId: 'custbody_f3mg_invoice_id',
                 ExternalSystemSalesOrderModifiedAt: 'custbody_f3mg_external_modified_time',
-                NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time'
-
+                NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time',
+		MagentoShipmentId: 'custbody_magento_shipment_id'
             },
             Columns: {
                 MagentoOrderId: 'custcol_mg_order_item_id'
@@ -183,7 +183,8 @@ ConnectorConstants = (function () {
             shippingMethod: {
                 UPS_GND: "ups_GND",
                 UPS_XPD: "ups_XPD",
-                UPS_EMPTY: "ups_"
+                UPS_EMPTY: "ups_",
+		FLAT_RATE: "flatrate_flatrate"
             }
         },
         MagentoCustomerGroups: {

@@ -832,10 +832,20 @@ function F3BaseV1Client() {
             var isSerial = objIDPlusIsSerial.isSerial;
             Utility.logDebug('Netsuite Item ID', netSuiteItemID);
 
+            var customPriceLevel = ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.customPriceLevel;
             if (!!netSuiteItemID) {
                 rec.setLineItemValue('item', 'item', x + 1, netSuiteItemID);
                 rec.setLineItemValue('item', 'quantity', x + 1, products[x].qty_ordered);
-                rec.setLineItemValue('item', 'price', x + 1, 1);
+
+                // handling for custom product amount
+                if(!!products[x].price && !!products[x].price && parseFloat(products[x].price) === parseFloat(products[x].original_price)) {
+                    // set price level 'List Price'
+                    rec.setLineItemValue('item', 'price', x + 1, 1);
+                } else {
+                    rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
+                    rec.setLineItemValue('item', 'amount', x + 1, products[x].price);
+                }
+
                 if (products[x].product_type === ConnectorConstants.MagentoProductTypes.GiftCard
                     && !!products[x].product_options) {
                     var certificateNumber = '';
@@ -858,7 +868,6 @@ function F3BaseV1Client() {
                 // set tax amount
                 var taxAmount = products[x].tax_amount;
                 taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
-
                 // tax handling for line items
                 if (taxAmount > 0) {
                     rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxCode);

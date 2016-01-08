@@ -63,13 +63,15 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
             ErrorLogNotification.logAndNotify({
                 externalSystem: ConnectorConstants.CurrentStore.systemId,
-                recordType: F3Message.RecordType.SALES_ORDER,
+                recordType: "salesorder",
                 recordId: "",
-                action: F3Message.Action.SALES_ORDER_IMPORT,
-                message: "Error in fetching sales orders list from external system",
+                recordDetail: "",
+                action: "Sales Order Import from NetSuite to Magento",
+                message: "An error occurred while getting Slaes Order List from Magento",
                 messageDetails: result.errorMsg,
                 status: F3Message.Status.ERROR,
-                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                system: "NetSuite"
             });
 
             return result;
@@ -114,16 +116,14 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!salesOrderDetails.status) {
                         Utility.logDebug('Could not fetch sales order information from Magento', 'orderId: ' + orders[i].increment_id);
                         result.errorMsg = salesOrderDetails.faultCode + '--' + salesOrderDetails.faultString;
-                        Utility.throwException("FETCHING_ORDER_DETAIL", result.errorMsg + ' orderId: ' + orders[i].increment_id);
-                        ErrorLogNotification.logAndNotify({
-                            externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in fetching sales orders information from external system",
-                            messageDetails: result.errorMsg,
-                            status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        throw new CustomException({
+                            code: "GET_ORDER_INFO_FROM_MAGENTO",
+                            message: result.errorMsg,
+                            recordType: "salesorder",
+                            recordId: orders[i].order_id,
+                            system: "Magento",
+                            exception: null,
+                            action: "Import Sales Order from Magento to NetSuite"
                         });
                     }
 
@@ -140,16 +140,14 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!Utility.isBlankOrNull(netsuiteMagentoProductMap.errorMsg)) {
                         Utility.logDebug('result', JSON.stringify(result));
                         Utility.logDebug('COULD NOT EXECUTE Mapping perfectly', 'Please convey to Folio3');
-                        Utility.throwException("ITEM_MAPPING", "Error in fetching item mapping.");
-                        ErrorLogNotification.logAndNotify({
-                            externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in fetching sales orders item mapping in NetSuite against external system's products",
-                            messageDetails: result.errorMsg,
-                            status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        throw new CustomException({
+                            code: "GET_ORDER_ITEMS_MAPPING",
+                            message: netsuiteMagentoProductMap.errorMsg,
+                            recordType: "salesorder",
+                            recordId: orders[i].order_id,
+                            system: "Magento",
+                            exception: null,
+                            action: "Import Sales Order from Magento to NetSuite"
                         });
                     }
 
@@ -285,13 +283,15 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!(ex instanceof nlobjError && ex.getCode().toString() === "ORDER_EXIST")) {
                         ErrorLogNotification.logAndNotify({
                             externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in importing sales orders in NetSuite from external system",
-                            messageDetails: ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString(),
+                        recordType: "salesorder",
+                        recordId: orders[i].order_id,
+                        recordDetail: "Magento # " + orders[i].increment_id,
+                        action: "Sales Order Import from NetSuite to Magento",
+                        message: "An error occurred while creating Sales Order in NetSuite",
+                        messageDetails: ex,
                             status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                        system: "Magento"
                         });
                     }
                     // this handling is for maintaining order ids in custom record
@@ -430,7 +430,19 @@ function startup(type) {
 
                     if (!sessionID) {
                         Utility.logDebug('sessionID', 'sessionID is empty');
-                        continue;
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: "salesorder",
+                            recordId: "",
+                            recordDetail: "",
+                            action: "Sales Order Import from NetSuite to Magento",
+                            message: "Unable to fetch Session Id from Magento",
+                            messageDetails: "Look into Magento logs",
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                            system: "NetSuite"
+                        });
+                        return;
                     }
 
                     Utility.logDebug('startup', 'Start Syncing');

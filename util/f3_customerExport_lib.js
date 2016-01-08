@@ -15,7 +15,7 @@ CUSTOMER = {
 
         arrFils.push(new nlobjSearchFilter('custentity_magentosync_dev', null, 'is', 'F'));
 
-        arrFils.push(new nlobjSearchFilter('custentity_magentosync_msg', null, 'isempty'));
+        //arrFils.push(new nlobjSearchFilter('custentity_magentosync_msg', null, 'isempty'));
 
         arrCols.push(new nlobjSearchColumn('custentity_magento_custid'));
 
@@ -81,13 +81,65 @@ CUSTOMER = {
 
         return result;
     },
-    setCustomerMagentoId: function (magentoId, customerId) {
+    getEmailAddressIfEmpty: function (email, internalId) {
+        if (!Utility.isBlankOrNull(email)) {
+            return email;
+        }
+
+        var newEmail;
+        var lastPart = ConnectorConstants.CurrentStore.entitySyncInfo.customer.noEmailAddress || "@noemail.com";
+        newEmail = "ns-customer-" + internalId + lastPart;
+        return newEmail;
+    },
+    setCustomerMagentoId: function (magentoId, customerId, magentoStores) {
         var result = false;
 
         try {
 
+            var rec = nlapiLoadRecord("customer", customerId);
+            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoId);
+            if (!Utility.isBlankOrNull(magentoStores) && magentoStores.length > 0) {
+                rec.setFieldValues(ConnectorConstants.Entity.Fields.MagentoStore, magentoStores);
+            }
+            // handling customer with no email address
+            var email = rec.getFieldValue("email");
+            Utility.logDebug("Zee->Email", email);
+            if (Utility.isBlankOrNull(email)) {
+                email = this.getEmailAddressIfEmpty(email, customerId);
+                rec.setFieldValue("email", email);
+                Utility.logDebug("Zee->NewEmail", email);
+            }
 
-            nlapiSubmitField('customer', customerId, ['custentity_magento_custid'], [magentoId]);
+            // fixes for customer having either no fisrtname or no lastname or companyname - start
+            var isIndividual = rec.getFieldValue("isperson") === "T";
+            var entityId = rec.getFieldValue("entityid");
+
+            if (isIndividual) {
+                // handling for individual customer
+                var firstName = rec.getFieldValue("firstname");
+                var lastName = rec.getFieldValue("lastname");
+
+                if (Utility.isBlankOrNull(firstName) && !Utility.isBlankOrNull(lastName)) {
+                    rec.setFieldValue("firstname", lastName);
+                }
+                else if (!Utility.isBlankOrNull(firstName) && Utility.isBlankOrNull(lastName)) {
+                    rec.setFieldValue("lastname", firstName);
+                }
+                else if (Utility.isBlankOrNull(firstName) && Utility.isBlankOrNull(lastName)) {
+                    rec.setFieldValue("firstname", entityId);
+                    rec.setFieldValue("lastname", entityId);
+                }
+            } else {
+                // handling for company customer
+                var companyName = rec.getFieldValue("companyname");
+                if (Utility.isBlankOrNull(companyName)) {
+                    rec.setFieldValue("companyname", entityId);
+                }
+            }
+
+            // fixes for customer having either no fisrtname or no lastname - end
+
+            nlapiSubmitRecord(rec);
 
             result = true;
 

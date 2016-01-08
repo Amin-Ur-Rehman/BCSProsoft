@@ -305,12 +305,17 @@ function getModifiedObject(message, recordType, recordObj) {
  * @returns {string}
  */
 function getDefaultShippingMethod(data) {
+    // @Zee: Plz check if it is Magento Specific or Store Specific and
+    // don't use this file for future, if any method is needed from here move 
+    // it to Utility file or 
     var defaultShippingMethod = '';
-    if(data.shippingCountry == 'US') {
+    /*if(data.shippingCountry == 'US') {
         defaultShippingMethod = ConnectorConstants.DefaultValues.shippingMethod.UPS_GND;
     } else {
         defaultShippingMethod = ConnectorConstants.DefaultValues.shippingMethod.UPS_XPD;
-    }
+    }*/
+    // hack for the orders shipping method
+    defaultShippingMethod = ConnectorConstants.DefaultValues.shippingMethod.FLAT_RATE;
     return defaultShippingMethod;
 }
 

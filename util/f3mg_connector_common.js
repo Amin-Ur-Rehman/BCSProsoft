@@ -323,7 +323,7 @@ var ConnectorCommon = (function () {
             return false;
         },
 
-        isOrderUpdated: function(orderId, storeId, updateDate) {
+        isOrderUpdated: function (orderId, storeId, updateDate) {
             var fils = [];
 
             fils.push(new nlobjSearchFilter('type', null, 'anyof', 'SalesOrd', null));
@@ -1329,7 +1329,7 @@ var ConnectorCommon = (function () {
         addressExists: function (add, isBilling, isShipping, rec) {
             for (var t = 1; t <= rec.getLineItemCount('addressbook'); t++) {
                 var str = '';
-
+                var line;
                 str += (rec.getLineItemValue('addressbook', 'addr1', t) || '') + ' === ' + add.addr1.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'addr2', t) || '') + ' === ' + add.addr2.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'addressee', t) || '') + ' === ' + add.addressee.replace(/"/g, '') + ' || ';
@@ -1338,21 +1338,30 @@ var ConnectorCommon = (function () {
                 str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
                 str += 'isShipping' + ' === ' + isShipping + ' || ';
                 str += 'isBilling' + ' === ' + isBilling;
-                Utility.logDebug('addressExists', str);
+                //Utility.logDebug('addressExists', str);
 
-                if ((rec.getLineItemValue('addressbook', 'addr1', t) || '').trim() === add.addr1.replace(/"/g, '').trim() &&
-                    (rec.getLineItemValue('addressbook', 'addr2', t) || '').trim() === add.addr2.replace(/"/g, '').trim() &&
-                    (rec.getLineItemValue('addressbook', 'addressee', t) || '').trim() === add.addressee.replace(/"/g, '').trim() &&
-                    (rec.getLineItemValue('addressbook', 'city', t) || '' ).trim() === add.city.replace(/"/g, '').trim() &&
-                    (rec.getLineItemValue('addressbook', 'state', t) || '').trim() === add.state.replace(/"/g, '').trim() &&
+                if ((rec.getLineItemValue('addressbook', 'addr1', t) || '').trim().toLowerCase() === add.addr1.replace(/"/g, '').trim().toLowerCase() &&
+                    (rec.getLineItemValue('addressbook', 'addr2', t) || '').trim().toLowerCase() === add.addr2.replace(/"/g, '').trim().toLowerCase() &&
+                    (rec.getLineItemValue('addressbook', 'addressee', t) || '').trim().toLowerCase() === add.addressee.replace(/"/g, '').trim().toLowerCase() &&
+                    (rec.getLineItemValue('addressbook', 'city', t) || '' ).trim().toLowerCase() === add.city.replace(/"/g, '').trim().toLowerCase() &&
+                    (rec.getLineItemValue('addressbook', 'state', t) || '').trim().toLowerCase() === add.state.replace(/"/g, '').trim().toLowerCase() &&
                     (rec.getLineItemValue('addressbook', 'zip', t) || '' ).trim() === add.zip.replace(/"/g, '').trim()) {
                     if (isShipping === 'T') {
+                        line = rec.findLineItemValue("addressbook", "defaultshipping", "T");
+                        if (line > 0) {
+                            rec.setLineItemValue('addressbook', 'defaultshipping', line, "F");
+                        }
                         rec.setLineItemValue('addressbook', 'defaultshipping', t, isShipping);
                     }
                     if (isBilling === 'T') {
+                        line = rec.findLineItemValue("addressbook", "defaultbilling", "T");
+                        if (line > 0) {
+                            rec.setLineItemValue('addressbook', 'defaultbilling', line, "F");
+                        }
                         rec.setLineItemValue('addressbook', 'defaultbilling', t, isBilling);
                     }
-                    Utility.logDebug('addressExists', 'MATCHED');
+                    Utility.logDebug('addressExists', str);
+                    Utility.logDebug('addressExists - addressid: ' + rec.getLineItemValue('addressbook', 'addressid', t), 'MATCHED');
                     return true;
                 }
             }
@@ -1706,6 +1715,20 @@ var ConnectorCommon = (function () {
             var logInCustomRecord = ConnectorConstants.CurrentStore.entitySyncInfo.common.logInCustomRecord;
             var sendEmail = ConnectorConstants.CurrentStore.entitySyncInfo.common.sendEmail;
             ErrorLogNotification.Init(author, recipients, logInCustomRecord, sendEmail);
+        },
+        getStoresArrayFromMagentoJsonId: function (magentoIdObjArrStr) {
+            var stores = [];
+            var magentoIdObjArr;
+            if (!Utility.isBlankOrNull(magentoIdObjArrStr)) {
+                magentoIdObjArr = JSON.parse(magentoIdObjArrStr);
+                for (var i in magentoIdObjArr) {
+                    var store = magentoIdObjArr[i].StoreId;
+                    if (!Utility.isBlankOrNull(store) && stores.indexOf(store) === -1) {
+                        stores.push(store);
+                    }
+                }
+            }
+            return stores;
         }
     };
 })();

@@ -24,6 +24,11 @@ f3objLog.prototype.recordType = "";
  */
 f3objLog.prototype.recordId = "";
 /**
+ * Record url of internal or external system
+ * @type {string}
+ */
+f3objLog.prototype.recordUrl = "";
+/**
  * Bind with Custom List having options in F3Message.Action
  * @type {string}
  */
@@ -67,8 +72,8 @@ var F3Message = (function () {
             RecordType: 'custrecord_f3_ml_record_type',// text
             RecordId: 'custrecord_f3_ml_record_id',// text
             Action: 'custrecord_f3_ml_action',// list
-            Message: 'custrecord_f3_ml_message', // long text
-            MessageDetails: 'custrecord_f3_ml_message_details',// long text
+            Message: 'custrecord_f3_ml_message', // text area
+            MessageDetails: 'custrecord_f3_ml_message_details',// text area
             Status: 'custrecord_f3_ml_status'//list
         },
         Status: (function () {
@@ -80,12 +85,13 @@ var F3Message = (function () {
             return Status;
         })(),
         RecordType: {
-            SALES_ORDER: 'Sales Order',
+            salesorder: 'Sales Order',
             CUSTOMER: 'Customer',
-            ITEM_FULFILLMENT: 'Item Fulfillment',
-            CASH_SALE: "Cash Sale",
+            itemfulfillment: 'Item Fulfillment',
+            cashsales: "Cash Sale",
             INVOICE: "Invoice",
-            CASH_REFUND: "Cash Refund"
+            cashrefund: "Cash Refund",
+            salesorderitemshipment: "Shipment"
         },
         Action: (function () {
             var Action = [];
@@ -159,6 +165,113 @@ var F3Message = (function () {
             data[this.FieldName.MessageDetails] = logObj.messageDetails;
             data[this.FieldName.Status] = logObj.status;
             this.upsert(data);
+        },
+        getRecordUrl: function (recordType, recordId, system) {
+            var url = "";
+            if (!recordType || !recordId || !system) {
+                return url;
+            }
+            if (system === "NetSuite") {
+                url = "https://system.netsuite.com" + nlapiResolveURL("RECORD", recordType, recordId);
+            } else {
+                var baseUrl = "";
+                // for the time being it is hard coded, we'll move to custom config record
+                if (ConnectorConstants.CurrentStore.systemId === "1") {
+                    baseUrl = "https://www.purestcolloids.com/cart";
+                }
+                if (ConnectorConstants.CurrentStore.systemId === "2") {
+                    baseUrl = "https://www.colloidalsilvers.com/cart";
+                }
+                if (ConnectorConstants.CurrentStore.systemId === "3") {
+                    baseUrl = "http://nsmg.folio3.com:4545/";
+                }
+                if (recordType === "salesorder") {
+                    url = baseUrl + "index.php/admin/sales_order/view/order_id/" + recordId;
+                }
+                if (recordType === "customer") {
+                    url = baseUrl + "/index.php/admin/customer/edit/id/" + recordId;
+                }
+                /*if (recordType === "salesorderitemshipment") {
+                 url = baseUrl + "/index.php/admin/sales_order_shipment/view/shipment_id/" + recordId;
+                 }*/
+            }
+            return url;
+        },
+        getErrorDetails: function (logObj) {
+            var details = [];
+            var errors = logObj.messageDetails;
+            if (!!errors) {
+                if (typeof errors === "string") {
+                    details.push({
+                        code: logObj.action,
+                        message: errors
+                    });
+                } else {
+                    var error;
+                    while (errors !== null) {
+                        error = errors;
+                        if (error instanceof CustomException) {
+                            var message = "";
+                            var url = this.getRecordUrl(error.recordType, error.recordId, error.system);
+                            //message += "Code: " + error.code + "\n";
+                            //message += "Message: " + error.message + "\n";
+                            message += error.message + "\n";// message heading will be perpended when making string
+                            message += "Record Type: " + this.RecordType[error.recordType] + "\n";
+                            message += "Record Internal Id: " + error.recordId + " (" + error.system + ")" + "\n";
+                            message += "Record Url: " + url + "\n";
+                            message += "Action: " + error.action;
+                            details.push({
+                                code: error.code,
+                                message: message
+                            });
+                            /*
+                             code: F3Message.Action.CUSTOMER_EXPORT,
+                             message: "Sync Customer from NetSuite to Magento",
+                             recordType: "customer",
+                             recordId: customerId,
+                             system: "NetSuite",
+                             exception: e,
+                             action: "Customer export to Magento"
+                             */
+                        }
+                        else if (error instanceof nlobjError) {
+                            details.push({
+                                code: error.getCode(),
+                                message: error.getDetails()
+                            });
+                        } else {
+                            details.push({
+                                code: error.name,
+                                message: error.message
+                            });
+                        }
+                        errors = error.hasOwnProperty("exception") ? error.exception : null;
+                    }
+                }
+            }
+            var detailsMessage = "";
+            for (var i in details) {
+                var detail = details[i];
+                detailsMessage += detailsMessage === "" ? "-------------" + "\n" : "\n";
+                detailsMessage += "Code: " + (detail.code || "UnExpected") + "\n";
+                detailsMessage += "Message: " + detail.message + "\n";
+                detailsMessage += "-------------" + "\n";
+            }
+            return detailsMessage;
+        },
+        sendIfNeeded: function (logObj) {
+            var ifNeeeded = true;
+            var fils = [];
+            fils.push(new nlobjSearchFilter(this.FieldName.ExternalSystem, null, "is", logObj.externalSystem, null));
+            fils.push(new nlobjSearchFilter(this.FieldName.RecordType, null, "is", logObj.recordType, null));
+            fils.push(new nlobjSearchFilter(this.FieldName.RecordId, null, "is", logObj.recordId, null));
+            fils.push(new nlobjSearchFilter(this.FieldName.Action, null, "is", logObj.action, null));
+            fils.push(new nlobjSearchFilter("created", null, "on", "today", null));
+            var searchResult = this.lookup(fils);
+            if (searchResult.length > 0) {
+                ifNeeeded = false;
+            }
+            return ifNeeeded;
         }
     };
 })();
@@ -215,7 +328,7 @@ ErrorLogNotification = Object.create(F3Message);
  * @type {{Author: null, Recipients: Array, LogInCustomRecord: boolean, SendEmail: boolean}}
  */
 ErrorLogNotification.Configuration = {
-    Author: -1,
+    Author: null,
     Recipients: [],
     LogInCustomRecord: false,
     SendEmail: true
@@ -244,8 +357,8 @@ ErrorLogNotification.sendEmail = function (logObj) {
     var subject;
     var body;
 
-    subject = this.makeSubject(logObj);
-    body = this.makeBody(logObj);
+    subject = this.makeSubject2(logObj);
+    body = this.makeBody2(logObj);
 
     try {
         for (var i in this.Configuration.Recipients) {
@@ -261,13 +374,55 @@ ErrorLogNotification.sendEmail = function (logObj) {
  * @param {f3objLog} logObj
  */
 ErrorLogNotification.logAndNotify = function (logObj) {
+    logObj.messageDetails = this.getErrorDetails(logObj);
+    logObj.recordUrl = this.getRecordUrl(logObj.recordType, logObj.recordId, logObj.system);
+    if (this.Configuration.SendEmail) {
+        if (this.sendIfNeeded(logObj)) {
+            this.sendEmail(logObj);
+        }
+    }
     if (this.Configuration.LogInCustomRecord) {
         this.log(logObj);
     }
+};
 
-    if (this.Configuration.SendEmail) {
-        this.sendEmail(logObj);
-    }
+ErrorLogNotification.makeSubject = function (logObj) {
+    return this.Status[logObj.status] + " | " + this.Action[logObj.action] + " | " + logObj.recordId;
+};
+ErrorLogNotification.makeBody = function (logObj) {
+    var html = "";
+    html += "<table>";
+    html += "   <tr>";
+    html += "       <td>" + "External System: " + "</td>";
+    html += "       <td>" + logObj.externalSystemText + "</td>";
+    html += "   </tr>";
+    html += "   <tr>";
+    html += "       <td>" + "Record Type: " + "</td>";
+    html += "       <td>" + logObj.recordType + "</td>";
+    html += "   </tr>";
+    html += "   <tr>";
+    html += "       <td>" + "Record Id: " + "</td>";
+    html += "       <td>" + logObj.recordId + "</td>";
+    html += "   </tr>";
+    html += "   <tr>";
+    html += "       <td>" + "Action: " + "</td>";
+    html += "       <td>" + this.Action[logObj.action] + "</td>";
+    html += "   </tr>";
+    html += "   <tr>";
+    html += "       <td>" + "Status: " + "</td>";
+    html += "       <td>" + this.Status[logObj.status] + "</td>";
+    html += "   </tr>";
+    html += "   <tr>";
+    html += "       <td>" + "Message: " + "</td>";
+    html += "       <td>" + logObj.message + "</td>";
+    html += "   </tr>";
+
+    html += "   <tr>";
+    html += "       <td>" + "Message Details: " + "</td>";
+    html += "       <td>" + logObj.messageDetails + "</td>";
+    html += "   </tr>";
+    html += "</table>";
+    return html;
 };
 
 /**
@@ -275,7 +430,7 @@ ErrorLogNotification.logAndNotify = function (logObj) {
  * @return {string}
  */
 ErrorLogNotification.templateEmailSubject = function () {
-    return "<STATUS> | <ACTION> | <RECORD_ID>";
+    return "[STATUS] | [ACTION] | [RECORD_ID]";
 };
 
 /**
@@ -290,37 +445,40 @@ ErrorLogNotification.templateEmailBody = function () {
 
     body += "   <tr>";
     body += "       <td>External System:</td>";
-    body += "       <td><EXTERNAL_SYSTEM_TEXT></td>";
+    body += "       <td>[EXTERNAL_SYSTEM_TEXT]</td>";
     body += "   </tr>";
 
     body += "   <tr>";
     body += "       <td>Record Type: </td>";
-    body += "       <td><RECORD_TYPE></td>";
+    body += "       <td>[RECORD_TYPE]</td>";
     body += "   </tr>";
 
     body += "   <tr>";
     body += "       <td>Record Id: </td>";
-    body += "       <td><RECORD_ID></td>";
+    body += "       <td>[RECORD_ID]</td>";
     body += "   </tr>";
-
+    body += "   <tr>";
+    body += "       <td>URL of Record having error to sync: </td>";
+    body += "       <td>[RECORD_URL]</td>";
+    body += "   </tr>";
     body += "   <tr>";
     body += "       <td>Action: </td>";
-    body += "       <td><ACTION></td>";
+    body += "       <td>[ACTION]</td>";
     body += "   </tr>";
 
     body += "   <tr>";
     body += "       <td>Status: </td>";
-    body += "       <td><STATUS></td>";
+    body += "       <td>[STATUS]</td>";
     body += "   </tr>";
 
     body += "   <tr>";
     body += "       <td>Message: </td>";
-    body += "       <td><MESSAGE></td>";
+    body += "       <td>[MESSAGE]</td>";
     body += "   </tr>";
 
     body += "   <tr>";
     body += "       <td>Message Details: </td>";
-    body += "       <td><MESSAGE_DETAILS></td>";
+    body += "       <td>[MESSAGE_DETAILS]</td>";
     body += "   </tr>";
 
     body += "</table>";
@@ -333,12 +491,12 @@ ErrorLogNotification.templateEmailBody = function () {
  * @param logObj
  * @return {string}
  */
-ErrorLogNotification.makeSubject = function (logObj) {
+ErrorLogNotification.makeSubject2 = function (logObj) {
     var subject = this.templateEmailSubject();
 
-    subject = subject.replace(/<STATUS>/g, this.Status[logObj.status]);
-    subject = subject.replace(/<ACTION>/g, this.Action[logObj.action]);
-    subject = subject.replace(/<RECORD_ID>/g, logObj.recordId);
+    subject = subject.replace(/\[STATUS\]/g, this.Status[logObj.status]);
+    subject = subject.replace(/\[ACTION\]/g, logObj.action);
+    subject = subject.replace(/\[RECORD_ID\]/g, logObj.recordDetail);
 
     return subject;
 };
@@ -347,31 +505,30 @@ ErrorLogNotification.makeSubject = function (logObj) {
  * @param logObj
  * @return {string}
  */
-ErrorLogNotification.makeBody = function (logObj) {
+ErrorLogNotification.makeBody2 = function (logObj) {
     var body = this.templateEmailBody();
 
-    body = body.replace(/<EXTERNAL_SYSTEM_TEXT>/g, logObj.externalSystemText);
-    body = body.replace(/<RECORD_TYPE>/g, logObj.recordType);
-    body = body.replace(/<RECORD_ID>/g, logObj.recordId);
-    body = body.replace(/<ACTION>/g, this.Action[logObj.action]);
-    body = body.replace(/<STATUS>/g, this.Status[logObj.status]);
-    body = body.replace(/<MESSAGE>/g, logObj.message);
-    body = body.replace(/<MESSAGE_DETAILS>/g, logObj.messageDetails);
+    body = body.replace(/\[EXTERNAL_SYSTEM_TEXT\]/g, logObj.externalSystemText);
+    body = body.replace(/\[RECORD_TYPE\]/g, this.RecordType[logObj.recordType]);
+    body = body.replace(/\[RECORD_ID\]/g, logObj.recordDetail);
+    body = body.replace(/\[RECORD_URL\]/g, logObj.recordUrl);
+    body = body.replace(/\[ACTION\]/g, logObj.action);
+    body = body.replace(/\[STATUS\]/g, this.Status[logObj.status]);
+    body = body.replace(/\[MESSAGE\]/g, logObj.message);
+    body = body.replace(/\[MESSAGE_DETAILS\]/g, (logObj.messageDetails + "").replace(/\n/g, "<br>"));
 
     return body;
 };
-
-F3ErrorCodes = (function () {
-    return {
-        CREATE_RECORD: "CREATE_RECORD",
-        ORDER_EXIST: "ORDER_EXIST",
-        ITEM_MAPPING: "ITEM_MAPPING",
-        PERMISSION: "PERMISSION",
-        RECORD_DOES_NOT_EXIST: "RECORD_DOES_NOT_EXIST",
-        RECORD_EXPORT: "RECORD_EXPORT",
-        FEATURE_PERMISSION: "FEATURE_PERMISSION",
-        FOLIO3: "FOLIO3",
-        ALLZOHU: "ALLZOHU",
-        FETCHING_ORDER_DETAIL: "FETCHING_ORDER_DETAIL"
-    };
-})();
+/**
+ * Custom Exception Object
+ * @param {object} obj
+ */
+function CustomException(obj) {
+    this.code = obj.code;
+    this.message = obj.message;
+    this.recordType = obj.recordType;
+    this.recordId = obj.recordId;
+    this.system = obj.system;// NetSuite / Magento
+    this.exception = obj.exception;
+    this.action = obj.action;
+}
