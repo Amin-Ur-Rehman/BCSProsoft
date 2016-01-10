@@ -543,6 +543,7 @@ var OrderExportHelper = (function () {
                         orderDataObject.history += orderDataObject.cancelledMagentoSOId + 'E';
                     }
 
+                    delete orderDataObject.nsObj;
                 }
             } catch (e) {
                 Utility.logException('OrderExportHelper.getOrder', e);
@@ -796,13 +797,13 @@ var ExportSalesOrders = (function () {
             var email = customerObj.email;
 
             if (Utility.isBlankOrNull(email)) {
-                Utility.logException("getCustomerFromExternalSystem", "Customer does not have email address");
+                Utility.logDebug("getCustomerFromExternalSystem", "Customer does not have email address");
                 return result;
             }
 
             var customer = ConnectorConstants.CurrentWrapper.getCustomer(customerObj);
 
-            if(customer !== null){
+            if (customer !== null) {
                 result.customer = customer;
                 result.status = true;
             }
@@ -864,7 +865,6 @@ var ExportSalesOrders = (function () {
                             Utility.logDebug('Customer Syncing Starting', '');
                             Utility.logDebug('Customer Syncing Starting - Store', JSON.stringify(store));
                             updateCustomerInMagento(customerObj, store, CustomerSync.getMagentoIdMyStore(customerObj.magentoCustomerIds, store.internalId), '');
-
                             Utility.logDebug('Customer Syncing Finished', '');
                         } catch (e) {
                             Utility.logException('Error in updating Customer to Magento', e);
@@ -880,6 +880,8 @@ var ExportSalesOrders = (function () {
                             //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
                         }
                     }
+                    // handling for blank first, last or company names for shipping addresses
+                    CUSTOMER.setBlankFields(customerId, null);
                 }
             }
             catch (e) {

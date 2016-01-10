@@ -966,21 +966,21 @@ ShopifyWrapper = (function () {
         return data;
     }
 
-    function parseCustomerListResponse(customers){
+    function parseCustomerListResponse(customers) {
         var customerList = [];
 
-        if(!(customers instanceof Array)){
+        if (!(customers instanceof Array)) {
             return customerList;
         }
 
-        for(var i in customers){
+        for (var i in customers) {
             customerList.push(parseSingleCustomerResponse(customers[i]));
         }
 
         return customerList;
     }
 
-    function parseSingleCustomerResponse(customer){
+    function parseSingleCustomerResponse(customer) {
         var data = {};
 
         data.customer_id = customer.id.toString();
@@ -995,18 +995,18 @@ ShopifyWrapper = (function () {
 
         // Other data
         /*data.accepts_marketing = customer.accepts_marketing;
-        data.created_at = customer.created_at;
-        data.updated_at = customer.updated_at;
-        data.orders_count = customer.orders_count;
-        data.state = customer.state;
-        data.total_spent = customer.total_spent;
-        data.last_order_id = customer.last_order_id;
-        data.note =  customer.note ;
-        data.verified_email = customer.verified_email;
-        data.multipass_identifier = customer.multipass_identifier;
-        data.tax_exempt = customer.tax_exempt;
-        data.tags = customer.tags;
-        data.last_order_name = customer.last_order_name;*/
+         data.created_at = customer.created_at;
+         data.updated_at = customer.updated_at;
+         data.orders_count = customer.orders_count;
+         data.state = customer.state;
+         data.total_spent = customer.total_spent;
+         data.last_order_id = customer.last_order_id;
+         data.note =  customer.note ;
+         data.verified_email = customer.verified_email;
+         data.multipass_identifier = customer.multipass_identifier;
+         data.tax_exempt = customer.tax_exempt;
+         data.tags = customer.tags;
+         data.last_order_name = customer.last_order_name;*/
 
         // addresses
         data.addresses = [];
@@ -1464,7 +1464,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         requiresAddressCall: function () {
-            return true;
+            return false;
         },
         /**
          * This method has no implementation because no separate address call is neeeded to sync customer addresses
@@ -2039,12 +2039,12 @@ ShopifyWrapper = (function () {
             };
 
             var query = "";
-            if(customerObj.hasOwnProperty("query") && !!customerObj.query){
+            if (customerObj.hasOwnProperty("query") && !!customerObj.query) {
                 query = customerObj.query;
             }
 
             var httpRequestData = {
-                additionalUrl: 'customers/search.json?'+query,
+                additionalUrl: 'customers/search.json?' + query,
                 method: 'GET'
             };
             try {
@@ -2079,7 +2079,7 @@ ShopifyWrapper = (function () {
             var customerList;
             var customerListResponse = this.getCustomerList(customerObj);
 
-            if(customerListResponse.hasOwnProperty("customers")){
+            if (customerListResponse.hasOwnProperty("customers")) {
                 customerList = customerListResponse.customers;
             }
 

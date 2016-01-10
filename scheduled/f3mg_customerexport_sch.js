@@ -40,7 +40,7 @@ function customerExport() {
         externalSystemConfig.forEach(function (store) {
             ConnectorConstants.CurrentStore = store;
             // initialize configuration for logging in custom record and sending error emails
-            ConnectorCommon.initiateEmailNotificationConfig();	    
+            ConnectorCommon.initiateEmailNotificationConfig();
             ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
             var sessionID = MagentoWrapper.getSessionIDFromServer(store.userName, store.password);
             if (!sessionID) {
@@ -186,18 +186,19 @@ function createCustomerInMagento(nsCustomerObject, store, existingMagentoReferen
                 } else {
                     customerSynched = true;
                 }
-            if (!customerSynched) {
-                throw new CustomException({
-                    code: F3Message.Action.CUSTOMER_EXPORT,
-                    message: "Sync Newly Created Customer Addresses from NetSuite to Magento",
-                    recordType: "customer",
-                    recordId: responseMagento.magentoCustomerId,
-                    system: "Magento",
-                    exception: null,
-                    action: "Export Customer Addresses from NetSuite to Magento"
-                });
-                //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in creating customer addresses in Magento. Magento Customer Id: " + responseMagento.magentoCustomerId);
-            }
+                Utility.logDebug("createCustomerInMagento", "customerSynched: " + customerSynched);
+                if (!customerSynched) {
+                    throw new CustomException({
+                        code: F3Message.Action.CUSTOMER_EXPORT,
+                        message: "Sync Newly Created Customer Addresses from NetSuite to Magento",
+                        recordType: "customer",
+                        recordId: responseMagento.magentoCustomerId,
+                        system: "Magento",
+                        exception: null,
+                        action: "Export Customer Addresses from NetSuite to Magento"
+                    });
+                    //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in creating customer addresses in Magento. Magento Customer Id: " + responseMagento.magentoCustomerId);
+                }
             }
         } else {
             errorMsg = responseMagento.faultCode + '    ' + responseMagento.faultString;

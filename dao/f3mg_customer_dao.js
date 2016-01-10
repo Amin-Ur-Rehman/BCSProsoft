@@ -100,7 +100,7 @@ CustomerSync = (function () {
                     //Address Sync
                     customerSynched = this.updateAddressesInMagento(customerRecord, store, magentoId);
                     //}
-                    if(!customerSynched){
+                    if (!customerSynched) {
                         throw new CustomException({
                             code: F3Message.Action.CUSTOMER_EXPORT,
                             message: "Sync Customer Addresses from NetSuite to Magento",
@@ -108,7 +108,7 @@ CustomerSync = (function () {
                             recordId: magentoId,
                             system: "Magento",
                             exception: null,
-                            action:  "Customer Address export to Magento"
+                            action: "Customer Address export to Magento"
                         });
                         //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in updating all the customer addresses in Magento. Magento Customer Id: " + magentoId);
                     }
