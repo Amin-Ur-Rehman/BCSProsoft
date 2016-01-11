@@ -71,7 +71,7 @@ var F3Message = (function () {
             ExternalSystem: 'custrecord_f3_ml_external_system',// list
             RecordType: 'custrecord_f3_ml_record_type',// text
             RecordId: 'custrecord_f3_ml_record_id',// text
-            Action: 'custrecord_f3_ml_action',// list
+            Action: 'custrecord_f3_ml_action',// text
             Message: 'custrecord_f3_ml_message', // text area
             MessageDetails: 'custrecord_f3_ml_message_details',// text area
             Status: 'custrecord_f3_ml_status'//list
@@ -86,10 +86,10 @@ var F3Message = (function () {
         })(),
         RecordType: {
             salesorder: 'Sales Order',
-            CUSTOMER: 'Customer',
+            customer: 'Customer',
             itemfulfillment: 'Item Fulfillment',
             cashsales: "Cash Sale",
-            INVOICE: "Invoice",
+            invoice: "Invoice",
             cashrefund: "Cash Refund",
             salesorderitemshipment: "Shipment"
         },
@@ -172,28 +172,9 @@ var F3Message = (function () {
                 return url;
             }
             if (system === "NetSuite") {
-                url = "https://system.netsuite.com" + nlapiResolveURL("RECORD", recordType, recordId);
+                url = ConnectorConstants.CurrentStore.entitySyncInfo.common.landingUrls.netsuite + nlapiResolveURL("RECORD", recordType, recordId);
             } else {
-                var baseUrl = "";
-                // for the time being it is hard coded, we'll move to custom config record
-                if (ConnectorConstants.CurrentStore.systemId === "1") {
-                    baseUrl = "https://www.purestcolloids.com/cart";
-                }
-                if (ConnectorConstants.CurrentStore.systemId === "2") {
-                    baseUrl = "https://www.colloidalsilvers.com/cart";
-                }
-                if (ConnectorConstants.CurrentStore.systemId === "3") {
-                    baseUrl = "http://nsmg.folio3.com:4545/";
-                }
-                if (recordType === "salesorder") {
-                    url = baseUrl + "index.php/admin/sales_order/view/order_id/" + recordId;
-                }
-                if (recordType === "customer") {
-                    url = baseUrl + "/index.php/admin/customer/edit/id/" + recordId;
-                }
-                /*if (recordType === "salesorderitemshipment") {
-                 url = baseUrl + "/index.php/admin/sales_order_shipment/view/shipment_id/" + recordId;
-                 }*/
+                url = ConnectorConstants.CurrentStore.entitySyncInfo.common.landingUrls[recordType] + recordId;
             }
             return url;
         },
@@ -528,7 +509,7 @@ function CustomException(obj) {
     this.message = obj.message;
     this.recordType = obj.recordType;
     this.recordId = obj.recordId;
-    this.system = obj.system;// NetSuite / Magento
+    this.system = obj.system;// System Type
     this.exception = obj.exception;
     this.action = obj.action;
 }

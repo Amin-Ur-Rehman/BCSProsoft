@@ -249,6 +249,20 @@ Utility = (function () {
             }
 
             return result;
+        },
+        /**
+         * Get Current or specified date of the System in specified offset or timezone
+         * @param [date]
+         * @param [offset]
+         * @returns {Date}
+         */
+        getDateUTCExtended: function (date, offset) {
+            offset = offset || 0;
+            var today = !!date ? new Date(date) : new Date();
+            var utc = today.getTime() + (today.getTimezoneOffset() * 60000);
+            offset = parseInt(this.parseFloatNum(offset * 60 * 60 * 1000));
+            today = new Date(utc + offset);
+            return today;
         }
     };
 })();

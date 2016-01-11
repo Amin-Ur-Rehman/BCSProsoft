@@ -550,6 +550,7 @@ MagentoXmlWrapper = (function () {
             customer.discount_amount = nlapiSelectValue(order, 'discount_amount');
             customer.customer_middlename = nlapiSelectValue(order, 'customer_middlename');
             customer.customer_middlename = customer.customer_middlename ? customer.customer_middlename : '';
+            customer.updatedAt = nlapiSelectValue(order, 'updated_at')
             return customer;
         },
         transformSalesOrderInfoXMLtoArray: function (products) {

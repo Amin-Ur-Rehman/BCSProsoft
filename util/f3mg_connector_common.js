@@ -324,6 +324,7 @@ var ConnectorCommon = (function () {
         },
 
         isOrderUpdated: function (orderId, storeId, updateDate) {
+            Utility.logDebug("isOrderUpdated", JSON.stringify([orderId, storeId, updateDate]));
             var fils = [];
 
             fils.push(new nlobjSearchFilter('type', null, 'anyof', 'SalesOrd', null));

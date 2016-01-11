@@ -29,6 +29,7 @@ WooWrapper = (function () {
         External: 'external'
     };
 
+
     /**
      * Parses Single Sales Order Response
      * @param serverOrder
@@ -1066,19 +1067,20 @@ WooWrapper = (function () {
         return data;
     }
 
-    function parseCustomerListResponse(customers){
+    function parseCustomerListResponse(customers) {
         var customerList = [];
 
-        if(!(customers instanceof Array)){
+        if (!(customers instanceof Array)) {
             return customerList;
         }
 
-        for(var i in customers){
+        for (var i in customers) {
             customerList.push(parseSingleCustomerResponse(customers[i]));
         }
 
         return customerList;
     }
+
     //endregion
 
     //region Public Methods
@@ -1950,7 +1952,7 @@ WooWrapper = (function () {
             };
 
             var query = "";
-            if(customerObj.hasOwnProperty("query") && !!customerObj.query){
+            if (customerObj.hasOwnProperty("query") && !!customerObj.query) {
                 query = customerObj.query;
             }
 
@@ -1990,7 +1992,7 @@ WooWrapper = (function () {
             var customerList;
             var customerListResponse = this.getCustomerList(customerObj);
 
-            if(customerListResponse.hasOwnProperty("customers")){
+            if (customerListResponse.hasOwnProperty("customers")) {
                 customerList = customerListResponse.customers;
             }
 

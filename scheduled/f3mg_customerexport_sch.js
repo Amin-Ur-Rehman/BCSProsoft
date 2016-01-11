@@ -190,12 +190,12 @@ function createCustomerInMagento(nsCustomerObject, store, existingMagentoReferen
                 if (!customerSynched) {
                     throw new CustomException({
                         code: F3Message.Action.CUSTOMER_EXPORT,
-                        message: "Sync Newly Created Customer Addresses from NetSuite to Magento",
+                        message: "Sync Newly Created Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
                         recordType: "customer",
                         recordId: responseMagento.magentoCustomerId,
-                        system: "Magento",
+                        system: ConnectorConstants.CurrentStore.systemType,
                         exception: null,
-                        action: "Export Customer Addresses from NetSuite to Magento"
+                        action: "Export Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                     });
                     //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in creating customer addresses in Magento. Magento Customer Id: " + responseMagento.magentoCustomerId);
                 }

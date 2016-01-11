@@ -9,7 +9,7 @@
     angular.module("f3UC")
         .controller("SearchOrdersController", SearchOrdersController);
 
-    function SearchOrdersController(f3Store, $http) {
+    function SearchOrdersController(f3Store, f3Utility, $http) {
         console.log('SearchMagentoOrdersController');
 
         
@@ -30,6 +30,8 @@
 
                 viewModel.salesorders.loading = true;
                 var apiUrl = location.href.replace(location.hash, '') + '&method=getSalesOrders';
+                apiUrl = f3Utility.updateQS(apiUrl, 'store_id', f3Store.id);
+
                 $http.get(apiUrl)
                     .success(function(response) {
                         console.log('response: ', response);

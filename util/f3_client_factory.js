@@ -491,7 +491,7 @@ function F3ClientBase() {
 
             magentoFormattedId = ConnectorCommon.getMagentoIdForSearching(ConnectorConstants.CurrentStore.systemId, magentoId);
             cols.push(new nlobjSearchColumn(ConnectorConstants.Entity.Fields.MagentoId, null, null));
-            cols.push(new nlobjSearchColumn('internalid', null, null).setSort(false));
+            cols.push(new nlobjSearchColumn('internalid', null, null).setSort(true));
 
             filExp.push(['email', 'is', email]);
 
@@ -503,7 +503,7 @@ function F3ClientBase() {
             results = ConnectorCommon.getRecords('customer', filExp, cols);
 
             if (results.length > 0) {
-                // Assuming that there should be only one customer wiht one Id
+                // Assuming that there should be only one customer with one Id
                 result = this.getResultObjWithMagentoId(results, magentoId);
 
                 // getting first customer search object if not synced with current store
@@ -563,207 +563,6 @@ function F3ClientBase() {
  */
 function F3PurestColloidsClient() {
     var currentClient = new F3ClientBase();
-
-    /**
-     * Description of method create sales order
-     * @param salesOrderObj
-     */
-    currentClient.createSalesOrder = function (salesOrderObj) {
-
-        var order = salesOrderObj.order;
-        var invoiceNum = salesOrderObj.invoiceNum;
-        var products = salesOrderObj.products;
-        var netsuiteMagentoProductMap = salesOrderObj.netsuiteMagentoProductMap;
-        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
-        var configuration = salesOrderObj.configuration;
-        var shippingAddress = salesOrderObj.shippingAddress;
-        var billingAddress = salesOrderObj.billingAddress;
-        var payment = salesOrderObj.payment;
-
-        var magentoIdId;
-        var magentoSyncId;
-        var isDummyItemSetInOrder = '';
-        var containsSerialized = false;
-        var netSuiteItemID;
-
-        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
-        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
-
-        var rec = nlapiCreateRecord('salesorder', null);
-        Utility.logDebug('setting payment ', '');
-
-        //   rec.setFieldValue('tranid', order.increment_id);
-        var shipMethodDetail = order.shipment_method;
-        shipMethodDetail = (shipMethodDetail + '').split('_');
-
-        var shippingCarrier = shipMethodDetail.length === 2 ? shipMethodDetail[0] : '';
-        var shippingMethod = shipMethodDetail.length === 2 ? shipMethodDetail[1] : '';
-
-        shippingCarrier = FC_ScrubHandler.getMappedValue('ShippingCarrier', shippingCarrier);
-        shippingMethod = FC_ScrubHandler.getMappedValue('ShippingMethod', shippingMethod);
-
-        var shippingMethodLookupKey = order.shipment_method;
-        //Utility.logDebug('shippingMethodLookupKey_w', shippingMethodLookupKey);
-        var shippingMethodLookupValue = FC_ScrubHandler.getMappedKeyByValue('ShippingMethod', shippingMethodLookupKey);
-        //Utility.logDebug('shippingMethodLookupValue_w', shippingMethodLookupValue);
-        if (!!shippingMethodLookupValue && shippingMethodLookupValue != shippingMethodLookupKey) {
-            var shippingMethodValuesArray = shippingMethodLookupValue.split('_');
-            shippingCarrier = shippingMethodValuesArray.length === 2 ? shippingMethodValuesArray[0] : shippingCarrier;
-            shippingMethod = shippingMethodValuesArray.length === 2 ? shippingMethodValuesArray[1] : shippingMethod;
-        }
-
-        //Utility.logDebug('finalShippingCarrier_w', shippingCarrier);
-        //Utility.logDebug('finalShippingMethod_w', shippingMethod);
-
-        var shippingCost = order.shipping_amount || 0;
-
-        if (!(Utility.isBlankOrNull(shippingCarrier) || Utility.isBlankOrNull(shippingMethod))) {
-            Utility.logDebug('set shippingCarrier # shippingMethod', shippingCarrier + ' # ' + shippingMethod);
-            rec.setFieldValue('shipcarrier', shippingCarrier);
-            rec.setFieldValue('shipmethod', shippingMethod);
-            rec.setFieldValue('shippingcost', shippingCost);
-        }
-        // rec.setFieldValue('taxitem',-2379);
-
-        Utility.logDebug('order.shipping_amount ', order.shipping_amount);
-        Utility.logDebug('setting method ', order.shipment_method);
-
-        rec.setFieldValue('entity', netsuiteCustomerId);
-
-        if (!ConnectorCommon.isDevAccount()) {
-            var orderClass = ConnectorCommon.getOrderClass(order.store_id);
-            //rec.setFieldValue('department', '20');// e-Commerce : Herman Street- Cost Service
-            //rec.setFieldValue('class', orderClass);
-            //rec.setFieldValue('location', 1);//Goddiva Warehous...ddiva Warehouse
-            //rec.setFieldValue('shippingtaxcode', '7625');// VAT:SR-GB
-        } else {
-            rec.setFieldValue('department', '1');// Admin
-        }
-
-        //    rec.setFieldValue('shipmethod',732);
-
-        //if ( )shipcarrier  ups nonups
-
-        //Setting shipping
-        //ConnectorCommon.setAddressV2(rec, shippingAddress, 'T');
-        //Utility.logDebug('Setting Shipping Fields', '');
-
-        //Setting billing
-        //ConnectorCommon.setAddressV2(rec, billingAddress, 'F', 'T');
-        //Utility.logDebug('Setting Billing Fields', '');
-
-        // set payment details
-        ConnectorCommon.setPayment(
-            rec
-            , payment
-            , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.netsuitePaymentTypes
-            , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.magentoCCSupportedPaymentTypes
-        );
-
-
-        for (var x = 0; x < products.length; x++) {
-            Utility.logDebug('products.length is createSalesOrder', products.length);
-            Utility.logDebug('products[x].product_id in createSalesOrder', products[x].product_id);
-
-            var objIDPlusIsSerial = ConnectorCommon.getNetsuiteProductIdByMagentoIdViaMap(netsuiteMagentoProductMap, products[x].product_id);
-            netSuiteItemID = objIDPlusIsSerial.netsuiteId;
-            var isSerial = objIDPlusIsSerial.isSerial;
-            Utility.logDebug('Netsuite Item ID', netSuiteItemID);
-
-            if (!!netSuiteItemID) {
-                rec.setLineItemValue('item', 'item', x + 1, netSuiteItemID);
-                rec.setLineItemValue('item', 'quantity', x + 1, products[x].qty_ordered);
-                rec.setLineItemValue('item', 'price', x + 1, 1);
-                rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
-                rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);// -Not Taxable-
-            }
-            else {
-                if (ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.setDummyItem) {
-                    Utility.logDebug('Set Dummy Item Id: ', ConnectorConstants.DummyItem.Id);
-                    rec.setLineItemValue('item', 'item', x + 1, ConnectorConstants.DummyItem.Id);
-                    isDummyItemSetInOrder = true;
-                    rec.setLineItemValue('item', 'amount', x + 1, '0');
-                    rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
-                    rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id);// -Not Taxable-
-                }
-            }
-
-            if (isSerial == 'T')
-                containsSerialized = true;
-
-
-            //    if( soprice != null )
-
-            //    rec.setLineItemValue('item','amount',x+1,95);
-        }
-
-        //Utility.logDebug('All items set_w', 'All items set');
-        //Utility.logDebug('payment.ccType_w', payment.ccType);
-        //Utility.logDebug('payment.authorizedId_w', payment.authorizedId);
-
-        // TODO: if required
-        // get coupon code from magento order
-        /*var couponCode = ConnectorCommon.getCouponCode(order.increment_id);
-
-         if (couponCode) {
-         Utility.logDebug('start setting coupon code', '');
-         //rec.setFieldValue('couponcode', couponCode);
-         rec.setFieldValue('discountitem', '14733');// item: DISCOUNT
-         rec.setFieldValue('discountrate', order.discount_amount || 0);
-         Utility.logDebug('end setting coupon code', '');
-         }*/
-
-        try {
-            rec.setFieldValue(magentoSyncId, 'T');
-            rec.setFieldValue(magentoIdId, order.increment_id);
-            //rec.setFieldValue('memo', 'Test Folio3');
-            if (isDummyItemSetInOrder) {
-                // A = Pending Approval
-                // if order has dummy item then set status to A (Pending Approval)
-                rec.setFieldValue('orderstatus', 'A');
-            }
-            else {
-                rec.setFieldValue('orderstatus', 'B');
-            }
-
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
-
-            //rec.setFieldValue('subsidiary', '3');// TODO generalize
-
-            Utility.logDebug('Going to submit SO', 'Submitting');
-            var id = nlapiSubmitRecord(rec, true, true);
-            Utility.logDebug('Netsuite SO-ID for magento order ' + order.increment_id, id);
-            /*if (isDummyItemSetInOrder) {
-             // if order has dummy item then don't create invoice and customer payment
-             return;
-             }
-             else {
-             // try creating Invoice
-             var invoiceResult = createInvoice(id, invoiceNum);
-             if (invoiceResult.errorMsg != '') {
-             nlapiLogExecution('ERROR', 'Could not create Invoice ', invoiceResult.errorMsg);
-             return;
-             }
-
-             // Now create Payment
-             var paymentResult = createCustomerPayment(invoiceResult.invoiceId);
-             if (paymentResult.errorMsg != '') {
-             nlapiLogExecution('ERROR', 'Could not create payment ', paymentResult.errorMsg);
-             return;
-             }
-
-             }*/
-        }
-        catch (ex) {
-            //emailMsg = 'Order having Magento Id: ' + order.increment_id + ' did not created because of an error.\n' + ex.toString() + '.';
-            //generateErrorEmail(emailMsg, configuration, 'order');
-
-            Utility.logException('F3PurestColloidsClient_createSalesOrder', ex);
-            // }
-        }
-    };
-
     return currentClient;
 }
 
@@ -838,7 +637,7 @@ function F3BaseV1Client() {
                 rec.setLineItemValue('item', 'quantity', x + 1, products[x].qty_ordered);
 
                 // handling for custom product amount
-                if(!!products[x].price && !!products[x].price && parseFloat(products[x].price) === parseFloat(products[x].original_price)) {
+                if (!!products[x].price && !!products[x].price && parseFloat(products[x].price) === parseFloat(products[x].original_price)) {
                     // set price level 'List Price'
                     rec.setLineItemValue('item', 'price', x + 1, 1);
                 } else {
@@ -946,12 +745,16 @@ function F3BaseV1Client() {
             Utility.logDebug('Netsuite SO-ID for magento order ' + order.increment_id, id);
         }
         catch (ex) {
-            //emailMsg = 'Order having Magento Id: ' + order.increment_id + ' did not created because of an error.\n' + ex.toString() + '.';
-            //generateErrorEmail(emailMsg, configuration, 'order');
-
             Utility.logException('F3BaseV1Client.createSalesOrder', ex);
-            Utility.throwException("CREATE_ORDER", "Error in creating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
-            // }
+            throw new CustomException({
+                code: F3Message.Action.SALES_ORDER_IMPORT,
+                message: "An error occurred while creating Sales Order in NetSuite",
+                recordType: "salesorder",
+                recordId: order.increment_id,
+                system: ConnectorConstants.CurrentStore.systemType,
+                exception: ex,
+                action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+            });
         }
         Utility.logDebug("F3BaseV1Client.createSalesOrder", "End");
     };
@@ -1120,8 +923,24 @@ function F3BaseV1Client() {
             Utility.logDebug('Netsuite SO-ID for magento order ' + order.increment_id, id);
         }
         catch (ex) {
-            Utility.logException('F3BaseV1Client.updateSalesOrder', ex);
-            Utility.throwException("UPDATE_ORDER", "Error in updating sales order in NetSuite - Error: " + (ex instanceof  nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()));
+            Utility.logException('F3BaseV1Client.createSalesOrder', ex);
+            throw new CustomException({
+                code: F3Message.Action.SALES_ORDER_IMPORT,
+                message: "An error occurred while updating Sales Order in NetSuite",
+                recordType: "salesorder",
+                recordId: order.increment_id,
+                system: ConnectorConstants.CurrentStore.systemType,
+                exception: new CustomException({
+                    code: F3Message.Action.SALES_ORDER_IMPORT,
+                    message: "An error occurred while updating Sales Order in NetSuite",
+                    recordType: "salesorder",
+                    recordId: nsSalesOrderId,
+                    system: "NetSuite",
+                    exception: ex,
+                    action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+                }),
+                action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+            });
         }
         Utility.logDebug("F3BaseV1Client.updateSalesOrder", "End");
     };
@@ -1140,7 +959,6 @@ function F3BaseV1Client() {
         return address;
     };
 
-
     currentClient.clearExtraItemLines = function (rec, productId) {
         var lineCount = rec.getLineItemCount('item');
         for (var i = lineCount; i >= 1; i--) {
@@ -1150,6 +968,7 @@ function F3BaseV1Client() {
         }
 
     };
+
     currentClient.clearDiscountFields = function (rec) {
         // Line item level discount handling
         var currentLintItemCount = rec.getLineItemCount('item');
@@ -1206,104 +1025,102 @@ function F3BaseV1Client() {
             errorMsg: '',
             infoMsg: ''
         };
-
-        var rec = nlapiCreateRecord('lead', null);
-        //rec.setFieldValue('isperson', 'T');
-        //rec.setFieldValue('subsidiary', '3');// TODO: generalize location
-        //   rec.setFieldValue('salutation', '');
-
-        // zee: get customer address list: start
-
-        var responseMagento;
-        var addresses = {};
-
-        if (!isGuest) {
-            responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
-
-            if (!responseMagento.status) {
-                result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
-                Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
-                ErrorLogNotification.logAndNotify({
-                    externalSystem: ConnectorConstants.CurrentStore.systemId,
-                    recordType: F3Message.RecordType.SALES_ORDER,
-                    recordId: magentoCustomerObj.customer_id,
-                    action: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
-                    message: "Error in importing customer addresses in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
-                    messageDetails: result.errorMsg,
-                    status: F3Message.Status.ERROR,
-                    externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
-                });
-                return result;
-            }
-
-            addresses = responseMagento.addresses;
-
-            if (!Utility.isBlankOrNull(addresses)) {
-                rec = ConnectorCommon.setAddresses(rec, addresses);
-            }
-
-            // setting sales order addresses
-            addresses = magentoCustomerObj.addresses;
-            rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
-
-        } else {
-            // if guest customer comes
-
-            if (!Utility.isBlankOrNull(addresses)) {
-                rec = ConnectorCommon.setAddresses(rec, magentoCustomerObj.addresses, 'order');
-            }
-        }
-
-        // zee: get customer address list: end
-
-        rec.setFieldValue('isperson', 'T');
-        //rec.setFieldValue('autoname', 'T');
-
-        // set if customer is taxable or not
-        var groupId = magentoCustomerObj.group_id;
-
-        Utility.logDebug("Magento GroupId =  " + groupId, "Config Magento GroupId =  " + ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt);
-
-        if (groupId == ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt) {
-            rec.setFieldValue('taxable', "F");
-        } else {
-            rec.setFieldValue('taxable', "T");
-        }
-
-        // mulitple stores handling
-
-        var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, isGuest ? 'Guest' : magentoCustomerObj.customer_id, 'create', null);
-
-        if (Utility.isOneWorldAccount()) {
-            rec.setFieldValue('subsidiary', ConnectorConstants.CurrentStore.entitySyncInfo.customer.subsidiary);
-        }
-
-        // if customer is guest then no need to set the external system id
-        if (!magentoCustomerObj._isGuestCustomer) {
-            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
-        }
-
-        rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoSync, 'T');
-        rec.setFieldValue('email', magentoCustomerObj.email);
-        rec.setFieldValue('firstname', magentoCustomerObj.firstname);
-        rec.setFieldValue('middlename', magentoCustomerObj.middlename);
-        rec.setFieldValue('lastname', magentoCustomerObj.lastname);//TODO: check
-        //  rec.setFieldValue('salutation','');
-
         try {
+            var rec = nlapiCreateRecord('lead', null);
+            //rec.setFieldValue('isperson', 'T');
+            //rec.setFieldValue('subsidiary', '3');// TODO: generalize location
+            //   rec.setFieldValue('salutation', '');
+
+            // zee: get customer address list: start
+
+            var responseMagento;
+            var addresses = {};
+
+            if (!isGuest) {
+                responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
+
+                if (!responseMagento.status) {
+                    result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
+                    Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
+                    throw new CustomException({
+                        code: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
+                        message: result.errorMsg,
+                        recordType: "customer",
+                        recordId: magentoCustomerObj.customer_id,
+                        system: ConnectorConstants.CurrentStore.systemType,
+                        exception: null,
+                        action: "Import Customer Addresses from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+                    });
+                    //return result;
+                }
+
+                addresses = responseMagento.addresses;
+
+                if (!Utility.isBlankOrNull(addresses)) {
+                    rec = ConnectorCommon.setAddresses(rec, addresses);
+                }
+
+                // setting sales order addresses
+                addresses = magentoCustomerObj.addresses;
+                rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
+
+            } else {
+                // if guest customer comes
+
+                if (!Utility.isBlankOrNull(addresses)) {
+                    rec = ConnectorCommon.setAddresses(rec, magentoCustomerObj.addresses, 'order');
+                }
+            }
+
+            // zee: get customer address list: end
+
+            rec.setFieldValue('isperson', 'T');
+            //rec.setFieldValue('autoname', 'T');
+
+            // set if customer is taxable or not
+            var groupId = magentoCustomerObj.group_id;
+
+            Utility.logDebug("Magento GroupId =  " + groupId, "Config Magento GroupId =  " + ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt);
+
+            if (groupId == ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt) {
+                rec.setFieldValue('taxable', "F");
+            } else {
+                rec.setFieldValue('taxable', "T");
+            }
+
+            // mulitple stores handling
+
+            var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, isGuest ? 'Guest' : magentoCustomerObj.customer_id, 'create', null);
+
+            if (Utility.isOneWorldAccount()) {
+                rec.setFieldValue('subsidiary', ConnectorConstants.CurrentStore.entitySyncInfo.customer.subsidiary);
+            }
+
+            // if customer is guest then no need to set the external system id
+            if (!magentoCustomerObj._isGuestCustomer) {
+                rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
+            }
+
+            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoSync, 'T');
+            rec.setFieldValue('email', magentoCustomerObj.email);
+            rec.setFieldValue('firstname', magentoCustomerObj.firstname);
+            rec.setFieldValue('middlename', magentoCustomerObj.middlename);
+            rec.setFieldValue('lastname', magentoCustomerObj.lastname);//TODO: check
+            //  rec.setFieldValue('salutation','');
+
+
             result.id = nlapiSubmitRecord(rec, false, true);
         } catch (ex) {
             result.errorMsg = ex.toString();
             Utility.logException('createLeadInNetSuite', ex);
-            ErrorLogNotification.logAndNotify({
-                externalSystem: ConnectorConstants.CurrentStore.systemId,
-                recordType: F3Message.RecordType.SALES_ORDER,
+            throw new CustomException({
+                code: F3Message.Action.CUSTOMER_IMPORT,
+                message: "An error occurred while importing Customer in NetSuite from " + ConnectorConstants.CurrentStore.systemDisplayName,
+                recordType: "customer",
                 recordId: magentoCustomerObj.customer_id,
-                action: F3Message.Action.CUSTOMER_IMPORT,
-                message: "Error in importing customer in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
-                messageDetails: (ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString()) + " - Error: " + result.errorMsg,
-                status: F3Message.Status.ERROR,
-                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                system: ConnectorConstants.CurrentStore.systemType,
+                exception: ex,
+                action: "Import Customer from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
             });
         }
 
@@ -1325,78 +1142,77 @@ function F3BaseV1Client() {
         Utility.logDebug("magentoCustomerObj", JSON.stringify(magentoCustomerObj));
         Utility.logDebug("sessionID", JSON.stringify(sessionID));
         var result = {};
-        var rec = nlapiLoadRecord('customer', customerId, null);
-
-        // mulitple stores handling
-
-        var existingMagentoId = rec.getFieldValue(ConnectorConstants.Entity.Fields.MagentoId);
-        var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, magentoCustomerObj.customer_id, 'update', existingMagentoId);
-
-        rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
-        rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoSync, 'T');
-        rec.setFieldValue('email', magentoCustomerObj.email);
-        rec.setFieldValue('firstname', magentoCustomerObj.firstname);
-        rec.setFieldValue('middlename', magentoCustomerObj.middlename);
-        rec.setFieldValue('lastname', magentoCustomerObj.lastname);
-        //  rec.setFieldValue('salutation','');
-
-        // set if customer is taxable or not
-        var groupId = magentoCustomerObj.group_id || "";
-
-        Utility.logDebug("Magento GroupId =  " + groupId, "Config Magento GroupId =  " + ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt);
-
-        if (groupId == ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt) {
-            rec.setFieldValue('taxable', "F");
-        } else {
-            rec.setFieldValue('taxable', "T");
-        }
-
-        // zee: get customer address list: start
-
-        var custAddrXML;
-        var responseMagento;
-        var addresses;
-
-        responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
-
-        if (!responseMagento.status) {
-            result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
-            Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
-            ErrorLogNotification.logAndNotify({
-                externalSystem: ConnectorConstants.CurrentStore.systemId,
-                recordType: F3Message.RecordType.SALES_ORDER,
-                recordId: magentoCustomerObj.customer_id,
-                action: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
-                message: "Error in importing customer addresses for updating in NetSuite from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
-                messageDetails: result.errorMsg,
-                status: F3Message.Status.ERROR,
-                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
-            });
-            return result;
-        }
-
-        addresses = responseMagento.addresses;
-
-        if (!Utility.isBlankOrNull(addresses)) {
-            rec = ConnectorCommon.setAddresses(rec, addresses);
-        }
-        // setting magento addresses from sales order
-        addresses = magentoCustomerObj.addresses;
-        rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
-
-        // zee: get customer address list: end
         try {
+            var rec = nlapiLoadRecord('customer', customerId, null);
+
+            // mulitple stores handling
+
+            var existingMagentoId = rec.getFieldValue(ConnectorConstants.Entity.Fields.MagentoId);
+            var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, magentoCustomerObj.customer_id, 'update', existingMagentoId);
+
+            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoId, magentoIdObjArrStr);
+            rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoSync, 'T');
+            rec.setFieldValue('email', magentoCustomerObj.email);
+            rec.setFieldValue('firstname', magentoCustomerObj.firstname);
+            rec.setFieldValue('middlename', magentoCustomerObj.middlename);
+            rec.setFieldValue('lastname', magentoCustomerObj.lastname);
+            //  rec.setFieldValue('salutation','');
+
+            // set if customer is taxable or not
+            var groupId = magentoCustomerObj.group_id || "";
+
+            Utility.logDebug("Magento GroupId =  " + groupId, "Config Magento GroupId =  " + ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt);
+
+            if (groupId == ConnectorConstants.CurrentStore.entitySyncInfo.customer.magentoCustomerGroups.taxExempt) {
+                rec.setFieldValue('taxable', "F");
+            } else {
+                rec.setFieldValue('taxable', "T");
+            }
+
+            // zee: get customer address list: start
+
+            var custAddrXML;
+            var responseMagento;
+            var addresses;
+
+            responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
+
+            if (!responseMagento.status) {
+                result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
+                Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
+                throw new CustomException({
+                    code: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
+                    message: result.errorMsg,
+                    recordType: "customer",
+                    recordId: magentoCustomerObj.customer_id,
+                    system: ConnectorConstants.CurrentStore.systemType,
+                    exception: null,
+                    action: "Import Customer Addresses from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+                });
+            }
+
+            addresses = responseMagento.addresses;
+
+            if (!Utility.isBlankOrNull(addresses)) {
+                rec = ConnectorCommon.setAddresses(rec, addresses);
+            }
+            // setting magento addresses from sales order
+            addresses = magentoCustomerObj.addresses;
+            rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
+
+            // zee: get customer address list: end
+
             var id = nlapiSubmitRecord(rec, true, true);
         } catch (ex) {
-            ErrorLogNotification.logAndNotify({
-                externalSystem: ConnectorConstants.CurrentStore.systemId,
-                recordType: F3Message.RecordType.SALES_ORDER,
-                recordId: magentoCustomerObj.customer_id,
-                action: F3Message.Action.CUSTOMER_IMPORT,
-                message: "Error in importing customer in NetSuite for update from external system. Customer External System Id: " + magentoCustomerObj.customer_id,
-                messageDetails: ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString(),
-                status: F3Message.Status.ERROR,
-                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+            Utility.logException("updateCustomerInNetSuite", ex);
+            throw new CustomException({
+                code: F3Message.Action.CUSTOMER_IMPORT,
+                message: "An error occurred while updating customer in NetSuite from " + ConnectorConstants.CurrentStore.systemDisplayName,
+                recordType: "customer",
+                recordId: customerId,
+                system: "NetSuite",
+                exception: ex,
+                action: "Import Customer Addresses from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
             });
         }
         Utility.logDebug('Customer updated in NetSuite', 'Customer Id: ' + id);

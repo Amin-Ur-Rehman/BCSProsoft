@@ -103,12 +103,12 @@ CustomerSync = (function () {
                     if (!customerSynched) {
                         throw new CustomException({
                             code: F3Message.Action.CUSTOMER_EXPORT,
-                            message: "Sync Customer Addresses from NetSuite to Magento",
+                            message: "Sync Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
                             recordType: "customer",
                             recordId: magentoId,
-                            system: "Magento",
+                            system: ConnectorConstants.CurrentStore.systemType,
                             exception: null,
-                            action: "Customer Address export to Magento"
+                            action: "Customer Address export to " + ConnectorConstants.CurrentStore.systemDisplayName
                         });
                         //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in updating all the customer addresses in Magento. Magento Customer Id: " + magentoId);
                     }
@@ -122,9 +122,9 @@ CustomerSync = (function () {
                         message: responseMagento.faultString,
                         recordType: "customer",
                         recordId: magentoId,
-                        system: "Magento",
+                        system: ConnectorConstants.CurrentStore.systemDisplayName.systemType,
                         exception: null,
-                        action: "Customer export to Magento"
+                        action: "Customer export to " + ConnectorConstants.CurrentStore.systemDisplayName
                     });
                     //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, "Error occurred in updating customer in Magento. Magento Customer Id: " + magentoId + ". " + errorMsg);
                 }

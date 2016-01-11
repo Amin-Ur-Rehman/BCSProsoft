@@ -30,6 +30,7 @@ class FeatureVerification {
 
 class Features {
     public static IMPORT_SO_FROM_EXTERNAL_SYSTEM:string = "IMPORT_SO_FROM_EXTERNAL_SYSTEM";
+    public static UPDATE_SO_FROM_EXTERNAL_SYSTEM:string = "UPDATE_SO_FROM_EXTERNAL_SYSTEM";
     public static IMPORT_SO_GUEST_CUSTOMER:string = "IMPORT_SO_GUEST_CUSTOMER";
     public static IMPORT_SO_DUMMMY_ITEM:string = "IMPORT_SO_DUMMMY_ITEM";
     public static EXPORT_SO_TO_EXTERNAL_SYSTEM:string = "EXPORT_SO_TO_EXTERNAL_SYSTEM";

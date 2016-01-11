@@ -109,6 +109,7 @@ ShopifyWrapper = (function () {
         // hack for SO list logic changes
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.id.toString();
+        localOrder.customer.updatedAt = serverOrder.updated_at;
 
         if (serverOrder.shipping_lines && serverOrder.shipping_lines.length > 0) {
             localOrder.shipping_amount = serverOrder.shipping_lines[0].price;
@@ -1121,7 +1122,7 @@ ShopifyWrapper = (function () {
          */
         getSalesOrderInfo: function (increment_id, sessionID) {
             var httpRequestData = {
-                additionalUrl: 'orders.json?ids=' + increment_id,
+                additionalUrl: 'orders.jsons?ids=' + increment_id,
                 method: 'GET'
             };
 

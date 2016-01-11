@@ -203,7 +203,7 @@ var OrderExportHelper = (function () {
                     recordId: orderRecord.getId(),
                     system: "NetSuite",
                     exception: null,
-                    action: "Sales Order Export from NetSuite to Magento"
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                 });
             }
 
@@ -264,7 +264,7 @@ var OrderExportHelper = (function () {
                     recordId: entityId,
                     system: "NetSuite",
                     exception: e,
-                    action: "Sales Order Export from NetSuite to Magento"
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                 });
                 //Utility.throwException("GET_CUSTOMER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
@@ -414,7 +414,7 @@ var OrderExportHelper = (function () {
                     recordId: orderRecord.getId(),
                     system: "NetSuite",
                     exception: e,
-                    action: "Sales Order Export from NetSuite to Magento"
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                 });
                 //Utility.throwException("GET_ORDER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
@@ -554,7 +554,7 @@ var OrderExportHelper = (function () {
                     recordId: orderInternalId,
                     system: "NetSuite",
                     exception: e,
-                    action: "Sales Order Export NetSuite to Magento"
+                    action: "Sales Order Export NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                 });
                 //Utility.throwException("GET_ORDER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
@@ -766,7 +766,7 @@ var ExportSalesOrders = (function () {
                             recordId: internalId,
                             system: "NetSuite",
                             exception: null,
-                            action: "Sales Order Export from NetSuite to Magento"
+                            action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                         });
                         //Utility.throwException(F3Message.Action.SALES_ORDER_EXPORT, 'Order Internal Id: ' + internalId + ' not synched due to Error :  ' + responseMagento.faultCode + " " + responseMagento.faultString);
                     }
@@ -782,7 +782,7 @@ var ExportSalesOrders = (function () {
                         recordId: internalId,
                         system: "NetSuite",
                         exception: null,
-                        action: "Sales Order Export from NetSuite to Magento"
+                        action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                     });
                     //Utility.throwException(F3Message.Action.SALES_ORDER_EXPORT, 'Order Internal Id: ' + internalId + ' not synched due to Error :  ' + serverResponse.faultCode + " " + serverResponse.faultString);
                 }
@@ -870,12 +870,12 @@ var ExportSalesOrders = (function () {
                             Utility.logException('Error in updating Customer to Magento', e);
                             throw new CustomException({
                                 code: F3Message.Action.CUSTOMER_EXPORT,
-                                message: "Update Customer from NetSuite to Magento",
+                                message: "Update Customer from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
                                 recordType: "customer",
                                 recordId: customerId,
                                 system: "NetSuite",
                                 exception: e,
-                                action: "Customer Export from NetSuite to Magento"
+                                action: "Customer Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                             });
                             //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
                         }
@@ -891,12 +891,12 @@ var ExportSalesOrders = (function () {
                 } else {
                     throw new CustomException({
                         code: F3Message.Action.CUSTOMER_EXPORT,
-                        message: "Sync Customer from NetSuite to Magento",
+                        message: "Sync Customer from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
                         recordType: "customer",
                         recordId: customerId,
                         system: "NetSuite",
                         exception: e,
-                        action: "Customer Export from NetSuite to Magento"
+                        action: "Customer Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
                     });
                 }
                 //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
@@ -1027,7 +1027,7 @@ var ExportSalesOrders = (function () {
                                         recordType: "salesorder",
                                         recordId: orderObject.internalId,
                                         recordDetail: "NetSuite # " + orderObject.tranid,
-                                        action: "Sales Order Export from NetSuite to Magento",
+                                        action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
                                         message: "An error occurred while exporting sales order.",
                                         messageDetails: e,
                                         status: F3Message.Status.ERROR,
