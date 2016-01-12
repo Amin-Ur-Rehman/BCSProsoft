@@ -15,6 +15,15 @@ var errorMsg = '';
 
 function customerExportAfterSubmit(type) {
     try {
+        //["userinterface", "webservices", "csvimport", "portlet", "scheduled", "suitelet", "custommassupdate", "workflow", "webstore", "userevent"];
+        var executionContextsNotAllowed = ["scheduled"];
+
+        var context = nlapiGetContext();
+        var executionContext = context.getExecutionContext();
+        if(executionContextsNotAllowed.indexOf(executionContext) !== -1){
+            Utility.logDebug('Context: ' + executionContext, 'Type: ' + type);
+            return;
+        }
         Utility.logDebug('Customer Export Script entry', 'type: ' + type);
         if (type.toString() === 'create' || type.toString() === 'edit') {
 
@@ -59,6 +68,7 @@ function customerExportAfterSubmit(type) {
             var magentoReferences;
             var customerSynched;
             var magentoStoreAndCustomer;
+            var syncStores = [];
 
             //get Customer to be synced
             var customerId = CUSTOMER.getCustomerForInstantSync(nlapiGetRecordId());// why is it so necessary?
@@ -70,6 +80,7 @@ function customerExportAfterSubmit(type) {
                     customerId.externalSystems = [];
                 } else {
                     customerId.externalSystems = customerId.externalSystems.split(',');
+                    syncStores = JSON.parse(JSON.stringify(customerId.externalSystems));
                 }
                 errorMsg = '';
                 try {
@@ -79,14 +90,21 @@ function customerExportAfterSubmit(type) {
                             ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                             ConnectorConstants.CurrentWrapper.initialize(store);
 
+                            // zee: this is for updating case - quick fix
+                            customerId = CUSTOMER.getCustomerForInstantSync(nlapiGetRecordId());
+                            if (!!customerId && customerId.length === 0) {
+                                return;
+                            }
+                            customerId = customerId[0];
+
                             magentoReferences = customerId.magentoCustomerIds;
                             magentoStoreAndCustomer = getStoreCustomerIdAssociativeArray(magentoReferences);
                             //Decide whether to Create or Update Customer
                             if (isBlankOrNull(magentoReferences) || isBlankOrNull(magentoStoreAndCustomer[store.systemId]) || magentoStoreAndCustomer[store.systemId] === '0') {
                                 Utility.logDebug('Customer Create Block ', magentoReferences);
                                 // check if current store is selected in customer record
-                                if (customerId.externalSystems.indexOf(store.systemId) > -1) {
-                                    customerSynched = createCustomerInMagento(customerId, store);
+                                if (syncStores.indexOf(store.systemId) > -1) {
+                                    customerSynched = createCustomerInMagento(customerId, store, magentoReferences);
                                 } else {
                                     Utility.logDebug("store is not selected", store.systemId);
                                 }

@@ -35,18 +35,18 @@ CustomerSync = (function () {
             var customerAddressObject;
             var names;
 
-            if (!!customerRecord) {
+            if (customerRecord != null) {
                 customerDataObject = new Object();
                 customerDataObject.isPerson = customerRecord.getFieldValue('isperson');
                 customerDataObject.email = getBlankForNull(customerRecord.getFieldValue('email'));
                 customerDataObject.companyName = getBlankForNull(customerRecord.getFieldValue('companyname'));
                 customerDataObject.entityid = getBlankForNull(customerRecord.getFieldValue('entityid'));
-                if (customerDataObject.isPerson === "T") {
+                if (customerDataObject.isPerson == "T") {
                     customerDataObject.firstname = customerRecord.getFieldValue('firstname');
                     customerDataObject.middlename = getBlankForNull(customerRecord.getFieldValue('middlename'));
                     customerDataObject.lastname = customerRecord.getFieldValue('lastname');
                 } else {
-                    if (customerDataObject.companyName === "") {
+                    if (customerDataObject.companyName == "") {
                         customerDataObject.companyName = customerDataObject.entityid;
                     }
                     names = this.getFirstNameLastName(customerDataObject.companyName);
@@ -66,6 +66,7 @@ CustomerSync = (function () {
                 customerDataObject.taxvat = "";
                 customerDataObject.gender = "";
                 customerDataObject.nsObj = customerRecord;
+                customerDataObject.email = CUSTOMER.getEmailAddressIfEmpty(customerDataObject.email, customerInternalId);
             }
             return customerDataObject;
         },
@@ -99,10 +100,33 @@ CustomerSync = (function () {
                     //Address Sync
                     customerSynched = this.updateAddressesInMagento(customerRecord, store, magentoId);
                     //}
-                    nlapiSubmitRecord(customerRecord.nsObj);
+                    if (!customerSynched) {
+                        throw new CustomException({
+                            code: F3Message.Action.CUSTOMER_EXPORT,
+                            message: "Sync Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            recordType: "customer",
+                            recordId: magentoId,
+                            system: ConnectorConstants.CurrentStore.systemType,
+                            exception: null,
+                            action: "Customer Address export to " + ConnectorConstants.CurrentStore.systemDisplayName
+                        });
+                        //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in updating all the customer addresses in Magento. Magento Customer Id: " + magentoId);
+                    }
+                    // Zee: no need to update customer if magento id is already set
+                    //nlapiSubmitRecord(customerRecord.nsObj);
                 } else {
                     errorMsg = responseMagento.faultCode + '    ' + responseMagento.faultString;
                     Utility.logDebug('responseMagento ', responseMagento.faultCode + '    ' + responseMagento.faultString);
+                    throw new CustomException({
+                        code: responseMagento.faultCode,
+                        message: responseMagento.faultString,
+                        recordType: "customer",
+                        recordId: magentoId,
+                        system: ConnectorConstants.CurrentStore.systemDisplayName.systemType,
+                        exception: null,
+                        action: "Customer export to " + ConnectorConstants.CurrentStore.systemDisplayName
+                    });
+                    //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, "Error occurred in updating customer in Magento. Magento Customer Id: " + magentoId + ". " + errorMsg);
                 }
             }
             return customerSynched;

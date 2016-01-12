@@ -39,6 +39,8 @@ function customerExport() {
 
         externalSystemConfig.forEach(function (store) {
             ConnectorConstants.CurrentStore = store;
+            // initialize configuration for logging in custom record and sending error emails
+            ConnectorCommon.initiateEmailNotificationConfig();
             ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
             var sessionID = MagentoWrapper.getSessionIDFromServer(store.userName, store.password);
             if (!sessionID) {
@@ -173,7 +175,9 @@ function createCustomerInMagento(nsCustomerObject, store, existingMagentoReferen
             }
 
             var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(store.systemId, responseMagento.magentoCustomerId, createOrUpdateMagentoJSONRef, existingMagentoReferenceInfo, customerRecord.password);
-            var nsCustomerUpdateStatus = CUSTOMER.setCustomerMagentoId(magentoIdObjArrStr, nsCustomerObject.internalId);
+            var magentoStores = ConnectorCommon.getStoresArrayFromMagentoJsonId(magentoIdObjArrStr);
+            Utility.logDebug("magentoStores", magentoStores.join(","));
+            var nsCustomerUpdateStatus = CUSTOMER.setCustomerMagentoId(magentoIdObjArrStr, nsCustomerObject.internalId, magentoStores);
 
             //Address Sync
             if (nsCustomerUpdateStatus) {
@@ -181,6 +185,19 @@ function createCustomerInMagento(nsCustomerObject, store, existingMagentoReferen
                     customerSynched = createAddressesInMagento(customerRecord, store, responseMagento.magentoCustomerId);
                 } else {
                     customerSynched = true;
+                }
+                Utility.logDebug("createCustomerInMagento", "customerSynched: " + customerSynched);
+                if (!customerSynched) {
+                    throw new CustomException({
+                        code: F3Message.Action.CUSTOMER_EXPORT,
+                        message: "Sync Newly Created Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                        recordType: "customer",
+                        recordId: responseMagento.magentoCustomerId,
+                        system: ConnectorConstants.CurrentStore.systemType,
+                        exception: null,
+                        action: "Export Customer Addresses from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                    });
+                    //Utility.throwException(F3Message.Action.CUSTOMER_ADDRESS_EXPORT, "Error occurred in creating customer addresses in Magento. Magento Customer Id: " + responseMagento.magentoCustomerId);
                 }
             }
         } else {

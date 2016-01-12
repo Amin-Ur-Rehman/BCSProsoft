@@ -109,6 +109,7 @@ ShopifyWrapper = (function () {
         // hack for SO list logic changes
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.id.toString();
+        localOrder.customer.updatedAt = serverOrder.updated_at;
 
         if (serverOrder.shipping_lines && serverOrder.shipping_lines.length > 0) {
             localOrder.shipping_amount = serverOrder.shipping_lines[0].price;
@@ -299,7 +300,12 @@ ShopifyWrapper = (function () {
         localProduct.gift_card = serverProduct.gift_card;
         localProduct.grams = serverProduct.grams;
         localProduct.id = serverProduct.id;
+        // price is the original price of item
         localProduct.price = serverProduct.price;
+        // discount will be handling usig total discounts of the order. because in api there is no actual
+        // discount value of a unit quantity is found and we'll have to calculate unit price after discount which
+        // will cause precision erros
+        localProduct.original_price = "0";
         localProduct.requires_shipping = serverProduct.requires_shipping;
         localProduct.sku = serverProduct.sku;
         localProduct.taxable = serverProduct.taxable;
@@ -961,6 +967,55 @@ ShopifyWrapper = (function () {
         return data;
     }
 
+    function parseCustomerListResponse(customers) {
+        var customerList = [];
+
+        if (!(customers instanceof Array)) {
+            return customerList;
+        }
+
+        for (var i in customers) {
+            customerList.push(parseSingleCustomerResponse(customers[i]));
+        }
+
+        return customerList;
+    }
+
+    function parseSingleCustomerResponse(customer) {
+        var data = {};
+
+        data.customer_id = customer.id.toString();
+        data.email = customer.email;
+        data.firstname = customer.first_name;
+        data.middlename = "";
+        data.lastname = customer.first_name;
+        data.group_id = "";
+        data.prefix = "";
+        data.suffix = "";
+        data.dob = "";
+
+        // Other data
+        /*data.accepts_marketing = customer.accepts_marketing;
+         data.created_at = customer.created_at;
+         data.updated_at = customer.updated_at;
+         data.orders_count = customer.orders_count;
+         data.state = customer.state;
+         data.total_spent = customer.total_spent;
+         data.last_order_id = customer.last_order_id;
+         data.note =  customer.note ;
+         data.verified_email = customer.verified_email;
+         data.multipass_identifier = customer.multipass_identifier;
+         data.tax_exempt = customer.tax_exempt;
+         data.tags = customer.tags;
+         data.last_order_name = customer.last_order_name;*/
+
+        // addresses
+        data.addresses = [];
+        // handle in future if it is required
+
+        return data;
+    }
+
     //endregion
 
     //region Public Methods
@@ -1410,7 +1465,7 @@ ShopifyWrapper = (function () {
          * @returns {boolean}
          */
         requiresAddressCall: function () {
-            return true;
+            return false;
         },
         /**
          * This method has no implementation because no separate address call is neeeded to sync customer addresses
@@ -1955,7 +2010,7 @@ ShopifyWrapper = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+        setInventoryItemFields: function (store, itemInternalId, itemType, itemObject, itemRecord) {
 
         },
         /**
@@ -1965,13 +2020,75 @@ ShopifyWrapper = (function () {
          * @param itemType
          * @param itemObject
          */
-        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = '';
-            responseBody.data = {
-            };
+            responseBody.data = {};
             return responseBody;
+        },
+
+        getCustomerList: function (customerObj) {
+            var serverResponse = null;
+
+            // Make Call and Get Data
+            var serverFinalResponse = {
+                status: false,
+                faultCode: '',
+                faultString: '',
+                product: {}
+            };
+
+            var query = "";
+            if (customerObj.hasOwnProperty("query") && !!customerObj.query) {
+                query = customerObj.query;
+            }
+
+            var httpRequestData = {
+                additionalUrl: 'customers/search.json?' + query,
+                method: 'GET'
+            };
+            try {
+                serverResponse = sendRequest(httpRequestData);
+                serverFinalResponse.status = true;
+
+            } catch (e) {
+                Utility.logException('Error during getCustomerList', e);
+            }
+
+            if (!!serverResponse && serverResponse.customers) {
+                serverFinalResponse.customers = parseCustomerListResponse(serverResponse.customers);
+            }
+
+            // If some problem
+            if (!serverFinalResponse.status) {
+                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
+            }
+
+            return serverFinalResponse;
+
+        },
+
+        getCustomer: function (customerObj) {
+            var customer = null;
+            var email = customerObj.email;
+
+            var query = "query=";
+            query += "email:" + email;
+            customerObj.query = query;
+
+            var customerList;
+            var customerListResponse = this.getCustomerList(customerObj);
+
+            if (customerListResponse.hasOwnProperty("customers")) {
+                customerList = customerListResponse.customers;
+            }
+
+            if (customerList instanceof Array && customerList.length) {
+                customer = customerList[0];
+            }
+
+            return customer;
         }
     };
 

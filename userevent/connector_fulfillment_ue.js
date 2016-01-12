@@ -34,7 +34,7 @@ var FulfillmentExportHelper = (function () {
         // userevent start: creating shipment in Magento
         setShipmentIdInFulfillment: function (shipmentId) {
             var rec = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId(), null);
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoId, shipmentId + '');
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId, shipmentId + '');
             rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
             nlapiSubmitRecord(rec);
         },
@@ -56,6 +56,18 @@ var FulfillmentExportHelper = (function () {
 
             if (!responseMagento.status) {
                 Utility.logDebug('Error', 'Export fulfillment record -- ID: ' + '--' + responseMagento.faultCode + '--' + responseMagento.faultString);
+                ErrorLogNotification.logAndNotify({
+                    externalSystem: ConnectorConstants.CurrentStore.systemId,
+                    recordType: nlapiGetRecordType(),
+                    recordId: nlapiGetRecordId(),
+                    recordDetail: "NetSuite # " + nlapiLookupField(nlapiGetRecordType(), nlapiGetRecordId(), "tranid"),
+                    action: "Item Fulfillment Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                    message: "An error occurred while exporting item fulfillment",
+                    messageDetails: responseMagento.faultCode + '--' + responseMagento.faultString,
+                    status: F3Message.Status.ERROR,
+                    externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                    system: "NetSuite"
+                });
                 return;
             }
             else {
@@ -77,25 +89,53 @@ var FulfillmentExportHelper = (function () {
                 if (nlapiGetLineItemCount('packagefedex') > 0) {
                     upsPackage = 'fedex';
                 }
+                if (nlapiGetLineItemCount('packageusps') > 0) {
+                    upsPackage = 'usps';
+                }
                 // from SO
-                var carrier = magentoSO.getFieldValue('carrier');
+                var carrier = magentoSO.getFieldValue('shipcarrier');
                 totalPackages = nlapiGetLineItemCount('package' + upsPackage);
                 var carrierText = magentoSO.getFieldText('shipmethod');
 
                 Utility.logDebug('carrier', carrier);
                 Utility.logDebug('totalPackages', totalPackages);
                 Utility.logDebug('carrierText', carrierText);
-
+                var havingErrorInTrackingNumberExport = false;
+                var errorTrackingNumberStr = "";
                 var trackingNumbersIds = [];
                 for (var p = 1; p <= totalPackages; p++) {
                     var tracking = nlapiGetLineItemValue('package' + upsPackage, 'packagetrackingnumber' + upsPackage, p);
                     if (!Utility.isBlankOrNull(tracking)) {
-                        var responseTracking =
-                            ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId);
-
+                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId);
+                        if (!responseTracking.status) {
+                            havingErrorInTrackingNumberExport = true;
+                            errorTrackingNumberStr += responseTracking.faultString + ' - ' + responseTracking.faultCode;
+                        }
                         Utility.logDebug('CHECK', 'I tried setting shipment tracking id Got this in response : ' + responseTracking.result);
                         trackingNumbersIds.push(responseTracking.result);
                     }
+                }
+                if (havingErrorInTrackingNumberExport) {
+                    ErrorLogNotification.logAndNotify({
+                        externalSystem: ConnectorConstants.CurrentStore.systemId,
+                        recordType: nlapiGetRecordType(),
+                        recordId: nlapiGetRecordId(),
+                        recordDetail: "NetSuite # " + nlapiLookupField(nlapiGetRecordType(), nlapiGetRecordId(), "tranid"),
+                        action: "Export Tracking Information from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                        message: "An error has occurred while exporting tracking numbers of item fulfillment to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                        messageDetails: new CustomException({
+                            code: F3Message.Action.ITEM_FULFILLMENT_TRACKING_NUMBER_EXPORT,
+                            message: errorTrackingNumberStr,
+                            recordType: "salesorderitemshipment",
+                            recordId: responseMagento.result,
+                            system: ConnectorConstants.CurrentStore.systemType,
+                            exception: null,
+                            action: "Export Tracking Information from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                        }),
+                        status: F3Message.Status.ERROR,
+                        externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                        system: "NetSuite"
+                    });
                 }
                 // update tracking ids for future modification in tracking numbers - it is a rare case
                 responseMagento.trackingNumbersIdsStr = trackingNumbersIds.join(",");
@@ -201,6 +241,18 @@ var FulfillmentExport = (function () {
                     // if session id is not captured then terminate
                     if (Utility.isBlankOrNull(sessionID)) {
                         Utility.logDebug('sessionID', 'sessionID is empty');
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: nlapiGetRecordType(),
+                            recordId: nlapiGetRecordId(),
+                            recordDetail: "NetSuite # " + nlapiLookupField(nlapiGetRecordType(), nlapiGetRecordId(), "tranid"),
+                            action: "Export Item Fulfillment from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            message: "Unable to fetch Session Id from " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            messageDetails: "Look into logs",
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                            system: "NetSuite"
+                        });
                         return;
                     }
 

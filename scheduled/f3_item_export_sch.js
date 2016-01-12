@@ -46,6 +46,7 @@ var ItemExportManager = (function () {
 
                 //initialize constants
                 ConnectorConstants.initialize();
+                ConnectorConstants.loadItemConfigRecords();
 
                 // getting configuration
                 var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
@@ -90,7 +91,7 @@ var ItemExportManager = (function () {
                         }
                     }
                 }
-                catch(e) {
+                catch (e) {
                     Utility.logException('ItemExportManager.scheduled - Iterating Items', e);
                 }
                 Utility.logDebug('Ends', 'Ends...');
@@ -216,25 +217,25 @@ var ItemExportManager = (function () {
             var context = nlapiGetContext();
             Utility.logDebug('inside processRecords', 'processRecords');
 
-           if(!!records && records.length) {
-               var itemInternalId = '';
-               var itemRecordType = '';
-               for (var i = 0; i < records.length; i++) {
-                   try {
-                       var itemInternalId = records[i].getId();
-                       var itemRecordType = records[i].getRecordType();
-                       Utility.logDebug('itemInternalId  #  itemRecordType', itemInternalId  +'  #  '+  itemRecordType);
-                       ItemExportLibrary.processItem(store, itemInternalId, itemRecordType);
+            if (!!records && records.length) {
+                var itemInternalId = '';
+                var itemRecordType = '';
+                for (var i = 0; i < records.length; i++) {
+                    try {
+                        itemInternalId = records[i].getId();
+                        itemRecordType = records[i].getRecordType();
+                        Utility.logDebug('itemInternalId  #  itemRecordType', itemInternalId + '  #  ' + itemRecordType);
+                        ItemExportLibrary.processItem(store, itemInternalId, itemRecordType);
 
-                       if (this.rescheduleIfNeeded(context, null)) {
-                           return;
-                       }
-                   } catch (e) {
-                       Utility.logException('Error during processRecords', e);
-                       ItemExportLibrary.markStatus(itemRecordType, itemInternalId, e.toString());
-                   }
-               }
-           }
+                        if (this.rescheduleIfNeeded(context, null)) {
+                            return;
+                        }
+                    } catch (e) {
+                        Utility.logException('Error during processRecords', e);
+                        ItemExportLibrary.markStatus(itemRecordType, itemInternalId, e.toString());
+                    }
+                }
+            }
         },
 
         /**

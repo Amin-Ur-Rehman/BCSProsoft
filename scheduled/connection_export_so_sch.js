@@ -50,11 +50,14 @@ var OrderExportHelper = (function () {
         },
 
         getOrdersByStore: function (allStores, storeId) {
-            var filters = [];
+            var _storeId;
+            var filsExp;
+
             var records;
             var result = [];
             var arrCols = [];
             var resultObject;
+            var yesterday;
 
             Utility.logDebug('getting orders for storeId', storeId);
 
@@ -71,29 +74,35 @@ var OrderExportHelper = (function () {
             //Utility.logDebug('oldDate toLowerCase', oldDate);
             oldDate = nlapiDateToString(nlapiStringToDate(oldDate, 'datetime'), 'datetime');
             //Utility.logDebug('oldNetsuiteDate', oldDate);
-            // TODO: undo this check
-            //filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', oldDate, null));
 
-            if (!allStores) {
-                filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoStore, null, 'is', storeId, null));
-            } else {
-                filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoStore, null, 'noneof', '@NONE@', null));
-            }
-            // testing - order # 123
-            //filters.push(new nlobjSearchFilter('internalid', null, 'is', '147724', null));
-            filters.push(new nlobjSearchFilter('memorized', null, 'is', 'F', null));
-            filters.push(new nlobjSearchFilter('type', null, 'anyof', 'SalesOrd', null));
-            filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSyncStatus, null, 'isempty', null, null));
-            filters.push(new nlobjSearchFilter('mainline', null, 'is', 'T', null));
-            filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoSync, null, 'is', 'F', null));
-            filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.MagentoId, null, 'isempty', null, null));
-            filters.push(new nlobjSearchFilter(ConnectorConstants.Transaction.Fields.DontSyncToMagento, null, 'is', 'F', null));
+            yesterday = nlapiDateToString(nlapiStringToDate(nlapiDateToString(nlapiAddDays(currentDate, '-1')).toLowerCase(), 'datetime'), 'datetime');
+            _storeId = !allStores ? storeId : "@NONE@";
+
+            filsExp = [
+                [ConnectorConstants.Transaction.Fields.MagentoStore, "is", _storeId],
+                "AND", ["type", "anyof", "SalesOrd"],
+                "AND", ["memorized", "is", "F"],
+                "AND", ["mainline", "is", "T"],
+                "AND", [ConnectorConstants.Transaction.Fields.MagentoSync, "is", "F"],
+                "AND", [ConnectorConstants.Transaction.Fields.MagentoId, "isempty", null],
+                "AND", [ConnectorConstants.Transaction.Fields.DontSyncToMagento, "is", "F"],
+                "AND", [
+                    [
+                        ["lastmodifieddate", "onorafter", oldDate], "AND", [ConnectorConstants.Transaction.Fields.MagentoSyncStatus, "isempty", null]
+                    ],
+                    "OR",
+                    [
+                        ["datecreated", "onorafter", yesterday], "AND", [ConnectorConstants.Transaction.Fields.MagentoSyncStatus, "isnotempty", null]
+                    ]
+                ]
+            ];
 
             arrCols.push((new nlobjSearchColumn('internalid', null, null)).setSort(false));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.Transaction.Fields.MagentoId, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.Transaction.Fields.MagentoStore, null, null));
+            arrCols.push(new nlobjSearchColumn("tranid", null, null));
 
-            records = nlapiSearchRecord('transaction', null, filters, arrCols);
+            records = nlapiSearchRecord('transaction', null, filsExp, arrCols);
 
             if (!Utility.isBlankOrNull(records) && records.length > 0) {
 
@@ -103,6 +112,7 @@ var OrderExportHelper = (function () {
                     resultObject.internalId = records[i].getId();
                     resultObject.magentoOrderIds = records[i].getValue(ConnectorConstants.Transaction.Fields.MagentoId, null, null);
                     resultObject.magentoStore = records[i].getValue(ConnectorConstants.Transaction.Fields.MagentoStore, null, null);
+                    resultObject.tranid = records[i].getValue("tranid", null, null);
 
                     result.push(resultObject);
                 }
@@ -151,9 +161,27 @@ var OrderExportHelper = (function () {
                 address.isDefaultShipping = '0';
             }
 
-            address.firstName = customerRec.getFieldValue('firstname') || '';
-            address.lastName = customerRec.getFieldValue('lastname') || '';
+            //address.firstName = customerRec.getFieldValue('firstname') || '';
+            //address.lastName = customerRec.getFieldValue('lastname') || '';
             address.company = customerRec.getFieldValue('companyname') || '';
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            var isPerson = customerRec.getFieldValue('isperson') === "T";
+            var companyName = Utility.getBlankForNull(customerRec.getFieldValue('companyname'));
+            var entityid = Utility.getBlankForNull(customerRec.getFieldValue('entityid'));
+            if (isPerson) {
+                address.firstName = customerRec.getFieldValue('firstname');
+                address.middleName = Utility.getBlankForNull(customerRec.getFieldValue('middlename'));
+                address.lastName = customerRec.getFieldValue('lastname');
+            } else {
+                if (Utility.isBlankOrNull(companyName)) {
+                    companyName = entityid;
+                }
+                var names = CustomerSync.getFirstNameLastName(companyName);
+                address.firstName = names['firstName'];
+                address.middleName = "";
+                address.lastName = names['lastName'];
+            }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             address.fax = customerRec.getFieldValue('fax') || '';
 
             if (!Utility.isBlankOrNull(addressId)) {
@@ -166,6 +194,17 @@ var OrderExportHelper = (function () {
 
                 // load  sales order subrecord(shippingaddress)
                 addressRec = orderRecord.viewSubrecord(type);
+            }
+            if (Utility.isBlankOrNull(addressRec)) {
+                throw new CustomException({
+                    code: "SALES_ORDER_ADDRESS",
+                    message: "Sales Order shipping or billing address is empty.",
+                    recordType: "salesorder",
+                    recordId: orderRecord.getId(),
+                    system: "NetSuite",
+                    exception: null,
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                });
             }
 
             var street1 = addressRec.getFieldValue('addr1') || '';
@@ -218,6 +257,16 @@ var OrderExportHelper = (function () {
             }
             catch (e) {
                 Utility.logException('OrderExportHelper.appendCustomerInDataObject', e);
+                throw new CustomException({
+                    code: "GET_CUSTOMER_DATA_FOR_EXPORT",
+                    message: "Error in loading Customer record in NetSuite",
+                    recordType: "customer",
+                    recordId: entityId,
+                    system: "NetSuite",
+                    exception: e,
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                });
+                //Utility.throwException("GET_CUSTOMER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
 
             if (Utility.isBlankOrNull(customerRec)) {
@@ -232,8 +281,24 @@ var OrderExportHelper = (function () {
             var storeId = ConnectorConstants.CurrentStore.systemId;
             obj.customerId = ConnectorCommon.getMagentoIdFromObjArray(magentoId, storeId);
             obj.email = customerRec.getFieldValue('email') || '';
-            obj.firstName = customerRec.getFieldValue('firstname') || '';
-            obj.lastName = customerRec.getFieldValue('lastname') || '';
+            //obj.firstName = customerRec.getFieldValue('firstname') || '';
+            //obj.lastName = customerRec.getFieldValue('lastname') || '';
+            obj.isPerson = customerRec.getFieldValue('isperson') === "T";
+            obj.companyName = Utility.getBlankForNull(customerRec.getFieldValue('companyname'));
+            obj.entityid = Utility.getBlankForNull(customerRec.getFieldValue('entityid'));
+            if (obj.isPerson) {
+                obj.firstName = customerRec.getFieldValue('firstname');
+                obj.middleName = Utility.getBlankForNull(customerRec.getFieldValue('middlename'));
+                obj.lastName = customerRec.getFieldValue('lastname');
+            } else {
+                if (Utility.isBlankOrNull(obj.companyName)) {
+                    obj.companyName = obj.entityid;
+                }
+                var names = CustomerSync.getFirstNameLastName(obj.companyName);
+                obj.firstName = names['firstName'];
+                obj.middleName = "";
+                obj.lastName = names['lastName'];
+            }
             obj.company = '';
             obj.street = '';
             obj.city = '';
@@ -342,7 +407,16 @@ var OrderExportHelper = (function () {
             }
             catch (e) {
                 Utility.logException('OrderExportHelper.appendItemsInDataObject', e);
-                throw e;
+                throw new CustomException({
+                    code: "GET_PRODUCTS_DATA_FOR_ORDER_EXPORT",
+                    message: "Error in getting items data from Sales Order in NetSuite",
+                    recordType: "salesorder",
+                    recordId: orderRecord.getId(),
+                    system: "NetSuite",
+                    exception: e,
+                    action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                });
+                //Utility.throwException("GET_ORDER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
 
             orderDataObject.items = arr;
@@ -469,10 +543,20 @@ var OrderExportHelper = (function () {
                         orderDataObject.history += orderDataObject.cancelledMagentoSOId + 'E';
                     }
 
+                    delete orderDataObject.nsObj;
                 }
             } catch (e) {
                 Utility.logException('OrderExportHelper.getOrder', e);
-                throw e;
+                throw new CustomException({
+                    code: "GET_ORDER_DATA_FOR_EXPORT",
+                    message: "Error in getting data from Sales Order in NetSuite",
+                    recordType: "salesorder",
+                    recordId: orderInternalId,
+                    system: "NetSuite",
+                    exception: e,
+                    action: "Sales Order Export NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                });
+                //Utility.throwException("GET_ORDER_DATA_FOR_EXPORT", e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
             Utility.logDebug('getOrder', JSON.stringify(orderDataObject));
 
@@ -590,6 +674,8 @@ var ExportSalesOrders = (function () {
 
             externalSystemConfig.forEach(function (store) {
                 ConnectorConstants.CurrentStore = store;
+                // initialize configuration for logging in custom record and sending error emails
+                ConnectorCommon.initiateEmailNotificationConfig();
                 ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                 ConnectorConstants.CurrentWrapper.initialize(store);
                 var sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
@@ -673,14 +759,56 @@ var ExportSalesOrders = (function () {
                         //Log error with fault code that this customer is not synched with magento
                         Utility.logDebug('final stuff', 'orderId  ' + internalId + ' Not Synched Due to Error  :  ' + serverResponse.faultString);
                         ExportSalesOrders.markRecords(internalId, ' Not Synched Due to Error  :  ' + serverResponse.faultString);
+                        throw new CustomException({
+                            code: serverResponse.faultCode,
+                            message: serverResponse.faultString,
+                            recordType: "salesorder",
+                            recordId: internalId,
+                            system: "NetSuite",
+                            exception: null,
+                            action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                        });
+                        //Utility.throwException(F3Message.Action.SALES_ORDER_EXPORT, 'Order Internal Id: ' + internalId + ' not synched due to Error :  ' + responseMagento.faultCode + " " + responseMagento.faultString);
                     }
                 }
                 else {
                     //Log error with fault code that this customer is not synched with magento
                     Utility.logDebug('final stuff', 'orderId  ' + internalId + ' Not Synched Due to Error  :  ' + serverResponse.faultString);
                     ExportSalesOrders.markRecords(internalId, ' Not Synched Due to Error  :  ' + serverResponse.faultString);
+                    throw new CustomException({
+                        code: serverResponse.faultCode,
+                        message: serverResponse.faultString,
+                        recordType: "salesorder",
+                        recordId: internalId,
+                        system: "NetSuite",
+                        exception: null,
+                        action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                    });
+                    //Utility.throwException(F3Message.Action.SALES_ORDER_EXPORT, 'Order Internal Id: ' + internalId + ' not synched due to Error :  ' + serverResponse.faultCode + " " + serverResponse.faultString);
                 }
             }
+        },
+
+        getCustomerFromExternalSystem: function (customerObj) {
+            var result = {
+                status: false,
+                customer: null
+            };
+            var email = customerObj.email;
+
+            if (Utility.isBlankOrNull(email)) {
+                Utility.logDebug("getCustomerFromExternalSystem", "Customer does not have email address");
+                return result;
+            }
+
+            var customer = ConnectorConstants.CurrentWrapper.getCustomer(customerObj);
+
+            if (customer !== null) {
+                result.customer = customer;
+                result.status = true;
+            }
+
+            return result;
         },
 
         /**
@@ -695,6 +823,26 @@ var ExportSalesOrders = (function () {
                 var customerAlreadySynched = this.customerAlreadySyncToStore(externalSystemCustomerIds, store.systemId);
                 Utility.logDebug('magentoCustomerIds  #  store.systemId', externalSystemCustomerIds + '  #  ' + store.systemId);
                 Utility.logDebug('customerAlreadySynched', customerAlreadySynched);
+
+                if (!customerAlreadySynched) {
+                    customerObj = CUSTOMER.getCustomer(customerId, store);
+                    var magentoCustomer = this.getCustomerFromExternalSystem(customerObj);
+                    Utility.logDebug("zee->magentoCustomer", JSON.stringify(magentoCustomer));
+                    if (magentoCustomer.status) {
+                        var createOrUpdateMagentoJSONRef = !!externalSystemCustomerIds ? 'update' : 'create';
+                        var magentoIdObjArrStr = ConnectorCommon.getMagentoIdObjectArrayString(store.systemId, magentoCustomer.customer.customer_id, createOrUpdateMagentoJSONRef, externalSystemCustomerIds, "");
+                        Utility.logDebug("zee->magentoIdObjArrStr", JSON.stringify(magentoIdObjArrStr));
+                        var magentoStores = ConnectorCommon.getStoresArrayFromMagentoJsonId(magentoIdObjArrStr);
+                        var nsCustomerUpdateStatus = CUSTOMER.setCustomerMagentoId(magentoIdObjArrStr, customerId, magentoStores);
+                        if (nsCustomerUpdateStatus) {
+                            // load magento ids for furthur use
+                            externalSystemCustomerIds = nlapiLookupField('customer', customerId, 'custentity_magento_custid');
+                            Utility.logDebug("zee->magentoCustomerIds", JSON.stringify(externalSystemCustomerIds));
+                            customerAlreadySynched = this.customerAlreadySyncToStore(externalSystemCustomerIds, store.systemId);
+                        }
+                    }
+                }
+
                 if (!customerAlreadySynched) {
                     customerObj.internalId = customerId;
                     customerObj.magentoCustomerIds = externalSystemCustomerIds;
@@ -717,16 +865,41 @@ var ExportSalesOrders = (function () {
                             Utility.logDebug('Customer Syncing Starting', '');
                             Utility.logDebug('Customer Syncing Starting - Store', JSON.stringify(store));
                             updateCustomerInMagento(customerObj, store, CustomerSync.getMagentoIdMyStore(customerObj.magentoCustomerIds, store.internalId), '');
-
                             Utility.logDebug('Customer Syncing Finished', '');
-                        } catch (ex) {
-                            Utility.logException('Error in updating Customer to Magento', ex);
+                        } catch (e) {
+                            Utility.logException('Error in updating Customer to Magento', e);
+                            throw new CustomException({
+                                code: F3Message.Action.CUSTOMER_EXPORT,
+                                message: "Update Customer from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                                recordType: "customer",
+                                recordId: customerId,
+                                system: "NetSuite",
+                                exception: e,
+                                action: "Customer Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                            });
+                            //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
                         }
                     }
+                    // handling for blank first, last or company names for shipping addresses
+                    CUSTOMER.setBlankFields(customerId, null);
                 }
             }
-            catch (ex) {
-                Utility.logException('error in processCustomer during sales order synchronization', ex);
+            catch (e) {
+                Utility.logException('error in processCustomer during sales order synchronization', e);
+                if (e instanceof CustomException) {
+                    throw e;
+                } else {
+                    throw new CustomException({
+                        code: F3Message.Action.CUSTOMER_EXPORT,
+                        message: "Sync Customer from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                        recordType: "customer",
+                        recordId: customerId,
+                        system: "NetSuite",
+                        exception: e,
+                        action: "Customer Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName
+                    });
+                }
+                //Utility.throwException(F3Message.Action.CUSTOMER_EXPORT, e instanceof nlobjError ? e.getCode() + '\n' + e.getDetails() : e.toString());
             }
         },
 
@@ -817,6 +990,8 @@ var ExportSalesOrders = (function () {
                         } else {
                             Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_SO_DUMMMY_ITEM + ' NOT ALLOWED');
                         }
+                        // initialize configuration for logging in custom record and sending error emails
+                        ConnectorCommon.initiateEmailNotificationConfig();
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
                         Utility.logDebug('debug', 'Step-2');
@@ -847,6 +1022,18 @@ var ExportSalesOrders = (function () {
                                     } else {
                                         ExportSalesOrders.markRecords(orderObject.internalId, e.toString());
                                     }
+                                    ErrorLogNotification.logAndNotify({
+                                        externalSystem: ConnectorConstants.CurrentStore.systemId,
+                                        recordType: "salesorder",
+                                        recordId: orderObject.internalId,
+                                        recordDetail: "NetSuite # " + orderObject.tranid,
+                                        action: "Sales Order Export from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                                        message: "An error occurred while exporting sales order.",
+                                        messageDetails: e,
+                                        status: F3Message.Status.ERROR,
+                                        externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                                        system: "NetSuite"
+                                    });
                                 }
                                 if (this.rescheduleIfNeeded(context, params)) {
                                     return null;
@@ -941,7 +1128,7 @@ var ExportSalesOrders = (function () {
         /**
          * Reschedules only there is any need
          * @param context Context Object
-         * @param params Params Object
+         * @param params Object
          * @returns {boolean} true if rescheduling was necessary and done, false otherwise
          */
         rescheduleIfNeeded: function (context, params) {
@@ -1016,6 +1203,7 @@ var ExportSalesOrders = (function () {
         /**
          * Call this method to reschedule current schedule script
          * @param ctx nlobjContext Object
+         * @param params Object
          */
         rescheduleScript: function (ctx, params) {
             //var status = 'TEST RUN';

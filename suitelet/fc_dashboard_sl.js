@@ -278,7 +278,7 @@ var ConnectorDashboardApi = (function () {
             var cols = [];
 
             fils.push(new nlobjSearchFilter(F3Message.FieldName.ExternalSystem, null, 'is', storeId));
-            fils.push(new nlobjSearchFilter(F3Message.FieldName.RecordType, null, 'is', F3Message.RecordType.SALES_ORDER));
+            fils.push(new nlobjSearchFilter(F3Message.FieldName.RecordType, null, 'is', "salesorder"));
             cols.push(new nlobjSearchColumn(F3Message.FieldName.Message, null, null));
             cols.push(new nlobjSearchColumn(F3Message.FieldName.MessageDetails, null, null));
             cols.push(new nlobjSearchColumn(F3Message.FieldName.RecordId, null, null));
@@ -557,6 +557,7 @@ var ConnectorDashboardApi = (function () {
          * Search NetSuite respective record for provided magento Id
          * @param recordType
          * @param recordId
+         * @param storeId
          */
         searchExternalSystemRecord: function (recordType, recordId, storeId) {
             var netSuiteRecordId = {

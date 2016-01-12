@@ -60,16 +60,17 @@ function syncSalesOrderMagento(sessionID, updateDate) {
         // If some problem
         if (!serverOrdersResponse.status) {
             result.errorMsg = serverOrdersResponse.faultCode + '--' + serverOrdersResponse.faultString;
-
             ErrorLogNotification.logAndNotify({
                 externalSystem: ConnectorConstants.CurrentStore.systemId,
-                recordType: F3Message.RecordType.SALES_ORDER,
+                recordType: "salesorder",
                 recordId: "",
-                action: F3Message.Action.SALES_ORDER_IMPORT,
-                message: "Error in fetching sales orders list from external system",
+                recordDetail: "",
+                action: "Sales Order Import from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                message: "An error occurred while getting Slaes Order List from " + ConnectorConstants.CurrentStore.systemDisplayName,
                 messageDetails: result.errorMsg,
                 status: F3Message.Status.ERROR,
-                externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                externalSystemText: ConnectorConstants.CurrentStore.systemType,
+                system: "NetSuite"
             });
 
             return result;
@@ -91,41 +92,45 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     var isUpdated = false;
                     salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
                     Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
-                    // Check if this SO already exists
-                    if (ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId)) {
-                        Utility.logDebug('Sales Order already exist with Magento Id: ', orders[i].increment_id);
-                        nsId = ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId);
-                        Utility.logDebug('Sales Order already exist with NetSuite ID: ', nsId);
-                        // check if order updated
-                        isUpdated = ConnectorCommon.isOrderUpdated(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId, salesOrderDetails.customer.updatedAt);
-                        Utility.logDebug('isUpdate', isUpdated);
-                        if (!isUpdated) {
-                            Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
-                        }
-                    }
-
-                    Utility.logDebug('isOrderSynced - ' + orders[i].increment_id, "NO");
-
-
-                    //Utility.logDebug('stages_w', 'Step-c');
-
 
                     // Could not fetch sales order information from Magento
                     if (!salesOrderDetails.status) {
                         Utility.logDebug('Could not fetch sales order information from Magento', 'orderId: ' + orders[i].increment_id);
                         result.errorMsg = salesOrderDetails.faultCode + '--' + salesOrderDetails.faultString;
-                        Utility.throwException("FETCHING_ORDER_DETAIL", result.errorMsg + ' orderId: ' + orders[i].increment_id);
-                        ErrorLogNotification.logAndNotify({
-                            externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in fetching sales orders information from external system",
-                            messageDetails: result.errorMsg,
-                            status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        throw new CustomException({
+                            code: "GET_ORDER_INFO_FROM_EXTERNAL_SYSTEM",
+                            message: result.errorMsg,
+                            recordType: "salesorder",
+                            recordId: orders[i].order_id,
+                            system: ConnectorConstants.CurrentStore.systemType,
+                            exception: null,
+                            action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
                         });
                     }
+
+                    // Check if this SO already exists
+                    nsId = ConnectorCommon.isOrderSynced(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId);
+                    if (nsId) {
+                        Utility.logDebug('Sales Order already exist with Magento ID: ', orders[i].increment_id);
+                        Utility.logDebug('Sales Order already exist with NetSuite ID: ', nsId);
+                        // Check for feature availability
+                        if (!FeatureVerification.isPermitted(Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
+                            Utility.logEmergency('FEATURE PERMISSION', Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                            Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
+                            //Utility.throwException("PERMISSION", Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                        } else {
+                            // check if order updated
+                            isUpdated = ConnectorCommon.isOrderUpdated(orders[i].increment_id, ConnectorConstants.CurrentStore.systemId, salesOrderDetails.customer.updatedAt);
+                            Utility.logDebug('isUpdate', isUpdated);
+                            if (!isUpdated) {
+                                Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
+                            }
+                        }
+                    }
+
+                    Utility.logDebug('isOrderSynced - ' + orders[i].increment_id, "NO");
+
+                    //Utility.logDebug('stages_w', 'Step-c');
 
                     var shippingAddress = salesOrderDetails.shippingAddress;
                     var billingAddress = salesOrderDetails.billingAddress;
@@ -140,16 +145,14 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!Utility.isBlankOrNull(netsuiteMagentoProductMap.errorMsg)) {
                         Utility.logDebug('result', JSON.stringify(result));
                         Utility.logDebug('COULD NOT EXECUTE Mapping perfectly', 'Please convey to Folio3');
-                        Utility.throwException("ITEM_MAPPING", "Error in fetching item mapping.");
-                        ErrorLogNotification.logAndNotify({
-                            externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in fetching sales orders item mapping in NetSuite against external system's products",
-                            messageDetails: result.errorMsg,
-                            status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                        throw new CustomException({
+                            code: "GET_ORDER_ITEMS_MAPPING",
+                            message: netsuiteMagentoProductMap.errorMsg,
+                            recordType: "salesorder",
+                            recordId: orders[i].order_id,
+                            system: ConnectorConstants.CurrentStore.systemType,
+                            exception: null,
+                            action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
                         });
                     }
 
@@ -251,9 +254,20 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
                         // create/update sales order
                         if (!!nsId) {
-                            ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
+                            // Check for feature availability
+                            if (!FeatureVerification.isPermitted(Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
+                                Utility.logEmergency('FEATURE PERMISSION', Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                                Utility.throwException("ORDER_EXIST", 'Sales Order already exist with Magento Id: ' + orders[i].increment_id);
+                                //Utility.throwException("PERMISSION", Features.UPDATE_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                            } else {
+                                Utility.logDebug("Before: updateSalesOrder", "Before");
+                                ConnectorConstants.Client.updateSalesOrder(salesOrderObj, nsId);
+                                Utility.logDebug("After: updateSalesOrder", "After");
+                            }
                         } else {
+                            Utility.logDebug("Before: createSalesOrder", "Before");
                             ConnectorConstants.Client.createSalesOrder(salesOrderObj);
+                            Utility.logDebug("After: createSalesOrder", "After");
                         }
                     }
 
@@ -285,13 +299,15 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     if (!(ex instanceof nlobjError && ex.getCode().toString() === "ORDER_EXIST")) {
                         ErrorLogNotification.logAndNotify({
                             externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
-                            recordId: orders[i].increment_id,
-                            action: F3Message.Action.SALES_ORDER_IMPORT,
-                            message: "Error in importing sales orders in NetSuite from external system",
-                            messageDetails: ex instanceof nlobjError ? ex.getCode() + " " + ex.getDetails() : ex.toString(),
+                            recordType: "salesorder",
+                            recordId: orders[i].order_id,
+                            recordDetail: ConnectorConstants.CurrentStore.systemDisplayName + " # " + orders[i].increment_id,
+                            action: "Sales Order Import from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            message: "An error occurred while creating Sales Order in NetSuite",
+                            messageDetails: ex,
                             status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                            system: ConnectorConstants.CurrentStore.systemType
                         });
                     }
                     // this handling is for maintaining order ids in custom record
@@ -399,13 +415,15 @@ function startup(type) {
                         Utility.logEmergency('FEATURE PERMISSION', Features.IMPORT_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                         ErrorLogNotification.logAndNotify({
                             externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: F3Message.RecordType.SALES_ORDER,
+                            recordType: "salesorder",
                             recordId: nlapiGetRecordId(),
+                            recordDetail : "",
                             action: F3Message.Action.SALES_ORDER_IMPORT,
                             message: Features.IMPORT_SO_FROM_EXTERNAL_SYSTEM + ' NOT ALLOWED',
                             messageDetails: "Please convey to Folio3.",
                             status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                            system : ConnectorConstants.CurrentStore.systemType
                         });
                         return;
                     }
@@ -427,10 +445,21 @@ function startup(type) {
                     Utility.logDebug('soUpdateDate', soUpdateDate);
 
                     sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
-
                     if (!sessionID) {
                         Utility.logDebug('sessionID', 'sessionID is empty');
-                        continue;
+                        ErrorLogNotification.logAndNotify({
+                            externalSystem: ConnectorConstants.CurrentStore.systemId,
+                            recordType: "salesorder",
+                            recordId: "",
+                            recordDetail: "",
+                            action: "Sales Order Import from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            message: "Unable to fetch Session Id from " + ConnectorConstants.CurrentStore.systemDisplayName,
+                            messageDetails: "Look into logs",
+                            status: F3Message.Status.ERROR,
+                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                            system: "NetSuite"
+                        });
+                        return;
                     }
 
                     Utility.logDebug('startup', 'Start Syncing');

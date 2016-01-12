@@ -15,18 +15,18 @@
  */
 var ItemExportLibrary = (function () {
     return {
-        configData : {
-            ItemTypes : {
-                InventoryItem : 'inventoryitem'
+        configData: {
+            ItemTypes: {
+                InventoryItem: 'inventoryitem'
             }
         },
         /**
          * Get items on the basis of condition
          * @param criteriaObj
          */
-        getItems: function(store, criteriaObj) {
+        getItems: function (store, criteriaObj) {
             var results = null;
-            if(!!criteriaObj.identifierType && !!criteriaObj.identifierValue) {
+            if (!!criteriaObj.identifierType && !!criteriaObj.identifierValue) {
                 results = this.getItemsByIdentifier(store, criteriaObj);
             } else {
                 results = this.getItemsFromPreviousDays(store);
@@ -38,23 +38,25 @@ var ItemExportLibrary = (function () {
         /**
          * Get recently created/modified items from previous days
          */
-        getItemsByIdentifier: function(store, criteriaObj) {
-            Utility.logDebug('log_w','calling getItemsByIdentifier');
+        getItemsByIdentifier: function (store, criteriaObj) {
+            Utility.logDebug('log_w', 'calling getItemsByIdentifier');
             var filters = [];
-            filters.push(new nlobjSearchFilter(criteriaObj.identifierType,  null, 'is', criteriaObj.identifierValue));
+            filters.push(new nlobjSearchFilter(criteriaObj.identifierType, null, 'is', criteriaObj.identifierValue));
             return this.getItemsData(filters);
         },
 
         /**
          * Get recently created/modified items from previous days
          */
-        getItemsFromPreviousDays: function(store) {
-            Utility.logDebug('log_w','calling getItemsFromPreviousDays');
+        getItemsFromPreviousDays: function (store) {
+            Utility.logDebug('log_w', 'calling getItemsFromPreviousDays');
             var filters = [];
             var ageOfItemToExportInDays = store.entitySyncInfo.item.ageOfItemToExportInDays;
             var previousDate = this.getPreviousDayDate(ageOfItemToExportInDays);
-            filters.push(new nlobjSearchFilter('lastmodifieddate',  null, 'onorafter', previousDate));
-            //filters.push(new nlobjSearchFilter('internalid',  null, 'is', '1289'));
+            //filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', previousDate));
+            // TODO: undo test
+            filters.push(new nlobjSearchFilter('internalid', null, 'is', '1267'));// matrix parent
+            //filters.push(new nlobjSearchFilter('internalid', null, 'is', '1270'));// matrix child
             return this.getItemsData(filters);
         },
 
@@ -62,7 +64,7 @@ var ItemExportLibrary = (function () {
          * Get Items data from NetSuite to Export
          */
         getItemsData: function (filters) {
-            filters.push(new nlobjSearchFilter('type',  null, 'anyof', ['InvtPart']));
+            filters.push(new nlobjSearchFilter('type', null, 'anyof', ['InvtPart']));
             var results = nlapiSearchRecord('item', null, filters);
             return results;
         },
@@ -72,10 +74,10 @@ var ItemExportLibrary = (function () {
          * @param ageOfRecordsInDays
          * @returns {*}
          */
-        getPreviousDayDate: function(ageOfRecordsInDays) {
+        getPreviousDayDate: function (ageOfRecordsInDays) {
             Utility.logDebug('ageOfRecordsInDays', ageOfRecordsInDays);
             var currentDate = Utility.getDateUTC(0);
-            var oldDate = nlapiAddDays(currentDate, '-'+ageOfRecordsInDays);
+            var oldDate = nlapiAddDays(currentDate, '-' + ageOfRecordsInDays);
             oldDate = nlapiDateToString(oldDate);
             oldDate = oldDate.toLowerCase();
             oldDate = nlapiDateToString(nlapiStringToDate(oldDate, 'datetime'), 'datetime');
@@ -89,7 +91,7 @@ var ItemExportLibrary = (function () {
          * @param itemInternalId
          * @param itemType
          */
-        processItem: function(store, itemInternalId, itemType, createOnly) {
+        processItem: function (store, itemInternalId, itemType, createOnly) {
             var itemObject = this.getItemObject(store, itemInternalId, itemType);
             Utility.logDebug('itemObject', JSON.stringify(itemObject));
             // skip export if instructed to created only and record is already exported to other system
@@ -110,7 +112,6 @@ var ItemExportLibrary = (function () {
                     Utility.throwException("RECORD_EXPORT", 'Some error occurred while creating Other system Item - ' + responseBody.error);
                 }
             }
-
         },
         /**
          * Set items external system ids array
@@ -145,18 +146,27 @@ var ItemExportLibrary = (function () {
          * @param store
          * @param itemInternalId
          * @param itemType
+         * @param [_itemObject]
          */
-        getItemObject: function(store, itemInternalId, itemType) {
-            var itemRecord = nlapiLoadRecord(itemType, itemInternalId);
+        getItemObject: function (store, itemInternalId, itemType, _itemObject) {
             var itemObject = {};
+            // this condition is responsible to break the recursion
+            if (!!_itemObject &&
+                (!_itemObject.isMatrix ||
+                (_itemObject.isMatrixParentItem && !_itemObject.isMatrixChildItem))) {
+                return itemObject;
+            }
+            var itemRecord = nlapiLoadRecord(itemType, itemInternalId);
             itemObject.internalId = itemInternalId;
             itemObject.itemType = itemType;
             itemObject.itemId = itemRecord.getFieldValue('itemid');
             itemObject.displayName = itemRecord.getFieldValue('displayname');
             itemObject.upcCode = itemRecord.getFieldValue('upccode');
             itemObject.parentItem = itemRecord.getFieldValue('parent');
-            itemObject.isMatrixChildItem = !!itemObject.parentItem;
-            itemObject.isMatrixParentItem = false;
+            itemObject.isMatrixChildItem = itemRecord.getFieldValue('matrixtype') === "CHILD";
+            itemObject.isMatrixParentItem = itemRecord.getFieldValue('matrixtype') === "PARENT";
+            itemObject.isMatrix = itemObject.isMatrixParentItem || itemObject.isMatrixChildItem;
+
             itemObject.category = itemRecord.getFieldValue('category');
             itemObject.isTaxable = itemRecord.getFieldValue('istaxable');
             itemObject.itemWeight = itemRecord.getFieldValue('weight');
@@ -180,11 +190,265 @@ var ItemExportLibrary = (function () {
             this.setTierPriceData(store, itemObject, itemRecord);
             this.setExternalSystemData(store, itemInternalId, itemType, itemObject, itemRecord);
 
-
             this.setItemFieldsBasedOnType(store, itemInternalId, itemType, itemObject, itemRecord);
+
+            if (itemObject.isMatrix) {
+                this.setMatrixRelatedFields(store, itemInternalId, itemType, itemObject, itemRecord);
+            }
+
+            itemObject.MatrixParent = this.getItemObject(store, itemObject.parentItem, itemType, itemObject);
 
             return itemObject;
         },
+
+        /**
+         * Set Matrix attributes fields in the item object
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         */
+        setMatrixRelatedFields: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            if (itemObject.isMatrixParentItem) {
+                // set attributes for parent
+                itemObject.matrixParentAttributes = this.getMatrixParentAttributes(store, itemInternalId, itemType, itemObject, itemRecord);
+            }
+            if (itemObject.isMatrixChildItem) {
+                // set attributes for child
+                itemObject.matrixChildAttributes = this.getMatrixChildAttributes(store, itemInternalId, itemType, itemObject, itemRecord);
+            }
+        },
+        /**
+         * This is just a object template for making parent attribute array.
+         * Note: It is not used anywhere
+         */
+        MatrixParentAttributesObjectTemplate: {
+            externalSystemMatrixFieldMapId: "",
+            netSuiteItemOptionField: "",
+            externalSystemAttributeId: "",
+            netSuiteMatrixFieldValues: [], // parent
+            netSuiteMatrixFieldValuesInCustomRecord: [], // parent
+            itemAttributeSetId: "",
+            itemAttributeId: "",
+            itemAttributeCode: "",
+            itemAttributeName: "",
+            itemAttributeValues: [], // parent
+            itemAttributeValuesMap: [] // parent
+        },
+        /**
+         * Get Matrix Parent Attributes array based on Item Option fields defined in Custom
+         * Record from NetSuite Parent Matrix Item Record
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         * @returns {Array}
+         */
+        getMatrixParentAttributesList: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            var matrixParentAttributesList = [];
+            /*
+             {"name":"Color1","slug":"color1","position":"0","visible":false,"variation":true,"options":["Black1","Green1"]},
+             {"name":"Size1","slug":"size1","position":"1","visible":false,"variation":true,"options":["Small1","Large1"]}
+             */
+            var externalSystemMatrixFieldMap = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap;
+            var fieldMap;
+            if (externalSystemMatrixFieldMap instanceof Array) {
+                // iterating through custom item options defined in ExternalSystemMatrixFieldMap record
+                for (var i in externalSystemMatrixFieldMap) {
+                    fieldMap = externalSystemMatrixFieldMap[i];
+                    var netSuiteItemOptionField = fieldMap.netSuiteItemOptionField;
+                    var externalSystemId = fieldMap.externalSystemId;
+                    // if custom item option field is defined in custom record and this field has options defined in
+                    // matrix parent item then push this field into an array for future use
+                    if (externalSystemId.toString() === ConnectorConstants.CurrentStore.systemId.toString() && !!netSuiteItemOptionField &&
+                        itemRecord.getFieldValues(netSuiteItemOptionField) instanceof Array) {
+                        if (matrixParentAttributesList.indexOf(fieldMap.netSuiteItemOptionField) === -1) {
+                            matrixParentAttributesList.push({
+                                externalSystemMatrixFieldMapId: fieldMap.id,
+                                netSuiteItemOptionField: fieldMap.netSuiteItemOptionField,
+                                externalSystemAttributeId: fieldMap.externalSystemAttributeId,
+                                netSuiteMatrixFieldValues: itemRecord.getFieldValues(netSuiteItemOptionField),
+                                netSuiteMatrixFieldValuesInCustomRecord: []
+                            });
+                        }
+                    }
+                }
+            }
+            return matrixParentAttributesList;
+        },
+        /**
+         * Set External System Item Attribute information in matrixParentAttributesList
+         * @param matrixParentAttributesList
+         */
+        setExternalSystemItemAttributeInfoInMatrixParentAttributesList: function (matrixParentAttributesList) {
+            var fieldMap;
+            // append external system item attribute information in newMap
+            for (var j in matrixParentAttributesList) {
+                fieldMap = matrixParentAttributesList[j];
+                var externalSystemItemAttribute = ItemConfigRecordHandler.getExternalSystemItemAttributeInfo(ConnectorConstants.CurrentStore.systemId, fieldMap.externalSystemAttributeId);
+                if (!!externalSystemItemAttribute) {
+                    fieldMap.itemAttributeSetId = externalSystemItemAttribute.itemAttributeSetId;
+                    fieldMap.itemAttributeId = externalSystemItemAttribute.itemAttributeId;
+                    fieldMap.itemAttributeCode = externalSystemItemAttribute.itemAttributeCode;
+                    fieldMap.itemAttributeName = externalSystemItemAttribute.name;
+                    fieldMap.itemAttributeValues = [];
+                    fieldMap.itemAttributeValuesMap = [];
+                }
+            }
+        },
+        /**
+         * Set External System Matrix Field Values of NetSuite Item Attributes in matrixParentAttributesList
+         * Also make an array of Matrix Item Option's Values which are found in Custom Record
+         * @param matrixParentAttributesList
+         */
+        setExternalSystemMatrixFieldValuesInMatrixParentAttributesList: function (matrixParentAttributesList) {
+            var fieldMap;
+            // append external system item attribute information in newMap
+            for (var k in matrixParentAttributesList) {
+                fieldMap = matrixParentAttributesList[k];
+                var netSuiteMatrixFieldValues = fieldMap.netSuiteMatrixFieldValues;
+                for (var l in netSuiteMatrixFieldValues) {
+                    var netSuiteMatrixFieldValue = netSuiteMatrixFieldValues[l];
+                    var externalSystemMatrixFieldValue = ItemConfigRecordHandler.findExternalSystemMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, fieldMap.externalSystemMatrixFieldMapId, netSuiteMatrixFieldValue);
+                    if (!!externalSystemMatrixFieldValue) {
+                        fieldMap.itemAttributeValues.push(externalSystemMatrixFieldValue.otherSystemMatrixFieldValue);
+                        // make an array of matrix item option's values which are found in custom record
+                        fieldMap.netSuiteMatrixFieldValuesInCustomRecord.push(netSuiteMatrixFieldValue);
+                        // make a two-way value map for attribute value
+                        fieldMap.itemAttributeValuesMap[netSuiteMatrixFieldValue] = externalSystemMatrixFieldValue.otherSystemMatrixFieldValue;
+                        fieldMap.itemAttributeValuesMap[externalSystemMatrixFieldValue.otherSystemMatrixFieldValue] = netSuiteMatrixFieldValue;
+                    }
+                }
+            }
+        },
+        /**
+         * Get Matrix Parent Attributes Information List
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         * @returns {*}
+         */
+        getMatrixParentAttributes: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            var matrixParentAttributesList = this.getMatrixParentAttributesList(store, itemInternalId, itemType, itemObject, itemRecord);
+            this.setExternalSystemItemAttributeInfoInMatrixParentAttributesList(matrixParentAttributesList);
+            this.setExternalSystemMatrixFieldValuesInMatrixParentAttributesList(matrixParentAttributesList);
+            return matrixParentAttributesList;
+        },
+
+        /**
+         * This is just a object template for making child attribute array.
+         * Note: It is not used anywhere
+         */
+        MatrixChildAttributesObjectTemplate: {
+            externalSystemMatrixFieldMapId: "",
+            netSuiteItemOptionField: "",
+            externalSystemAttributeId: "",
+            netSuiteMatrixFieldValue: "", // child
+            itemAttributeSetId: "",
+            itemAttributeId: "",
+            itemAttributeCode: "",
+            itemAttributeName: "",
+            itemAttributeValue: "", // child
+            itemAttributeValueMap: [] // child
+        },
+        /**
+         * Get Matrix Child Attributes array based on Item Option fields defined in Custom
+         * Record from NetSuite Parent Child Item Record
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         * @returns {Array}
+         */
+        getMatrixChildAttributesList: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            var matrixChildAttributesList = [];
+            /*
+             {"name":"Color1","slug":"color1","option":"Black1"},
+             {"name":"Size1","slug":"size1","option":"Large1"}
+             */
+            var externalSystemMatrixFieldMap = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap;
+            var fieldMap;
+            if (externalSystemMatrixFieldMap instanceof Array) {
+                // iterating through custom item options defined in ExternalSystemMatrixFieldMap record
+                for (var i in externalSystemMatrixFieldMap) {
+                    fieldMap = externalSystemMatrixFieldMap[i];
+                    var netSuiteItemOptionField = fieldMap.netSuiteItemOptionField;
+                    var externalSystemId = fieldMap.externalSystemId;
+                    // if custom item option field is defined in custom record and this field has options defined in
+                    // matrix parent item then push this field into an array for future use
+                    if (externalSystemId.toString() === ConnectorConstants.CurrentStore.systemId.toString() && !!netSuiteItemOptionField && !!itemRecord.getFieldValue(netSuiteItemOptionField)) {
+                        if (matrixChildAttributesList.indexOf(fieldMap.netSuiteItemOptionField) === -1) {
+                            matrixChildAttributesList.push({
+                                externalSystemMatrixFieldMapId: fieldMap.id,
+                                netSuiteItemOptionField: fieldMap.netSuiteItemOptionField,
+                                externalSystemAttributeId: fieldMap.externalSystemAttributeId,
+                                netSuiteMatrixFieldValue: itemRecord.getFieldValue(netSuiteItemOptionField)
+                            });
+                        }
+                    }
+                }
+            }
+            return matrixChildAttributesList;
+        },
+        /**
+         * Set External System Item Attribute information in matrixChildAttributesList
+         * @param matrixChildAttributesList
+         */
+        setExternalSystemItemAttributeInfoInMatrixChildAttributesList: function (matrixChildAttributesList) {
+            var fieldMap;
+            // append external system item attribute information in newMap
+            for (var j in matrixChildAttributesList) {
+                fieldMap = matrixChildAttributesList[j];
+                var externalSystemItemAttribute = ItemConfigRecordHandler.getExternalSystemItemAttributeInfo(ConnectorConstants.CurrentStore.systemId, fieldMap.externalSystemAttributeId);
+                if (!!externalSystemItemAttribute) {
+                    fieldMap.itemAttributeSetId = externalSystemItemAttribute.itemAttributeSetId;
+                    fieldMap.itemAttributeId = externalSystemItemAttribute.itemAttributeId;
+                    fieldMap.itemAttributeCode = externalSystemItemAttribute.itemAttributeCode;
+                    fieldMap.itemAttributeName = externalSystemItemAttribute.name;
+                    fieldMap.itemAttributeValue = "";
+                    fieldMap.itemAttributeValueMap = [];
+                }
+            }
+        },
+        /**
+         * Set External System Matrix Field Values of NetSuite Item Attributes in matrixChildAttributesList
+         * Also make an array of Matrix Item Option's Values which are found in Custom Record
+         * @param matrixChildAttributesList
+         */
+        setExternalSystemMatrixFieldValueInMatrixChildAttributesList: function (matrixChildAttributesList) {
+            var fieldMap;
+            // append external system item attribute information in newMap
+            for (var k in matrixChildAttributesList) {
+                fieldMap = matrixChildAttributesList[k];
+                var netSuiteMatrixFieldValue = fieldMap.netSuiteMatrixFieldValue;
+                var externalSystemMatrixFieldValue = ItemConfigRecordHandler.findExternalSystemMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, fieldMap.externalSystemMatrixFieldMapId, netSuiteMatrixFieldValue);
+                fieldMap.itemAttributeValue = externalSystemMatrixFieldValue.otherSystemMatrixFieldValue;
+                // make a two-way value map for attribute value
+                fieldMap.itemAttributeValueMap[netSuiteMatrixFieldValue] = fieldMap.itemAttributeValue;
+                fieldMap.itemAttributeValueMap[fieldMap.itemAttributeValue] = netSuiteMatrixFieldValue;
+            }
+        },
+        /**
+         * Get Matrix Child Attributes Information List
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param itemRecord
+         * @returns {*|Array}
+         */
+        getMatrixChildAttributes: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            var matrixChildAttributesList = this.getMatrixChildAttributesList(store, itemInternalId, itemType, itemObject, itemRecord);
+            this.setExternalSystemItemAttributeInfoInMatrixChildAttributesList(matrixChildAttributesList);
+            this.setExternalSystemMatrixFieldValueInMatrixChildAttributesList(matrixChildAttributesList);
+            return matrixChildAttributesList;
+        },
+
 
         /**
          * Set data fields related to external system
@@ -194,7 +458,7 @@ var ItemExportLibrary = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setExternalSystemData: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+        setExternalSystemData: function (store, itemInternalId, itemType, itemObject, itemRecord) {
             itemObject.externalSystemIdsString = itemRecord.getFieldValue(ConnectorConstants.Item.Fields.MagentoId);
             itemObject.externalSystemIds = [];
             itemObject.alreadySyncToCurrentExternalSystem = false;
@@ -212,17 +476,15 @@ var ItemExportLibrary = (function () {
         /**
          * Check if item already synched to current store
          * @param store
-         * @param itemInternalId
-         * @param itemType
-         * @param itemObject
-         * @param itemRecord
+         * @param externalSystemIds
+         * @returns {string}
          */
         checkItemSyncToCurrentStore: function (store, externalSystemIds) {
             var externalSystemId = '';
-            if(!!externalSystemIds && externalSystemIds.length > 0) {
+            if (!!externalSystemIds && externalSystemIds.length > 0) {
                 for (var i = 0; i < externalSystemIds.length; i++) {
                     var obj = externalSystemIds[i];
-                    if(!!obj.StoreId && obj.StoreId == store.systemId) {
+                    if (!!obj.StoreId && obj.StoreId == store.systemId) {
                         externalSystemId = obj.MagentoId;
                     }
                 }
@@ -236,7 +498,7 @@ var ItemExportLibrary = (function () {
          * @param itemRecord
          * @returns {Array}
          */
-        setTierPriceData: function(store, itemObject, itemRecord) {
+        setTierPriceData: function (store, itemObject, itemRecord) {
             // Check the features enabled in the account. See Pricing Sublist Feature Dependencies for
             // details on why this is important.
             var multiCurrency = nlapiGetContext().getFeature('MULTICURRENCY');
@@ -303,7 +565,7 @@ var ItemExportLibrary = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setItemFieldsBasedOnType: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+        setItemFieldsBasedOnType: function (store, itemInternalId, itemType, itemObject, itemRecord) {
             switch (itemType) {
                 case this.configData.ItemTypes.InventoryItem:
                     ConnectorConstants.CurrentWrapper.setInventoryItemFields(store, itemInternalId, itemType, itemObject, itemRecord);
@@ -320,7 +582,7 @@ var ItemExportLibrary = (function () {
          * @param itemType
          * @param itemObject
          */
-        exportItemToExternalSystem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        exportItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
             var responseBody = null;
             switch (itemType) {
                 case this.configData.ItemTypes.InventoryItem:
@@ -339,7 +601,7 @@ var ItemExportLibrary = (function () {
          * @param itemType
          * @param itemObject
          */
-        exportInventoryItemToExternalSystem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        exportInventoryItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
             return ConnectorConstants.CurrentWrapper.exportInventoryItem(store, itemInternalId, itemType, itemObject, createOnly);
         },
 
@@ -388,4 +650,260 @@ var ItemExportLibrary = (function () {
         }
 
     };
+})();
+
+var ItemConfigRecordHandler = (function () {
+    return {
+        /**
+         * Get Complete List of ExternalSystemItemAttributes
+         * @return {*}
+         */
+        getAllExternalSystemAttributeList: function () {
+            var list = [];
+
+            // if ExternalSystemItemAttributes are already fecthed the return extisng ones
+            if (ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes instanceof Array) {
+                return ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
+            }
+
+            var columns = [];
+            columns.push(new nlobjSearchColumn("name", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ext_sys", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_item_att_set", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_id", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_code", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_type", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_details", null, null));
+            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
+
+            var results = Utility.getRecords("customrecord_f3_ext_sys_item_att", null, null, columns, null);
+
+            if (!!results && results.length > 0) {
+                for (var i in results) {
+                    var result = results[i];
+                    var id = result.getId() || "";
+                    var name = result.getValue("name") || "";
+                    var externalSystemId = result.getValue("custrecord_f3_item_att_ext_sys") || "";
+                    var externalSystemText = result.getText("custrecord_f3_item_att_ext_sys") || "";
+                    var itemAttributeSetId = result.getValue("custrecord_f3_ext_sys_item_att_set") || "";
+                    var itemAttributeSetText = result.getText("custrecord_f3_ext_sys_item_att_set") || "";
+                    var itemAttributeId = result.getValue("custrecord_f3_item_att_id") || "";
+                    var itemAttributeCode = result.getValue("custrecord_f3_item_att_code") || "";
+                    var itemAttributeType = result.getValue("custrecord_f3_item_att_type") || "";
+                    var itemAttributeDetails = result.getValue("custrecord_f3_item_att_details") || "";
+
+                    list.push({
+                        id: id,
+                        name: name,
+                        externalSystemId: externalSystemId,
+                        externalSystemText: externalSystemText,
+                        itemAttributeSetId: itemAttributeSetId,
+                        itemAttributeSetText: itemAttributeSetText,
+                        itemAttributeId: itemAttributeId,
+                        itemAttributeCode: itemAttributeCode,
+                        itemAttributeType: itemAttributeType,
+                        itemAttributeDetails: itemAttributeDetails
+                    });
+                }
+            }
+
+            return list;
+        },
+        /**
+         * Get Complete List of ExternalSystemItemAttributeSets
+         * @return {*}
+         */
+        getAllExternalSystemAttributeSetList: function () {
+            var list = [];
+
+            // if ExternalSystemItemAttributeSets are already fecthed the return extisng ones
+            if (ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets instanceof Array) {
+                return ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
+            }
+
+            var columns = [];
+            columns.push(new nlobjSearchColumn("name", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_ext_sys", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_id", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_code", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_details", null, null));
+            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
+
+            var results = Utility.getRecords("customrecord_f3_ext_sys_item_att_set", null, null, columns, null);
+
+            if (!!results && results.length > 0) {
+                for (var i in results) {
+                    var result = results[i];
+                    var id = result.getId() || "";
+                    var name = result.getValue("name") || "";
+                    var externalSystemId = result.getValue("custrecord_f3_item_att_set_ext_sys") || "";
+                    var externalSystemText = result.getText("custrecord_f3_item_att_set_ext_sys") || "";
+                    var itemAttributeSetId = result.getValue("custrecord_f3_item_att_set_id") || "";
+                    var itemAttributeSetCode = result.getValue("custrecord_f3_item_att_set_code") || "";
+                    var itemAttributeSetDetails = result.getValue("custrecord_f3_item_att_set_details") || "";
+
+                    list.push({
+                        id: id,
+                        name: name,
+                        externalSystemId: externalSystemId,
+                        externalSystemText: externalSystemText,
+                        itemAttributeSetId: itemAttributeSetId,
+                        itemAttributeSetCode: itemAttributeSetCode,
+                        itemAttributeSetDetails: itemAttributeSetDetails
+                    });
+                }
+            }
+
+            return list;
+        },
+
+        /**
+         * Get Complete List of ExternalSystemMatrixFieldMap
+         * @return {*}
+         */
+        getAllExternalSystemMatrixFieldMapList: function () {
+            var list = [];
+
+            // if ExternalSystemMatrixFieldMap are already fecthed the return extisng ones
+            if (ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap instanceof Array) {
+                return ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap;
+            }
+
+            var columns = [];
+            columns.push(new nlobjSearchColumn("name", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ext_sys", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ext_sys_att", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ns_itm_opt_fld", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_detials", null, null));
+            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
+
+            var results = Utility.getRecords("customrecord_f3_ext_sys_mat_fld_map", null, null, columns, null);
+
+            if (!!results && results.length > 0) {
+                for (var i in results) {
+                    var result = results[i];
+                    var id = result.getId() || "";
+                    var name = result.getValue("name") || "";
+                    var externalSystemId = result.getValue("custrecord_f3_mat_fld_map_ext_sys") || "";
+                    var externalSystemText = result.getText("custrecord_f3_mat_fld_map_ext_sys") || "";
+                    var externalSystemAttributeId = result.getValue("custrecord_f3_mat_fld_map_ext_sys_att") || "";
+                    var externalSystemAttributeText = result.getText("custrecord_f3_mat_fld_map_ext_sys_att") || "";
+                    var netSuiteItemOptionField = result.getValue("custrecord_f3_mat_fld_map_ns_itm_opt_fld") || "";
+                    var details = result.getValue("custrecord_f3_mat_fld_map_detials") || "";
+
+                    list.push({
+                        id: id,
+                        name: name,
+                        externalSystemId: externalSystemId,
+                        externalSystemText: externalSystemText,
+                        externalSystemAttributeId: externalSystemAttributeId,
+                        externalSystemAttributeText: externalSystemAttributeText,
+                        netSuiteItemOptionField: netSuiteItemOptionField,
+                        details: details
+                    });
+                }
+            }
+
+            return list;
+        },
+
+        /**
+         * Get Complete List of ExternalSystemMatrixFieldValues
+         * @return {*}
+         */
+        getAllExternalSystemMatrixFieldValuesList: function () {
+            var list = [];
+
+            // if ExternalSystemMatrixFieldValues are already fecthed the return extisng ones
+            if (ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues instanceof Array) {
+                return ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues;
+            }
+
+            var columns = [];
+            columns.push(new nlobjSearchColumn("name", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_ext_sys", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_fld_map", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_ns_fld_val", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_os_fld_val", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_details", null, null));
+            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
+
+            var results = Utility.getRecords("customrecord_f3_ext_sys_mat_fld_val_map", null, null, columns, null);
+
+            if (!!results && results.length > 0) {
+                for (var i in results) {
+                    var result = results[i];
+                    var id = result.getId() || "";
+                    var name = result.getValue("name") || "";
+                    var externalSystemId = result.getValue("custrecord_f3_mat_fld_map_val_ext_sys") || "";
+                    var externalSystemText = result.getText("custrecord_f3_mat_fld_map_val_ext_sys") || "";
+                    var itemMatrixFieldMapId = result.getValue("custrecord_f3_mat_fld_map_val_fld_map") || "";
+                    var itemMatrixFieldMapText = result.getText("custrecord_f3_mat_fld_map_val_fld_map") || "";
+                    var netSuiteMatrixFieldValue = result.getValue("custrecord_f3_mat_fld_map_val_ns_fld_val") || "";
+                    var otherSystemMatrixFieldValue = result.getValue("custrecord_f3_mat_fld_map_val_os_fld_val") || "";
+                    var details = result.getValue("custrecord_f3_mat_fld_map_val_details") || "";
+
+                    list.push({
+                        id: id,
+                        name: name,
+                        externalSystemId: externalSystemId,
+                        externalSystemText: externalSystemText,
+                        itemMatrixFieldMapId: itemMatrixFieldMapId,
+                        itemMatrixFieldMapText: itemMatrixFieldMapText,
+                        netSuiteMatrixFieldValue: netSuiteMatrixFieldValue,
+                        otherSystemMatrixFieldValue: otherSystemMatrixFieldValue,
+                        details: details
+                    });
+                }
+            }
+
+            return list;
+        },
+        /**
+         * This method is used to fetch attribute information depending on passing parameters
+         * @param currentStoreId
+         * @param externalSystemAttributeId
+         * @returns {null | object}
+         */
+        getExternalSystemItemAttributeInfo: function (currentStoreId, externalSystemAttributeId) {
+            var externalSystemItemAttributes = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
+            if (externalSystemItemAttributes instanceof Array) {
+                for (var i in externalSystemItemAttributes) {
+                    var externalSystemItemAttribute = externalSystemItemAttributes[i];
+                    if (externalSystemItemAttribute.externalSystemId.toString() === currentStoreId.toString() &&
+                        externalSystemItemAttribute.id.toString() === externalSystemAttributeId.toString()) {
+                        return externalSystemItemAttribute;
+                    }
+                }
+            }
+            return null;
+        },
+
+        /**
+         * This method is used to fetch attribute values of external system defined against NetSuite's item
+         * option values information depending on passing parameters
+         * @param currentStoreId
+         * @param externalSystemMatrixFieldMapId
+         * @param netSuiteMatrixFieldValue
+         * @returns {null | string}
+         */
+        findExternalSystemMatrixFieldValue: function (currentStoreId, externalSystemMatrixFieldMapId, netSuiteMatrixFieldValue) {
+            var externalSystemMatrixFieldValues = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues;
+            if (externalSystemMatrixFieldValues instanceof Array) {
+                for (var i in externalSystemMatrixFieldValues) {
+                    var externalSystemMatrixFieldValue = externalSystemMatrixFieldValues[i];
+                    if (externalSystemMatrixFieldValue.externalSystemId.toString() === currentStoreId.toString() &&
+                        externalSystemMatrixFieldValue.itemMatrixFieldMapId.toString() === externalSystemMatrixFieldMapId.toString() &&
+                        externalSystemMatrixFieldValue.netSuiteMatrixFieldValue.toString() === netSuiteMatrixFieldValue.toString()) {
+                        return externalSystemMatrixFieldValue;
+                    }
+                }
+            }
+            return null;
+        }
+    };
+
+    //endregion
+
+
 })();

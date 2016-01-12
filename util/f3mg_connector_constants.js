@@ -27,6 +27,12 @@ ConnectorConstants = (function () {
         ScheduleScriptInvokedFormUserEvent: 'custscript_sch_invoke_from_ue',
         ExternalSystemConfig: [],
         CurrentStore: {},
+        ItemConfigRecords: {
+            ExternalSystemItemAttributes: null,
+            ExternalSystemItemAttributeSets: null,
+            ExternalSystemMatrixFieldMap: null,
+            ExternalSystemMatrixFieldValues: null
+        },
         FeatureVerification: null,
         /**
          * Current Wrapper that is being referred to in Scheduled Scripts and User Events
@@ -58,8 +64,8 @@ ConnectorConstants = (function () {
                 FromOtherSystem: 'custbody_f3_so_from_other_system',
                 MagentoInvoiceId: 'custbody_f3mg_invoice_id',
                 ExternalSystemSalesOrderModifiedAt: 'custbody_f3mg_external_modified_time',
-                NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time'
-
+                NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time',
+		MagentoShipmentId: 'custbody_magento_shipment_id'
             },
             Columns: {
                 MagentoOrderId: 'custcol_mg_order_item_id'
@@ -177,7 +183,8 @@ ConnectorConstants = (function () {
             shippingMethod: {
                 UPS_GND: "ups_GND",
                 UPS_XPD: "ups_XPD",
-                UPS_EMPTY: "ups_"
+                UPS_EMPTY: "ups_",
+		FLAT_RATE: "flatrate_flatrate"
             }
         },
         MagentoCustomerGroups: {
@@ -207,6 +214,12 @@ ConnectorConstants = (function () {
         },
         initializeScrubList: function () {
             this.ScrubsList = FC_ScrubHandler.getAllScrubsList();
+        },
+        loadItemConfigRecords: function () {
+            this.ItemConfigRecords.ExternalSystemItemAttributes = ItemConfigRecordHandler.getAllExternalSystemAttributeList();
+            this.ItemConfigRecords.ExternalSystemItemAttributeSets = ItemConfigRecordHandler.getAllExternalSystemAttributeSetList();
+            this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
+            this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
         },
         initializeDummyItem: function () {
             this.DummyItem.Id = ConnectorCommon.getDummyItemId(this.DummyItem.ItemId);

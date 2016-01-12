@@ -22,6 +22,14 @@ WooWrapper = (function () {
 
     //region Private Methods
 
+    var ItemTypes = {
+        Simple: 'simple',
+        Variable: 'variable',
+        Grouped: 'grouped',
+        External: 'external'
+    };
+
+
     /**
      * Parses Single Sales Order Response
      * @param serverOrder
@@ -75,6 +83,8 @@ WooWrapper = (function () {
             localOrder.customer.customer_firstname = localOrder.customer.firstname;
             localOrder.customer.customer_middlename = localOrder.customer.middlename;
             localOrder.customer.customer_lastname = localOrder.customer.lastname;
+
+            localOrder.customer.discount_amount = serverOrder.total_discount.toString();
         }
 
         if (serverOrder.shipping_address) {
@@ -173,7 +183,12 @@ WooWrapper = (function () {
         localProduct.gift_card = serverProduct.gift_card;
         localProduct.grams = serverProduct.grams;
         localProduct.id = serverProduct.id;
-        localProduct.price = serverProduct.price;
+        // calculate unit price
+        localProduct.price = (serverProduct.subtotal / serverProduct.qty_ordered).toFixed(2);
+        // discount will be handling usig total discounts of the order. because in api there is no actual
+        // discount value of a unit quantity is found and we'll have to calculate unit price after discount which
+        // will cause precision errors
+        localProduct.original_price = "0";
         localProduct.requires_shipping = serverProduct.requires_shipping;
         localProduct.sku = serverProduct.sku;
         localProduct.taxable = serverProduct.taxable;
@@ -714,6 +729,22 @@ WooWrapper = (function () {
         return responseBody;
     }
 
+    /**
+     * Return WOO Item Type depending on NetSuite Item data
+     * @param itemType
+     * @param itemObject
+     * @returns {*}
+     */
+    function getItemType(itemType, itemObject) {
+        var type;
+        switch (itemType) {
+            case ItemExportLibrary.configData.ItemTypes.InventoryItem:
+                type = itemObject.isMatrix ? ItemTypes.Variable : ItemTypes.Simple;
+                break;
+        }
+        return type;
+    }
+
     //function parseResponse(_serverResponse, _function, _type) {
     //    var serverResponse;
     //    var error = getErrorIfExist(_serverResponse, _type);
@@ -898,6 +929,156 @@ WooWrapper = (function () {
             responseBody.message = '';
         }
         return responseBody;
+    }
+
+    /**
+     * Get post data object for inventory item
+     * @param store
+     * @param itemInternalId
+     * @param itemType
+     * @param itemObject
+     */
+    function getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject) {
+        var postdData;
+        switch (itemObject.otherSystemItemType) {
+            case ItemTypes.Simple:
+                getPostDataObjectForSimpleProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case  ItemTypes.Variable:
+                getPostDataObjectForVariableProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case ItemTypes.Grouped:
+                getPostDataObjectForGroupedProduct(store, itemInternalId, itemType, itemObject);
+                break;
+            case  ItemTypes.External:
+                getPostDataObjectForExternalProduct(store, itemInternalId, itemType, itemObject);
+                break;
+        }
+        return postData;
+    }
+
+    function getPostDataObjectForSimpleProduct(store, itemInternalId, itemType, itemObject) {
+        var postData = {};
+
+        postData.product = {};
+        postData.product.title = itemObject.displayName || itemObject.itemId;
+        postData.product.type = itemObject.otherSystemItemType;
+        postData.product.sku = itemObject.itemId;
+        postData.product.regular_price = itemObject.price;
+        postData.product.description = itemObject.storeDetailedDescription;
+        postData.product.short_description = itemObject.storeDescription;
+
+        return postData;
+    }
+
+    function getPostDataObjectForVariableProduct(store, itemInternalId, itemType, itemObject) {
+        var postData = {};
+
+        if (itemObject.isMatrixParentItem) {
+            postData.product = {};
+            postData.product.title = itemObject.displayName || itemObject.itemId;
+            postData.product.type = itemObject.otherSystemItemType;
+            postData.product.sku = itemObject.itemId;
+            postData.product.regular_price = itemObject.price;
+            postData.product.description = itemObject.storeDetailedDescription;
+            postData.product.short_description = itemObject.storeDescription;
+
+            postData.product.attributes = [];
+
+            var matrixParentAttributes = itemObject.matrixParentAttributes;
+            for (var i in matrixParentAttributes) {
+                var matrixParentAttribute = matrixParentAttributes[i];
+                var attribute = {};
+                attribute.name = matrixParentAttribute.itemAttributeName;
+                attribute.slug = matrixParentAttribute.itemAttributeCode;
+                attribute.position = i;
+                attribute.visible = false;
+                attribute.variation = true;
+                attribute.options = [];
+
+                var options = matrixParentAttribute.itemAttributeValues;
+                for (var o in options) {
+                    var option = options[o];
+                    attribute.options.push(option);
+                }
+
+                postData.product.attributes.push(attribute);
+            }
+        }
+        if (itemObject.isMatrixChildItem) {
+            var matrixChild = itemObject;
+            // matrix parent object exist if we are exporting child product
+            var matrixParent = itemObject.MatrixParent;
+
+            postData.product = {};
+            postData.product.title = matrixParent.displayName || matrixParent.itemId;
+            postData.product.type = matrixParent.otherSystemItemType;
+            postData.product.sku = matrixParent.itemId;
+            postData.product.regular_price = matrixParent.price;
+            postData.product.description = matrixParent.storeDetailedDescription;
+            postData.product.short_description = matrixParent.storeDescription;
+
+            postData.product.variations = [];
+
+            var matrixChildAttributes = matrixChild.matrixChildAttributes;
+            var currentVariation = {};
+            currentVariation.id = !!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : '';
+            currentVariation.regular_price = "";
+            currentVariation.attributes = [];
+            for (var i in matrixChildAttributes) {
+                var matrixChildAttribute = matrixChildAttributes[i];
+                var attribute = {};
+                attribute.name = matrixChildAttribute.itemAttributeName;
+                attribute.slug = matrixChildAttribute.itemAttributeCode;
+                attribute.option = matrixChildAttribute.itemAttributeValue;
+                currentVariation.attributes.push(attribute);
+            }
+            postData.product.variations.push(currentVariation);
+        }
+
+        return postData;
+    }
+
+    function getPostDataObjectForGroupedProduct(store, itemInternalId, itemType, itemObject) {
+        Utility.throwException("NOT_SUPPORTED", "Export Grouped Product to WOO is not Supported")
+    }
+
+    function getPostDataObjectForExternalProduct(store, itemInternalId, itemType, itemObject) {
+        Utility.throwException("NOT_SUPPORTED", "Export External Product to WOO is not Supported")
+    }
+
+    function parseSingleCustomerResponse(customer) {
+        var data = {};
+
+        data.customer_id = customer.id.toString();
+        data.email = customer.email;
+        data.firstname = customer.first_name;
+        data.middlename = "";
+        data.lastname = customer.first_name;
+        data.group_id = "";
+        data.prefix = "";
+        data.suffix = "";
+        data.dob = "";
+
+        // addresses
+        data.addresses = [];
+        // handle in future if it is required
+
+        return data;
+    }
+
+    function parseCustomerListResponse(customers) {
+        var customerList = [];
+
+        if (!(customers instanceof Array)) {
+            return customerList;
+        }
+
+        for (var i in customers) {
+            customerList.push(parseSingleCustomerResponse(customers[i]));
+        }
+
+        return customerList;
     }
 
     //endregion
@@ -1720,11 +1901,11 @@ WooWrapper = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
-            if(itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
+        setInventoryItemFields: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            if (itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
                 itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
             }
-            itemObject.otherSystemItemType = 'simple';
+            itemObject.otherSystemItemType = getItemType(itemType, itemObject);
         },
         /**
          * Export Inventory Item to WooCommerce Store
@@ -1733,16 +1914,23 @@ WooWrapper = (function () {
          * @param itemType
          * @param itemObject
          */
-        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
-
+        exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {
+            var id = "";
+            if (itemObject.isMatrixParentItem) {
+                id = !!itemObject.currentExternalSystemId ? '/' + itemObject.currentExternalSystemId : ''
+            } else if (itemObject.isMatrixChildItem) {
+                id = !!itemObject.MatrixParent.currentExternalSystemId ? '/' + itemObject.MatrixParent.currentExternalSystemId : ''
+            }
             var httpRequestData = {
-                url: 'products' + (!!itemObject.currentExternalSystemId ? '/'+itemObject.currentExternalSystemId : ''),
-                method: (!!itemObject.currentExternalSystemId ? 'PUT' : 'POST'),
-                postData: this.getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
+                url: 'products' + id,
+                method: (!!id ? 'PUT' : 'POST'),
+                postData: getPostDataObjectForInventoryItem(store, itemInternalId, itemType, itemObject)
             };
             Utility.logDebug('exportInventoryItem.httpRequestData', JSON.stringify(httpRequestData));
             var responseBody = {};
-            var serverResponse = sendRequest(httpRequestData);
+            var serverResponse = {};//test
+            // todo: undo after testing
+            //var serverResponse = sendRequest(httpRequestData);
             Utility.logDebug('exportInventoryItem.serverResponse', JSON.stringify(serverResponse));
             if (!!serverResponse.product) {
                 responseBody = parseItemSuccessResponse(serverResponse);
@@ -1751,27 +1939,69 @@ WooWrapper = (function () {
             }
             return responseBody;
         },
-        /**
-         * Get post data object for inventory item
-         * @param store
-         * @param itemInternalId
-         * @param itemType
-         * @param itemObject
-         */
-        getPostDataObjectForInventoryItem: function(store, itemInternalId, itemType, itemObject) {
-            var postData = {
-                "product": {
-                    "title": itemObject.displayName || itemObject.itemId,
-                    "type": itemObject.otherSystemItemType,
-                    "sku": itemObject.itemId,
-                    "regular_price": itemObject.price,
-                    "description": itemObject.storeDetailedDescription,
-                    "short_description": itemObject.storeDescription
-                }
-            };
-            return postData;
-        }
 
+        getCustomerList: function (customerObj) {
+            var serverResponse = null;
+
+            // Make Call and Get Data
+            var serverFinalResponse = {
+                status: false,
+                faultCode: '',
+                faultString: '',
+                product: {}
+            };
+
+            var query = "";
+            if (customerObj.hasOwnProperty("query") && !!customerObj.query) {
+                query = customerObj.query;
+            }
+
+            var httpRequestData = {
+                additionalUrl: 'customers' + query,
+                method: 'GET'
+            };
+            try {
+                serverResponse = sendRequest(httpRequestData);
+                serverFinalResponse.status = true;
+
+            } catch (e) {
+                Utility.logException('Error during getCustomerList', e);
+            }
+
+            if (!!serverResponse && serverResponse.customer) {
+                serverFinalResponse.customers = parseCustomerListResponse([serverResponse.customer]);
+            }
+
+            // If some problem
+            if (!serverFinalResponse.status) {
+                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
+            }
+
+            return serverFinalResponse;
+
+        },
+
+        getCustomer: function (customerObj) {
+            var customer = null;
+            var email = customerObj.email;
+
+            var query = "query=";
+            query += "/email/" + email;
+            customerObj.query = query;
+
+            var customerList;
+            var customerListResponse = this.getCustomerList(customerObj);
+
+            if (customerListResponse.hasOwnProperty("customers")) {
+                customerList = customerListResponse.customers;
+            }
+
+            if (customerList instanceof Array && customerList.length) {
+                customer = customerList[0];
+            }
+
+            return customer;
+        }
     };
 
     //endregion
