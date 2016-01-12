@@ -1122,7 +1122,7 @@ ShopifyWrapper = (function () {
          */
         getSalesOrderInfo: function (increment_id, sessionID) {
             var httpRequestData = {
-                additionalUrl: 'orders.jsons?ids=' + increment_id,
+                additionalUrl: 'orders.json?ids=' + increment_id,
                 method: 'GET'
             };
 
