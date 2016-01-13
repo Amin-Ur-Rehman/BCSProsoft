@@ -300,12 +300,22 @@ ShopifyWrapper = (function () {
         localProduct.gift_card = serverProduct.gift_card;
         localProduct.grams = serverProduct.grams;
         localProduct.id = serverProduct.id;
+        localProduct.total_discount = serverProduct.total_discount;
         // price is the original price of item
-        localProduct.price = serverProduct.price;
+        localProduct.original_price =  serverProduct.price;
         // discount will be handling usig total discounts of the order. because in api there is no actual
         // discount value of a unit quantity is found and we'll have to calculate unit price after discount which
-        // will cause precision erros
-        localProduct.original_price = "0";
+        // will cause precision errors
+        localProduct.price = serverProduct.price;
+        /*var discount = Utility.parseFloatNum(localProduct.total_discount);
+        if (discount === 0) {
+            localProduct.price = serverProduct.original_price;
+        } else {
+            var qty = Utility.parseFloatNum(localProduct.qty_ordered);
+            var originalPrice = Utility.parseFloatNum(localProduct.original_price);
+            localProduct.price = ((originalPrice - discount) / qty).toFixed(2);
+        }*/
+
         localProduct.requires_shipping = serverProduct.requires_shipping;
         localProduct.sku = serverProduct.sku;
         localProduct.taxable = serverProduct.taxable;
@@ -318,7 +328,6 @@ ShopifyWrapper = (function () {
         localProduct.properties = serverProduct.properties;
         localProduct.product_exists = serverProduct.product_exists;
         localProduct.fulfillable_quantity = serverProduct.fulfillable_quantity;
-        localProduct.total_discount = serverProduct.total_discount;
         localProduct.tax_lines = serverProduct.tax_lines;
         localProduct.item_id = serverProduct.id.toString();
         localProduct.variants = serverProduct.variants;

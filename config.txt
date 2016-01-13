@@ -63,3 +63,12 @@ Connector has been deployed on this account.
 ====================================================================================================
                                         OTHER DETAIL
 ====================================================================================================
+
+After installing bundle,
+
+1. Goto Customization->SuiteBundler->Search & Install Bundles->List
+2. Find the bundle named UnifiedConnector which is recently installed
+3. Note Bundle ID
+4. Then, goto General Preferences of Company
+4. Set the field as below
+    FC BUNDLE ID = suitebundle<Bundle ID>       e.g suitebundle89131
