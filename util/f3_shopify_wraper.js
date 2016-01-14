@@ -160,6 +160,7 @@ ShopifyWrapper = (function () {
              That call bring only order increment ids now, all the other properties are fetched from
              order detail call now
              */
+            localOrder.customer.order_number = serverOrder.order_number.toString();
             localOrder.customer.order_id = serverOrder.order_number.toString();
             localOrder.customer.created_at = serverOrder.created_at.toString();
             localOrder.customer.grandtotal = serverOrder.total_price.toString();
@@ -697,7 +698,7 @@ ShopifyWrapper = (function () {
                 "kind": "authorization",
                 "status": "success",
                 "amount": orderRecord.orderTotal,// this might be causing error in future
-                "message": "Chay Script"
+                "message": "By Integration Script"
             }
         ];
 
@@ -721,7 +722,7 @@ ShopifyWrapper = (function () {
         couponData.code = promoCodeRecord.couponCode.toLowerCase();
         couponData.type = getDiscountType(promoCodeRecord.discountType);
         couponData.amount = promoCodeRecord.rate.replace("%", ""); //remove % from value if exist
-        couponData.individual_use = promoCodeRecord.numberOfUses.toString() === "MULTIPLEUSES" ? true : false;
+        couponData.individual_use = promoCodeRecord.numberOfUses.toString() === "MULTIPLEUSES";
         couponData.expiry_date = !!promoCodeRecord.endDate ? nlapiStringToDate(promoCodeRecord.endDate).toISOString() : "";
         couponData.description = promoCodeRecord.description;
         return couponData;
@@ -2027,6 +2028,7 @@ ShopifyWrapper = (function () {
          * @param store
          * @param itemInternalId
          * @param itemType
+         * @param itemObject
          * @param itemObject
          */
         exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {

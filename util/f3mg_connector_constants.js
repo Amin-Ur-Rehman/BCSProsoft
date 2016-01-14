@@ -65,7 +65,8 @@ ConnectorConstants = (function () {
                 MagentoInvoiceId: 'custbody_f3mg_invoice_id',
                 ExternalSystemSalesOrderModifiedAt: 'custbody_f3mg_external_modified_time',
                 NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time',
-		MagentoShipmentId: 'custbody_magento_shipment_id'
+                MagentoShipmentId: 'custbody_magento_shipment_id',
+                ExternalSystemNumber: 'custbody_external_system_number'
             },
             Columns: {
                 MagentoOrderId: 'custcol_mg_order_item_id'
@@ -184,7 +185,7 @@ ConnectorConstants = (function () {
                 UPS_GND: "ups_GND",
                 UPS_XPD: "ups_XPD",
                 UPS_EMPTY: "ups_",
-		FLAT_RATE: "flatrate_flatrate"
+                FLAT_RATE: "flatrate_flatrate"
             }
         },
         MagentoCustomerGroups: {
@@ -210,7 +211,7 @@ ConnectorConstants = (function () {
         initialize: function () {
             //this.ExternalSystemConfig = ExternalSystemConfig.getConfig();
             this.ExternalSystemConfig = ExternalSystemConfig.getConfig();
-            this.Client = F3ClientFactory.createClient('F3BaseV1');
+            this.Client = F3ClientFactory.createClient(nlapiGetContext().getCompany().toString());
         },
         initializeScrubList: function () {
             this.ScrubsList = FC_ScrubHandler.getAllScrubsList();

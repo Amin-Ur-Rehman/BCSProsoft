@@ -534,6 +534,7 @@ MagentoXmlWrapper = (function () {
             var customer = {};
             var order = nlapiSelectNode(xml, "//result");
             customer.increment_id = nlapiSelectValue(order, 'increment_id');
+            customer.order_number = nlapiSelectValue(order, 'increment_id');
             customer.order_id = nlapiSelectValue(order, 'order_id');
             customer.created_at = nlapiSelectValue(order, 'created_at');
             customer.customer_id = nlapiSelectValue(order, 'customer_id');
