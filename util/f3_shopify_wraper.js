@@ -160,7 +160,7 @@ ShopifyWrapper = (function () {
              That call bring only order increment ids now, all the other properties are fetched from
              order detail call now
              */
-            localOrder.customer.order_number = serverOrder.order_number.toString();
+            localOrder.customer.order_number = (serverOrder.name.toString() || serverOrder.order_number.toString());
             localOrder.customer.order_id = serverOrder.order_number.toString();
             localOrder.customer.created_at = serverOrder.created_at.toString();
             localOrder.customer.grandtotal = serverOrder.total_price.toString();
