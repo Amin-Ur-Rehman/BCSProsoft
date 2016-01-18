@@ -387,6 +387,10 @@ function startup(type) {
                 lastStoreId = specificStoreId;
             }
 
+            var rec = nlapiCreateRecord('customrecord_dummy');
+            rec.setFieldValue('custrecord_data',JSON.stringify(externalSystemConfig));
+            nlapiSubmitRecord(rec);
+
             for (var system = lastStoreId, specificStoreCount = 0; system < externalSystemConfig.length; system++, specificStoreCount++) {
                 // Add a Check whether categories synched or not , if not then stop and give msg that ensure the sync of categories first
                 try {
