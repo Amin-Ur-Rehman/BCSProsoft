@@ -19,6 +19,10 @@
  */
 EbayWrapper = (function () {
 
+    var storeConfiguration = null;
+    var BUYER_CHECKOUT_MESSAGE;
+    var auctionDataCollection  = {};
+
     //region Private Methods
 
     /**
@@ -963,7 +967,427 @@ EbayWrapper = (function () {
     }
 
 
+    HttpHeadersValues = {
+        X_EBAY_API_SITEID: '0',
+        // Content_Type : 'text/xml',
+        // Request_Payload : '',
+        X_EBAY_API_COMPATIBILITY_LEVEL: '849'
+    }
 
+    var Operations = {
+        findItemsByKeywords: 'findItemsByKeywords',
+        SetNotificationPreferences: 'SetNotificationPreferences',
+        GetClientAlertsAuthToken: 'GetClientAlertsAuthToken',
+        Login: 'Login',
+        GetUserAlerts: 'GetUserAlerts',
+        Logout: 'Logout',
+        GetItemTransactions: 'GetItemTransactions',
+        GetItem: 'GetItem',
+        CompleteSale: 'CompleteSale',
+        GetNotificationPreferences: 'GetNotificationPreferences',
+        GetMyeBaySelling: 'GetMyeBaySelling',
+        GeteBayOfficialTime: 'GeteBayOfficialTime',
+        GetSuggestedCategories: 'GetSuggestedCategories',
+        VerifyAddItem: 'VerifyAddItem',
+        AddItem: 'AddItem',
+        ReviseItem: 'ReviseItem',
+        VerifyAddFixedPriceItem: 'VerifyAddFixedPriceItem',
+        AddFixedPriceItem: 'AddFixedPriceItem',
+        ReviseFixedPriceItem: 'ReviseFixedPriceItem'
+    }
+
+    HttpHeaders = {
+        X_EBAY_API_COMPATIBILITY_LEVEL: 'X-EBAY-API-COMPATIBILITY-LEVEL',
+        X_EBAY_API_DEV_NAME: 'X-EBAY-API-DEV-NAME',
+        SECURITY_APPNAME: 'X-EBAY-API-APP-NAME',
+        X_EBAY_API_CERT_NAME: 'X-EBAY-API-CERT-NAME',
+        X_EBAY_API_CALL_NAME: 'X-EBAY-API-CALL-NAME',
+        X_EBAY_API_SITEID: 'X-EBAY-API-SITEID'
+        // Content_Type : 'Content-Type',
+        // Request_Payload : 'Request Payload'
+    }
+
+    //get response page count
+    function getResponsePageCount() {
+        try {
+            //TODO: fetch from configuration
+            var durationdays = 20;
+            //TODO: fetch from configuration
+            var orderStatusFilter = 2;
+            var orderStatus = getOrderStatus(orderStatusFilter);
+
+            Utility.logDebug('orderStatusFilter', orderStatusFilter);
+
+            if (isNaN(durationdays) || durationdays < 1) {
+                durationdays = 1;
+            }
+
+            var pageNumber = 1;
+
+            Utility.logDebug('pageNumber durationdays orderStatus', pageNumber + '  ' + durationdays + '   ' + orderStatus);
+
+            var GetMyebaySellingResponse = GetMyEbaySelling(pageNumber, durationdays, orderStatus);
+
+            var regex = new RegExp('"', 'g');
+            var responseString = GetMyebaySellingResponse.getBody().replace(regex, '\"');
+
+            Utility.logDebug('GetMyebaySellingResponse', responseString);
+
+
+            //updateResponseinFile(GetMyebaySellingResponse .getBody())
+            var pageCount = GetPageCount(GetMyebaySellingResponse);
+            return pageCount;
+
+        } catch (ex) {
+            Utility.logException('Error in getResponsePageCount', 'Error Message:' + ex.message + ' Error:' + ex.toString());
+        }
+    }
+
+
+    //Return Number of pages of MyebaySelling Request
+    function GetPageCount(GetMyebaySellingResponse) {
+        try {
+            Utility.logDebug('Response Body', nlapiEscapeXML(GetMyebaySellingResponse.getBody()));
+            var ordersXml;
+            var regex = new RegExp('"', 'g');
+            ordersXml = GetMyebaySellingResponse.getBody().replace(regex, '\"');
+
+            var transactionXml = nlapiStringToXML(ordersXml);
+
+            var totalNumberOfPages = nlapiSelectValue(transactionXml, '//nlapi:TotalNumberOfPages');
+
+
+            Utility.logDebug('Total Number Of Pages', totalNumberOfPages);
+
+            return totalNumberOfPages;
+        } catch (ex) {
+            Utility.logDebug('error in GetAuctions', ex.toString());
+        }
+    }
+
+
+    //get order status Text
+    function getOrderStatus(orderStatusId) {
+        try {
+            orderStatus = {
+                1: 'All',
+                2: 'AwaitingPayment',
+                3: 'AwaitingShipment',
+                4: 'CustomCode',
+                5: 'PaidAndShipped'
+
+            };
+            return orderStatus[orderStatusId];
+        } catch (ex) {
+            Utility.logException('Error in getOrderStatus', 'Error Message:' + ex.message + ' Error:' + ex.toString());
+        }
+    }
+
+    function GetMyEbaySelling(pagenumber, durationdays, orderStatusFilter) {
+        var postData = generateXmlForMyEbaySelling(pagenumber, durationdays, orderStatusFilter);
+        return callXmlService(Operations.GetMyeBaySelling, postData, null);
+    }
+
+    function callXmlService(operation, postData, credentials) {
+        try {
+
+            var headers = [];
+            for (var key in HttpHeadersValues) {
+                headers[HttpHeaders[key]] = HttpHeadersValues[key];
+            }
+            var params = getHttpCredentials(credentials);
+            for (var key in params) {
+                headers[key] = params[key];
+            }
+            headers[HttpHeaders.X_EBAY_API_CALL_NAME] = operation;
+            var url = storeConfiguration.endpoint;
+            var response = nlapiRequestURL(url, postData, headers);
+            return responseCheck(response);
+        } catch (exp) {
+            Utility.logException('Error', exp);
+            throw exp;
+        }
+    }
+
+    function responseCheck(response) {
+        try {
+            var responseString;
+            var regex = new RegExp('"', 'g');
+            responseString = response.getBody().replace(regex, '\"');
+            nlapiLogExecution('DEBUG', 'responseString', responseString);
+            var responseXml = nlapiStringToXML(responseString);
+            var ack = nlapiSelectValue(responseXml, '//nlapi:Ack');
+            var expirationNode = null;
+            if (ack == 'Failure') {
+                var errorNode = nlapiSelectNode(responseXml, '//nlapi:Errors');
+                var errorCode = nlapiSelectValue(errorNode, '//nlapi:ErrorCode');
+                var shortErrorMessage = nlapiSelectValue(errorNode, '//nlapi:ShortMessage');
+                var longErrorMessage = nlapiSelectValue(errorNode, '//nlapi:LongMessage');
+                Utility.logException('eBay Error Code', errorCode);
+                Utility.logException( 'Short eBay Error Message', shortErrorMessage);
+                Utility.logException('Long  eBay Error Message', longErrorMessage);
+                expirationNode = nlapiSelectNode(responseXml, '//nlapi:HardExpirationWarning');
+                if (expirationNode != null && expirationNode != undefined && expirationNode != '') {
+                    nlapiLogExecution('ERROR', 'eBay Auth Token is expiring', 'Please generate new ebay auth token otherwise eBay connector stop working.');
+                    var subject = 'eBay AuthToken Expiration Warning';
+                    var body = 'Hi,\nYour eBay AuthToken will expire soon.\nPlease generate new eBay AuthToken and update it in eBay configuration record otherwise eBay Connector will not working.';
+                    sendNotification(subject, body);
+                }
+                if (errorCode == '702') {
+                    var subject = 'eBay Server Timeout';
+                    var body = 'Hi,\n eBay server Timeout your request.\nPlease try later or contact your administrator.';
+                    sendNotification(subject, body);
+
+                }
+                if (errorCode == '932' || errorCode == '16110' || errorCode == '17470') {
+                    var subject = 'eBay AuthToken Expired';
+                    var body = 'Hi,\nYour eBay AuthToken has been expired.\nPlease generate new token and update it in eBay configuration record otherwise eBay Connector will not working.';
+                    sendNotification(subject, body);
+                }
+
+            }
+            if (ack == 'Warning') {
+                expirationNode = nlapiSelectNode(responseXml, '//nlapi:HardExpirationWarning');
+                if (expirationNode != null && expirationNode != undefined && expirationNode != '') {
+                    Utility.logException('eBay Auth Token is expiring', 'Please generate new ebay auth token otherwise eBay connector stop working.');
+                    var subject = 'eBay AuthToken Expiration Warning';
+                    var body = 'Hi,\nYour eBayAuthToken will expire soon.\nPlease generate new eBay AuthToken and update it in eBay configuration record otherwise eBay Connector will not working.';
+                    sendNotification(subject, body);
+                }
+            }
+
+            return response;
+        } catch (ex) {
+            Utility.logException('Error in responseCheck', 'Error Message:' + ex.message);
+            Utility.logException('Error in responseCheck', 'Error:' + ex.toString());
+            throw ex;
+        }
+    }
+
+    function sendNotification(subject, body) {
+        //TODO : fetch from configuration
+        var to = 'smehmood@folio3.com';
+        //TODO : fetch from configuration
+        var from = '3042'; //Employee Id
+
+        if (to && from) {
+            var toArr = to.split(',');
+            for (var i = 0, l = toArr.length; i < l; i++) {
+                try {
+                    nlapiSendEmail(from, toArr[i], subject, body);
+                } catch (e) {
+                    Utility.logException('Email Error', 'Cannot send email to ' + toArr[i] + ' error:' + e);
+                }
+            }
+        }
+    }
+
+    function getHttpCredentials(credentials) {
+        var params = [];
+        params[HttpHeaders.SECURITY_APPNAME] = storeConfiguration.entitySyncInfo.ebayKeys.appid;
+        params[HttpHeaders.X_EBAY_API_DEV_NAME] = storeConfiguration.entitySyncInfo.ebayKeys.devid;
+        params[HttpHeaders.X_EBAY_API_CERT_NAME] = storeConfiguration.entitySyncInfo.ebayKeys.certid;
+        return params;
+    }
+
+
+    function generateXmlForMyEbaySelling(pagenumber, durationdays, orderStatusFilter) {
+        var operation = Operations.GetMyeBaySelling;
+        var xml = getBasicXmlHeader(operation, null) + '<SoldList>' + '<DurationInDays>' + durationdays + '</DurationInDays>' + '<Include>1</Include>' + '<IncludeNotes>0</IncludeNotes>' + '<OrderStatusFilter>' + orderStatusFilter + '</OrderStatusFilter>' + '<Pagination> ' + '<EntriesPerPage>200</EntriesPerPage>' + '<PageNumber>' + pagenumber + '</PageNumber>' + '</Pagination>' + '<Sort>EndTimeDescending</Sort>' + '</SoldList>' + '<WarningLevel>High</WarningLevel>' + getBasicXmlFooter(operation);
+        return xml;
+    }
+
+    function getBasicXmlFooter(operation) {
+        return '</' + Operations[operation] + 'Request>';
+    }
+
+    function getBasicXmlHeader(operation) {
+        Utility.logDebug('storeConfiguration', JSON.stringify(storeConfiguration));
+        var authToken = storeConfiguration.entitySyncInfo.ebayKeys.token;
+        var xml = '<?xml version="1.0" encoding="utf-8"?>' + '<' + Operations[operation] + 'Request xmlns="urn:ebay:apis:eBLBaseComponents">' + '<RequesterCredentials>' + '<eBayAuthToken>'
+            + '<![CDATA[' + authToken + ']]>' + '</eBayAuthToken>' + '</RequesterCredentials>';
+        return xml;
+    }
+
+    //get all the recent ebay orders
+    function getRecentAuctions(pageNumber) {
+        try {
+            //TODO: to fetch from configuration
+            var durationdays = 20;
+            var orderStatusFilter = 2;
+            var orderStatus = getOrderStatus(orderStatusFilter);
+
+            Utility.logDebug('orderStatusFilter', orderStatusFilter);
+            if (isNaN(durationdays) || durationdays < 1) {
+                durationdays = 1;
+            }
+            var GetMyebaySellingResponse = GetMyEbaySelling(pageNumber, durationdays, orderStatus);
+            var auctions = GetAuctions(GetMyebaySellingResponse);
+            return auctions;
+        } catch (ex) {
+            Utility.logException('Error in getRecentAuctions', 'Error Message:' + ex.message + ' Error:' + ex.toString());
+        }
+
+    }
+
+
+    function  GetAuctions (GetMyebaySellingResponse) {
+        try {
+            var ebayTransactionsArray = [];
+            var j = 0;
+            var ordersXml;
+            var regex = new RegExp('"', 'g');
+            ordersXml = GetMyebaySellingResponse.getBody().replace(regex, '\"');
+            var transactionXml = nlapiStringToXML(ordersXml);
+            Utility.logDebug('TransactionXML', nlapiEscapeXML(ordersXml));
+            var transactionArray = nlapiSelectNode(transactionXml, '//nlapi:OrderTransactionArray');
+            Utility.logDebug('transactionArray', transactionArray);
+            var transactions = transactionArray.childNodes;
+            Utility.logDebug('length', transactions.length);
+            for (var i = 0; i < transactions.length; i++) {
+                var transaction = transactions.item(i);
+                var tnode = nlapiSelectNode(transaction, 'nlapi:Transaction');
+                if (tnode != undefined && tnode != null) {
+                    ebayTransactionsArray[j] = XMLtoObj(tnode);
+                    j++;
+                } else {
+                    //if single buyer purchase multiple items
+                    var orderTransactionArray = nlapiSelectNode(transaction, 'nlapi:Order/nlapi:TransactionArray');
+                    var orderTransactions = orderTransactionArray.childNodes;
+                    for (var k = 0; k < orderTransactions.length; k++) {
+                        var orderTransaction = orderTransactions.item(k);
+                        ebayTransactionsArray[j] = XMLtoObj(orderTransaction);
+                        j++;
+                    }
+                }
+            }
+            return ebayTransactionsArray;
+        } catch (ex) {
+            Utility.logDebug('error in GetDataFromMultiplePages', ex.toString());
+        }
+    }
+
+
+    function XMLtoObj(transactionXML) {
+        try {
+            var orderObj = {};
+            var customer = nlapiSelectNode(transactionXML, 'nlapi:Buyer');
+            orderObj.BuyerEmail = nlapiSelectValue(customer, 'nlapi:Email');
+            orderObj.BuyerUserName = nlapiSelectValue(customer, 'nlapi:UserID');
+            var item = nlapiSelectNode(transactionXML, 'nlapi:Item');
+            orderObj.Title = nlapiSelectValue(item, 'nlapi:Title');
+            orderObj.ItemID = nlapiSelectValue(item, 'nlapi:ItemID');
+            orderObj.TransactionID = nlapiSelectValue(transactionXML, 'nlapi:TransactionID');
+            orderObj.QuantitySold = nlapiSelectValue(transactionXML, 'nlapi:QuantityPurchased');
+            orderObj.TransactionPrice = nlapiSelectValue(transactionXML, 'nlapi:TotalTransactionPrice');
+            var shipping = nlapiSelectNode(item, 'nlapi:ShippingDetails/nlapi:ShippingServiceOptions');
+            orderObj.ShippingCost = nlapiSelectValue(shipping, 'nlapi:ShippingServiceCost');
+            orderObj.CreatedDate = nlapiSelectValue(transactionXML, 'nlapi:CreatedDate');
+            return orderObj;
+        } catch (ex) {
+            Utility.logDebug('error in XMLtoObj', ex.toString());
+        }
+    }
+    //get ebay user info
+    function getEbayUser(auctionId, transactionId) {
+        try {
+            if (auctionId == transactionId) {
+                transactionId = 0;
+            }
+            var userResponse = GetUserDetails(auctionId, 1, transactionId);
+            var user = GetEbayUser(userResponse, transactionId, auctionId);
+            return user;
+        } catch (ex) {
+            Utility.logException('Error in getEbayUser', 'Error Message:' + ex.message + ' Error:' + ex.toString());
+        }
+    }
+
+    function GetEbayUser (userResponse,transactionID,auctionID)
+    {
+        var userXml = nlapiStringToXML(userResponse.getBody());
+        Utility.logDebug('UserXML',userResponse.getBody());
+        var transactionArray=nlapiSelectNode(userXml,'//nlapi:TransactionArray');
+        var transactions = transactionArray.childNodes;
+        var transactionXml;
+        for(var i=0;i<transactions.length;i++)
+        {
+            var transaction= transactions.item(i);
+            if(transaction.nodeType===1)
+            {
+                if(transactionID != auctionID)
+                {
+                    if(nlapiSelectValue(transaction,'nlapi:TransactionID')==transactionID)
+                    {
+                        transactionXml=transaction;
+                        break;
+                    }
+                }
+                else
+                {
+                    transactionXml=transaction;
+                    break;
+                }
+            }
+        }
+        if(transactionXml!="" && transactionXml != null && transactionXml != undefined)
+        {
+            var userObj = {};
+            var customer = nlapiSelectNode(transactionXml,'nlapi:Buyer');
+            //userObj.Email = nlapiSelectValue(customer,'nlapi:Email');
+            userObj.UserName = nlapiSelectValue(customer,'nlapi:UserID');
+            var shippingAddress = nlapiSelectNode(customer,'nlapi:BuyerInfo/nlapi:ShippingAddress');
+            var tempName = nlapiSelectValue(shippingAddress ,'nlapi:Name');
+            tempName = tempName.split(" ");
+            userObj.Status = nlapiSelectValue(shippingAddress ,'nlapi:Status');
+            userObj.Phone = nlapiSelectValue(shippingAddress ,'nlapi:Phone');
+            userObj.PostalCode = nlapiSelectValue(shippingAddress ,'nlapi:PostalCode');
+            userObj.Address1 = nlapiSelectValue(shippingAddress ,'nlapi:Street1');
+            userObj.Address2 = nlapiSelectValue(shippingAddress ,'nlapi:Street2');
+            userObj.City = nlapiSelectValue(shippingAddress ,'nlapi:CityName');
+            userObj.State = nlapiSelectValue(shippingAddress ,'nlapi:StateOrProvince');
+            userObj.CountryCode = nlapiSelectValue(shippingAddress ,'nlapi:Country');
+            userObj.CountryName = nlapiSelectValue(shippingAddress ,'nlapi:CountryName');
+            userObj._isGuestCustomer = false;
+            userObj.customer_id = 1;
+            userObj.email = nlapiSelectValue(customer,'nlapi:Email');
+            userObj.customer_firstname = tempName[0];
+            userObj.customer_middlename = '';
+            userObj.customer_lastname = tempName[1];
+            userObj.group_id = null;
+            userObj.customer_prefix = '';
+            userObj.customer_suffix = '';
+            userObj.customer_dob = null;
+
+
+            Utility.logDebug('USERNAME',userObj.UserName);
+            Utility.logDebug('TempNAME',tempName);
+            var buyerMessageNode = nlapiSelectNode(transactionXml,'nlapi:BuyerCheckoutMessage');
+            if(buyerMessageNode != null && buyerMessageNode != '' && buyerMessageNode != undefined)
+            {
+                BUYER_CHECKOUT_MESSAGE = nlapiSelectValue(transactionXml ,'nlapi:BuyerCheckoutMessage');
+            }
+            else
+            {
+                BUYER_CHECKOUT_MESSAGE = '';
+            }
+            return userObj;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    function GetUserDetails(itemId, pageNumber, transactionId) {
+        var postData = generateXmlForGetUserRequest(itemId, pageNumber, transactionId);
+        return callXmlService(Operations.GetItemTransactions, postData, null);
+    }
+
+    function generateXmlForGetUserRequest(itemId, pageNumber, transactionId) {
+        var operation = Operations.GetItemTransactions;
+        var xml = getBasicXmlHeader(operation, null) + ' <ItemID>' + itemId + '</ItemID>' + '<TransactionID>' + transactionId + '</TransactionID>' + ' <Pagination>' + '<EntriesPerPage>200</EntriesPerPage>' + '<PageNumber>' + pageNumber + '</PageNumber>' + '</Pagination>' + getBasicXmlFooter(operation);
+        return xml;
+    }
 
     //endregion
 
@@ -977,9 +1401,11 @@ EbayWrapper = (function () {
         initialize: function (storeInfo) {
             if (!!storeInfo) {
                 this.storeConfiguration = storeInfo;
+                storeConfiguration = storeInfo;
+                Utility.logDebug('this.storeConfiguration', JSON.stringify(this.storeConfiguration));
             }
         },
-        storeConfiguration:{},
+        storeConfiguration: {},
         RequestHeader: '',
         RequestFooter: '',
 
@@ -988,6 +1414,7 @@ EbayWrapper = (function () {
         AuthHeader: '',
 
         ServerUrl: 'https://b388d7f6e9f8b4a83e8c3727a81e0f0b:1a17d30a1d626eece53d366ab0b2b240@f3-test-store-001.myEbay.com/admin/',
+
 
         /**
          * Gets supported Date Format
@@ -1017,50 +1444,39 @@ EbayWrapper = (function () {
          * @returns {*}
          */
         getSalesOrders: function (order, sessionID) {
+            var serverFinalResponse = {};
+            serverFinalResponse.orders = [];
+            var dataObject;
+            serverFinalResponse.status = false;
 
-            var httpRequestData = {
-                additionalUrl: 'orders.json?created_at_min=' + order.updateDate,
-                method: 'GET'
-            };
-
-            var serverResponse = null;
-
-            // Make Call and Get Data
-            var serverFinalResponse = {
-                status: false,
-                faultCode: '',
-                faultString: '',
-                orders: []
-            };
-
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
-
-                if (!!serverResponse && serverResponse.orders) {
-                    serverFinalResponse.orders = parseSalesOrderResponse(serverResponse.orders);
-                } else {
-                    Utility.logDebug('Error in order response', JSON.stringify(serverResponse));
+            var pageCount = getResponsePageCount();
+            Utility.logDebug('pageCount', pageCount);
+            for (var i = 1; i <= pageCount; i++) {
+                Utility.logDebug('Response Pages Number', i);
+                //get Auctions on the page
+                var AuctionResult = getRecentAuctions(i);
+                if(!!AuctionResult) {
+                    Utility.logDebug('AuctionResult', AuctionResult.length);
+                    for (var j in AuctionResult) {
+                        dataObject = {};
+                        dataObject.increment_id  = AuctionResult[j].TransactionID;
+                        dataObject.order_id  = AuctionResult[j].TransactionID;
+                        dataObject.itemid = AuctionResult[j].ItemID;
+                        auctionDataCollection[dataObject.increment_id] = dataObject;
+                        serverFinalResponse.orders.push(dataObject);
+                        //TODO :added break to procss only one transaction during development
+                        break;
+                    }
                 }
-                Utility.logDebug('Ebay Wrapper: serverFinalResponse', JSON.stringify(serverFinalResponse));
-            } catch (e) {
-                serverFinalResponse.faultCode = 'SERVER_ERROR';
-                serverFinalResponse.faultString = e.toString();
-
-                Utility.logException('Ebay Wrapper: Error during getSalesOrders', e);
+                else
+                    Utility.logDebug('AuctionResult', 'is null');
             }
-
-            // If some problem
-            if (!serverFinalResponse.status) {
-                var result = {
-                    status: false
-                };
-                result.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
-                return result;
-            }
-
+            serverFinalResponse.status = true;
+            ConnectorConstants.Client = F3ClientFactory.createClient('F3BaseV1Ebay');
             return serverFinalResponse;
         },
+
+
 
         /**
          * Gets Sales Order information for individual order
@@ -1069,52 +1485,56 @@ EbayWrapper = (function () {
          * @returns {{status: boolean, faultCode: string, faultString: string}}
          */
         getSalesOrderInfo: function (increment_id, sessionID) {
-            var httpRequestData = {
-                additionalUrl: 'orders.json?ids=' + increment_id,
-                method: 'GET'
-            };
+            var serverFinalResponse = {};
 
-            var serverResponse = null;
+            //serverFinalResponse.shippingAddress
+            //serverFinalResponse.billingAddress;
 
-            // Make Call and Get Data
-            var serverFinalResponse = {
-                status: false,
-                faultCode: '',
-                faultString: ''
-            };
+            serverFinalResponse.customer =  getEbayUser(auctionDataCollection[increment_id].itemid, increment_id);
 
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
+            Utility.logDebug('increment_id : ' + increment_id +'  auctionDataCollection[increment_id].itemid  ' + auctionDataCollection[increment_id].itemid );
+            Utility.logDebug('serverFinalResponse.customer' , JSON.stringify(serverFinalResponse.customer));
 
-            } catch (e) {
-                Utility.logException('Error during getSalesOrders', e);
+            if(!!serverFinalResponse.customer) {
+                serverFinalResponse.shippingAddress = {};
+                serverFinalResponse.shippingAddress.address_id = 1;
+                serverFinalResponse.shippingAddress.city = serverFinalResponse.customer.City;
+                serverFinalResponse.shippingAddress.country_id = serverFinalResponse.customer.CountryCode;
+                serverFinalResponse.shippingAddress.firstname = serverFinalResponse.customer.FirstName;
+                serverFinalResponse.shippingAddress.lastname = serverFinalResponse.customer.LastName;
+                serverFinalResponse.shippingAddress.postcode = serverFinalResponse.customer.PostalCode;
+                serverFinalResponse.shippingAddress.region = '';
+                serverFinalResponse.shippingAddress.region_id = '';
+                serverFinalResponse.shippingAddress.street = '';
+                serverFinalResponse.shippingAddress.telephone = serverFinalResponse.customer.Phone;
+                serverFinalResponse.shippingAddress.is_default_billing = false;
+                serverFinalResponse.shippingAddress.is_default_shipping = true;
+
+                serverFinalResponse.billingAddress = {};
+                serverFinalResponse.billingAddress.address_id = 1;
+                serverFinalResponse.billingAddress.city = serverFinalResponse.customer.City;
+                serverFinalResponse.billingAddress.country_id = serverFinalResponse.customer.CountryCode;
+                serverFinalResponse.billingAddress.firstname = serverFinalResponse.customer.FirstName;
+                serverFinalResponse.billingAddress.lastname = serverFinalResponse.customer.LastName;
+                serverFinalResponse.billingAddress.postcode = serverFinalResponse.customer.PostalCode;
+                serverFinalResponse.billingAddress.region = '';
+                serverFinalResponse.billingAddress.region_id = '';
+                serverFinalResponse.billingAddress.street = '';
+                serverFinalResponse.billingAddress.telephone = serverFinalResponse.customer.Phone;
+                serverFinalResponse.billingAddress.is_default_billing = true;
+                serverFinalResponse.billingAddress.is_default_shipping = false;
             }
 
-            if (!!serverResponse && serverResponse.orders) {
-                //Utility.logDebug('Ebay Response of Order Details:', JSON.stringify(serverResponse));
-                var orders = parseSalesOrderResponse(serverResponse.orders, true);
+            serverFinalResponse.payment = {};
+            serverFinalResponse.products = [];
+            serverFinalResponse.products[0] = {};
+            serverFinalResponse.products[0].item_id = auctionDataCollection[increment_id].itemid;
+            //serverFinalResponse.customer
 
-                if (!!orders && orders.length > 0) {
-                    //Utility.logDebug('Ebay parsed Response for Order Details:', JSON.stringify(orders));
-                    serverFinalResponse.customer_id = orders[0].customer_id;
-                    serverFinalResponse.shippingAddress = orders[0].shippingAddress;
-                    serverFinalResponse.billingAddress = orders[0].billingAddress;
-                    serverFinalResponse.payment = orders[0].payment;
-                    serverFinalResponse.products = orders[0].products;
-                    serverFinalResponse.customer = orders[0].customer;
-                } else {
-                    serverFinalResponse.status = false;
-                    serverFinalResponse.faultCode = "RECORD_DOES_NOT_EXIST";
-                    serverFinalResponse.faultString = "Order is not found";
-                }
-            }
 
-            // If some problem
-            if (!serverFinalResponse.status) {
-                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
-            }
-
+            serverFinalResponse.faultCode = '';
+            serverFinalResponse.faultString = '';
+            serverFinalResponse.status = true;
             return serverFinalResponse;
         },
 
@@ -1866,21 +2286,6 @@ EbayWrapper = (function () {
             magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
             result.errorMsg = '';
             try {
-                /*filterExpression = "[[";
-                 for (var x = 0; x < magentoIds.length; x++) {
-                 // multiple store handling
-                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
-                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
-                 if ((x + 1) < magentoIds.length) {
-                 filterExpression = filterExpression + ",'or' ,";
-                 }
-                 }
-                 filterExpression = filterExpression + ']';
-                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
-                 Utility.logDebug(' filterExpression', filterExpression);
-                 filterExpression = eval(filterExpression);
-                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
-                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
                 filterExpression = "[[";
                 for (var x = 0; x < magentoIds.length; x++) {
                     // multiple store handling
