@@ -2638,6 +2638,9 @@ MagentoXmlWrapper = (function () {
             }
 
             return customer;
+        },
+        getDiscount:function(salesOrderObj){
+            return salesOrderObj.order.discount_amount;
         }
     };
 })();
