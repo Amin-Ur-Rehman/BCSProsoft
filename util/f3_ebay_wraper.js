@@ -1472,7 +1472,7 @@ EbayWrapper = (function () {
                     Utility.logDebug('AuctionResult', 'is null');
             }
             serverFinalResponse.status = true;
-            ConnectorConstants.Client = F3ClientFactory.createClient('F3BaseV1Ebay');
+            //ConnectorConstants.Client = F3ClientFactory.createClient('F3BaseV1Ebay');
             return serverFinalResponse;
         },
 
@@ -1491,6 +1491,8 @@ EbayWrapper = (function () {
             //serverFinalResponse.billingAddress;
 
             serverFinalResponse.customer =  getEbayUser(auctionDataCollection[increment_id].itemid, increment_id);
+            if(!!serverFinalResponse.customer)
+            serverFinalResponse.customer.increment_id = increment_id;
 
             Utility.logDebug('increment_id : ' + increment_id +'  auctionDataCollection[increment_id].itemid  ' + auctionDataCollection[increment_id].itemid );
             Utility.logDebug('serverFinalResponse.customer' , JSON.stringify(serverFinalResponse.customer));

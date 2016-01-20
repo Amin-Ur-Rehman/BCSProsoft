@@ -1460,7 +1460,7 @@ function F3BaseV1ClientEbay() {
                 isDummyItemSetInOrder = true;
                 rec.setLineItemValue('item', 'amount', x + 1, '0');
                 rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
-                rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
+                //rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
             }
 
             if (isSerial == 'T') {
@@ -1503,8 +1503,8 @@ function F3BaseV1ClientEbay() {
 
         try {
             rec.setFieldValue(magentoSyncId, 'T');
-            //rec.setFieldValue(magentoIdId, order.increment_id.toString());
-            //rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+            rec.setFieldValue(magentoIdId, order.increment_id.toString());
+            rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
             //rec.setFieldValue('memo', 'Test Folio3');
             if (isDummyItemSetInOrder) {
                 // A = Pending Approval
