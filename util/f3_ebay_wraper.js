@@ -1088,7 +1088,7 @@ EbayWrapper = (function () {
         return callXmlService(Operations.GetMyeBaySelling, postData, null);
     }
 
-    function callXmlService(operation, postData, credentials) {
+    function callXmlService(operation, postData, credentials,customHeaders) {
         try {
 
             var headers = [];
@@ -1102,12 +1102,41 @@ EbayWrapper = (function () {
             headers[HttpHeaders.X_EBAY_API_CALL_NAME] = operation;
             var url = storeConfiguration.endpoint;
             var response = nlapiRequestURL(url, postData, headers);
-            return responseCheck(response);
+
+            var headerValues = [];
+            Utility.logDebug('customHeaders',JSON.stringify(customHeaders));
+            if(!!customHeaders) {
+                for (var header in headers) {
+                    Utility.logDebug('header',header +'   In Custom Header:  ' +customHeaders[header] );
+
+                    if(!!customHeaders[header]) {
+                        headers[header] = customHeaders[header];
+
+                    }
+                    headerValues.push(header + '  ' + headers[header]);
+                }
+            }
+
+
+
+
+            var res = responseCheck(response);
+            var logRec = nlapiCreateRecord('customrecord_ebayreqxml');
+            logRec.setFieldValue('custrecord_xml',postData);
+            logRec.setFieldValue('custrecord_endpoint',url);
+            logRec.setFieldValue('custrecord_headers',JSON.stringify(headerValues));
+            logRec.setFieldValue('custrecord_response',res.getBody());
+            nlapiSubmitRecord(logRec);
+
+            //return responseCheck(response);
+            return res;
         } catch (exp) {
             Utility.logException('Error', exp);
             throw exp;
         }
     }
+
+
 
     function responseCheck(response) {
         try {
@@ -1302,6 +1331,73 @@ EbayWrapper = (function () {
         }
     }
 
+    //get Item Details
+    function getSKU(itemID) {
+        try {
+            Utility.logDebug('ItemID', itemID);
+            var itemResponse = GetItemDetails(itemID);
+            Utility.logDebug('ItemResponse', itemResponse);
+            var itemId = GetEbayItem(itemResponse);
+            Utility.logDebug('ebay item id', itemId);
+            return itemId;
+        } catch (ex) {
+            Utility.logException('Error in getSKU', 'Error Message:' + ex.message + ' Error:' + ex.toString());
+        }
+    }
+
+
+    function GetEbayItem(itemResponse)
+    {
+        try {
+            var ordersXml;
+            var regex = new RegExp('"', 'g');
+            ordersXml = itemResponse.getBody().replace(regex, '\"');
+            var itemId = null;
+            var itemXml = nlapiStringToXML(ordersXml);
+            Utility.logDebug( 'itemXML', nlapiEscapeXML(ordersXml));
+            var itemNode = nlapiSelectNode(itemXml, '//nlapi:Item');
+            Utility.logDebug('itemNode', itemNode);
+            var nodeList = nlapiSelectNode(itemNode, '//nlapi:ItemSpecifics');
+            Utility.logDebug('nodeList', nodeList);
+            var namearr = nlapiSelectValues(nodeList, '//nlapi:Name');
+            var valuearr = nlapiSelectValues(nodeList, '//nlapi:Value');
+            if (nodeList == null || nodeList == "null") {
+                return null;
+            }
+            for (var i = 0; i < namearr.length; i++) {
+                if (namearr[i] == 'SKU') {
+                    itemId = valuearr[i];
+                }
+            }
+            if (itemId != null && itemId != "" && itemId != undefined)
+                return itemId;
+            else
+                return null;
+        } catch (ex) {
+            Utility.logDebug('error in get ebay item:' + ex.toString(), ex.message);
+            return null;
+        }
+    }
+
+    function generateXmlForGetItemRequest  (itemId){
+        var operation = Operations.GetItem;
+        Utility.logDebug('RequestXmlHeader',getBasicXmlHeader(operation));
+        Utility.logDebug('RequestXmlFooter',getBasicXmlFooter(operation));
+        var xml = getBasicXmlHeader(operation)
+            + ' <ItemID>' + itemId + '</ItemID>'
+            + '<IncludeItemSpecifics>1</IncludeItemSpecifics>'
+            + getBasicXmlFooter(operation);
+        return xml;
+    }
+
+    function GetItemDetails  (itemId) {
+        var postData = generateXmlForGetItemRequest(itemId);
+        var customHeaders = {};
+        customHeaders["X-EBAY-API-COMPATIBILITY-LEVEL"] = "905";
+        return callXmlService(Operations.GetItem, postData,null,customHeaders);
+    }
+
+
     function GetEbayUser (userResponse,transactionID,auctionID)
     {
         var userXml = nlapiStringToXML(userResponse.getBody());
@@ -1491,8 +1587,10 @@ EbayWrapper = (function () {
             //serverFinalResponse.billingAddress;
 
             serverFinalResponse.customer =  getEbayUser(auctionDataCollection[increment_id].itemid, increment_id);
-            if(!!serverFinalResponse.customer)
-            serverFinalResponse.customer.increment_id = increment_id;
+            if(!!serverFinalResponse.customer) {
+                serverFinalResponse.customer.increment_id = increment_id;
+                serverFinalResponse.customer.order_number = increment_id;
+            }
 
             Utility.logDebug('increment_id : ' + increment_id +'  auctionDataCollection[increment_id].itemid  ' + auctionDataCollection[increment_id].itemid );
             Utility.logDebug('serverFinalResponse.customer' , JSON.stringify(serverFinalResponse.customer));
@@ -1530,7 +1628,7 @@ EbayWrapper = (function () {
             serverFinalResponse.payment = {};
             serverFinalResponse.products = [];
             serverFinalResponse.products[0] = {};
-            serverFinalResponse.products[0].item_id = auctionDataCollection[increment_id].itemid;
+            serverFinalResponse.products[0].item_id = getSKU(auctionDataCollection[increment_id].itemid);
             //serverFinalResponse.customer
 
 
@@ -1706,34 +1804,12 @@ EbayWrapper = (function () {
 
         getCustomerAddress: function (customer_id, sessionID) {
 
-            var httpRequestData = {
-                additionalUrl: 'customers/' + customer_id + '/addresses.json',
-                method: 'GET'
-            };
+            var serverFinalResponse = {};
+            serverFinalResponse.status = true;
+            serverFinalResponse.faultCode = '';
+            serverFinalResponse.faultString = '';
+            serverFinalResponse.addresses = null;
 
-            var serverResponse = null;
-
-            // Make Call and Get Data
-            var serverFinalResponse = {
-                status: false,
-                faultCode: '',
-                faultString: '',
-                addresses: []
-            };
-
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
-
-            } catch (e) {
-                Utility.logException('Error during getCustomerAddress', e);
-            }
-
-            if (!!serverResponse && serverResponse.addresses) {
-                serverFinalResponse.addresses = parseCustomerAddressResponse(serverResponse.addresses);
-            }
-
-            // If some problem
             if (!serverFinalResponse.status) {
                 serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
             }
