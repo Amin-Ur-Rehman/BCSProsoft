@@ -1116,11 +1116,8 @@ EbayWrapper = (function () {
                     headerValues.push(header + '  ' + headers[header]);
                 }
             }
-
-
-
-
             var res = responseCheck(response);
+
             var logRec = nlapiCreateRecord('customrecord_ebayreqxml');
             logRec.setFieldValue('custrecord_xml',postData);
             logRec.setFieldValue('custrecord_endpoint',url);
@@ -1485,6 +1482,23 @@ EbayWrapper = (function () {
         return xml;
     }
 
+    function generateXmlForCompleteSale(shipmentDetails) {
+        var operation = Operations.CompleteSale;
+        var shipDetailXML = '';
+        for (var i = 0; i < shipmentDetails.length; i++) {
+            shipDetailXML += '<ShipmentTrackingDetails>' + '<ShipmentLineItem>' + '<LineItem>' + '<ItemID>' + shipmentDetails[i].AuctionId + '</ItemID>' + '<Quantity>' + shipmentDetails[i].Quantity + '</Quantity>' + '<TransactionID>' + shipmentDetails[i].TransactionId + '</TransactionID>' + '</LineItem>' + '</ShipmentLineItem>' + '<ShipmentTrackingNumber>' + shipmentDetails[i].TrackingNumber + '</ShipmentTrackingNumber>' + '<ShippingCarrierUsed>' + shipmentDetails[i].Carrier + '</ShippingCarrierUsed>' + '</ShipmentTrackingDetails>';
+        }
+        Utility.logDebug('ShipDetailXML', shipDetailXML);
+        var xml = getBasicXmlHeader(operation, null) + '<WarningLevel>High</WarningLevel>' + '<ItemID>' + shipmentDetails[0].AuctionId + '</ItemID>' + '<Shipment>' + shipDetailXML + '</Shipment>' + '<TransactionID>' + shipmentDetails[0].TransactionId + '</TransactionID>' + '<RequesterCredentials>' + '<eBayAuthToken>' + shipmentDetails[0].AuthToken + '</eBayAuthToken>' + '</RequesterCredentials>' + '<WarningLevel>High</WarningLevel>' + getBasicXmlFooter(operation);
+        return xml;
+    }
+
+
+    function SetTrackingNumber(shipmentDetails) {
+        var postData = generateXmlForCompleteSale(shipmentDetails);
+        return callXmlService(Operations.CompleteSale, postData, null);
+    }
+
     //endregion
 
     //region Public Methods
@@ -1558,6 +1572,8 @@ EbayWrapper = (function () {
                         dataObject.increment_id  = AuctionResult[j].TransactionID;
                         dataObject.order_id  = AuctionResult[j].TransactionID;
                         dataObject.itemid = AuctionResult[j].ItemID;
+                        dataObject.quantity = AuctionResult[j].QuantitySold;
+                        dataObject.price = AuctionResult[j].TransactionPrice;
                         auctionDataCollection[dataObject.increment_id] = dataObject;
                         serverFinalResponse.orders.push(dataObject);
                         //TODO :added break to procss only one transaction during development
@@ -1628,7 +1644,14 @@ EbayWrapper = (function () {
             serverFinalResponse.payment = {};
             serverFinalResponse.products = [];
             serverFinalResponse.products[0] = {};
-            serverFinalResponse.products[0].item_id = getSKU(auctionDataCollection[increment_id].itemid);
+            //serverFinalResponse.products[0].item_id = getSKU(auctionDataCollection[increment_id].itemid);
+            serverFinalResponse.products[0].item_id = auctionDataCollection[increment_id].itemid;
+            serverFinalResponse.products[0].product_id = auctionDataCollection[increment_id].itemid;
+            serverFinalResponse.products[0].qty_ordered = auctionDataCollection[increment_id].quantity;
+            serverFinalResponse.products[0].tax_amount = 0;
+            serverFinalResponse.products[0].price = auctionDataCollection[increment_id].price;
+            serverFinalResponse.products[0].original_price = auctionDataCollection[increment_id].price;
+
             //serverFinalResponse.customer
 
 
@@ -1704,101 +1727,36 @@ EbayWrapper = (function () {
         },
 
         createFulfillment: function (sessionID, serverItemIds, serverSOId) {
-
-            var httpRequestData = {
-                additionalUrl: 'orders/' + serverSOId + '/fulfillments.json',
-                method: 'POST',
-                postData: {
-                    "fulfillment": getCreateFulfillmentData()
-                }
-            };
-
-
-            var serverResponse = null;
-
-            // Make Call and Get Data
             var serverFinalResponse = {
-                status: false,
+                status: true,
                 faultCode: '',
                 faultString: '',
-                result: []
+                result:''
             };
-
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
-
-            } catch (e) {
-                Utility.logException('Error during createFulfillment', e);
-            }
-
-            if (!!serverResponse && serverResponse.fulfillment) {
-                var fulfillmentObj = parseFulfillmentResponse(serverResponse.fulfillment);
-
-                // check if order status is changed to complete
-                if (!!fulfillmentObj && fulfillmentObj.isOrderStatusCompleted) {
-                    // for setting order id as shipment id in item fulfillment
-                    serverFinalResponse.result = fulfillmentObj.id;
-                }
-            }
-
-            // If some problem
-            if (!serverFinalResponse.status) {
-                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
-            }
 
             return serverFinalResponse;
         },
 
-        createTracking: function (result, carrier, carrierText, tracking, sessionID, serverSOId) {
-            var trackingRequest = EbayWrapper.createTrackingRequest(result, carrier, carrierText, tracking, sessionID);
+        createTracking: function (result, carrier, carrierText, tracking, sessionID, serverSOId,otherInfo) {
 
-            var responseTracking = EbayWrapper.validateTrackingCreateResponse(EbayWrapper.soapRequestToServer(trackingRequest));
+            var serverFinalResponse = {};
+            var shipmentDetails = [];
+            var shipDetail = {};
 
-            return responseTracking;
+            shipDetail.AuctionId = otherInfo.auctionId;
+            shipDetail.TransactionId = serverSOId;
+            shipDetail.AuthToken = storeConfiguration.entitySyncInfo.ebayKeys.token;
+            shipDetail.TrackingNumber = tracking;
+            //TODO:Not Sending Current Unified Connector User Event Script - Need to handle
+            shipDetail.Quantity = otherInfo.itemQty;
+            shipDetail.Carrier = carrier;
+            shipmentDetails[shipmentDetails.length] = shipDetail;
 
+            var response = SetTrackingNumber(shipmentDetails);
 
-            var httpRequestData = {
-                additionalUrl: 'orders/' + serverSOId + '/fulfillments.json',
-                method: 'PUT',
-                postData: {
-                    "fulfillment": {
-                        "tracking_number": tracking
-                    }
-                }
-            };
-
-            var serverResponse = null;
-
-            // Make Call and Get Data
-            var serverFinalResponse = {
-                status: false,
-                faultCode: '',
-                faultString: '',
-                result: []
-            };
-
-            try {
-                serverResponse = sendRequest(httpRequestData);
-                serverFinalResponse.status = true;
-
-            } catch (e) {
-                Utility.logException('Error during createFulfillment', e);
-            }
-
-            if (!!serverResponse && serverResponse.orders) {
-                var fulfillmentArray = parseFulfillmentResponse(serverResponse);
-
-                if (!!fulfillmentArray && fulfillmentArray.length > 0) {
-                    serverFinalResponse.result = fulfillmentArray;
-                }
-            }
-
-            // If some problem
-            if (!serverFinalResponse.status) {
-                serverFinalResponse.errorMsg = serverFinalResponse.faultCode + '--' + serverFinalResponse.faultString;
-            }
-
+            serverFinalResponse.status = true;
+            //TODO: current ebay code not doing any thing after return, temporarily set the tracking as the key
+            serverFinalResponse.result = shipDetail.TransactionId + '_' +  shipDetail.AuctionId;
             return serverFinalResponse;
         },
 

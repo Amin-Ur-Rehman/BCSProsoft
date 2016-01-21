@@ -50,7 +50,6 @@ var FulfillmentExportHelper = (function () {
             var magentoSOId = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
             var magentoItemIds = ConnectorCommon.getMagentoItemIds(ConnectorCommon.getFulfillmentItems());
 
-
             // create shipment in Magento
             responseMagento = ConnectorConstants.CurrentWrapper.createFulfillment(sessionID, magentoItemIds, magentoSOId);
 
@@ -103,10 +102,15 @@ var FulfillmentExportHelper = (function () {
                 var havingErrorInTrackingNumberExport = false;
                 var errorTrackingNumberStr = "";
                 var trackingNumbersIds = [];
+                var otherInfo;
                 for (var p = 1; p <= totalPackages; p++) {
                     var tracking = nlapiGetLineItemValue('package' + upsPackage, 'packagetrackingnumber' + upsPackage, p);
                     if (!Utility.isBlankOrNull(tracking)) {
-                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId);
+                        otherInfo = {};
+                        otherInfo.auctionId = nlapiGetLineItemValue('item',ConnectorConstants.Transaction.Columns.MagentoOrderId,p);
+                        otherInfo.itemQty = nlapiGetLineItemValue('item','quantity',p);
+
+                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId,otherInfo);
                         if (!responseTracking.status) {
                             havingErrorInTrackingNumberExport = true;
                             errorTrackingNumberStr += responseTracking.faultString + ' - ' + responseTracking.faultCode;
@@ -259,6 +263,7 @@ var FulfillmentExport = (function () {
                     var response = FulfillmentExportHelper.syncFulfillmentMagento(sessionID, magentoSO);
 
                     if (response) {
+                        Utility.logDebug('setShipmentIdInFulfillment');
                         FulfillmentExportHelper.setShipmentIdInFulfillment(response.result);
                     }
 
