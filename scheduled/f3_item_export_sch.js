@@ -65,7 +65,7 @@ var ItemExportManager = (function () {
 
                         // Check for feature availability
                         if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
-                            Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                            Utility.logEmergency(';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                             continue;
                         }
 
@@ -76,6 +76,12 @@ var ItemExportManager = (function () {
                         var criteriaObj = {};
                         criteriaObj.identifierType = identifierType;
                         criteriaObj.identifierValue = identifierValue;
+
+                        //For testing
+                        criteriaObj.identifierType = 'internalid';
+                        //criteriaObj.identifierValue = '1708';
+                        criteriaObj.identifierValue = '1706';
+
                         var records = this.getRecords(store, criteriaObj);
                         Utility.logDebug('fetched items count', !!records ? records.length : '0');
 

@@ -2566,6 +2566,7 @@ MagentoXmlWrapper = (function () {
          * @param itemObject
          */
         exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+            Utility.logDebug('MagentoWrapper.exportInventoryItem', JSON.stringify(itemObject));
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = '';
