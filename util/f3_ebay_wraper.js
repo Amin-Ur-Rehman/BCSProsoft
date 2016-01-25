@@ -21,7 +21,7 @@ EbayWrapper = (function () {
 
     var storeConfiguration = null;
     var BUYER_CHECKOUT_MESSAGE;
-    var auctionDataCollection  = {};
+    var auctionDataCollection = {};
 
     //region Private Methods
 
@@ -1010,13 +1010,10 @@ EbayWrapper = (function () {
     //get response page count
     function getResponsePageCount() {
         try {
-            //TODO: fetch from configuration
-            var durationdays = 20;
-            //TODO: fetch from configuration
-            var orderStatusFilter = 2;
-            var orderStatus = getOrderStatus(orderStatusFilter);
+            var durationdays = storeConfiguration.entitySyncInfo.salesorder.ageOfRecordsToSyncInDays;
+            var orderStatus = storeConfiguration.entitySyncInfo.salesorder.ebayfetchorderstatus;
 
-            Utility.logDebug('orderStatusFilter', orderStatusFilter);
+            Utility.logDebug('orderStatus', orderStatus);
 
             if (isNaN(durationdays) || durationdays < 1) {
                 durationdays = 1;
@@ -1075,7 +1072,6 @@ EbayWrapper = (function () {
                 3: 'AwaitingShipment',
                 4: 'CustomCode',
                 5: 'PaidAndShipped'
-
             };
             return orderStatus[orderStatusId];
         } catch (ex) {
@@ -1088,7 +1084,7 @@ EbayWrapper = (function () {
         return callXmlService(Operations.GetMyeBaySelling, postData, null);
     }
 
-    function callXmlService(operation, postData, credentials,customHeaders) {
+    function callXmlService(operation, postData, credentials, customHeaders) {
         try {
 
             var headers = [];
@@ -1104,12 +1100,12 @@ EbayWrapper = (function () {
             var response = nlapiRequestURL(url, postData, headers);
 
             var headerValues = [];
-            Utility.logDebug('customHeaders',JSON.stringify(customHeaders));
-            if(!!customHeaders) {
+            Utility.logDebug('customHeaders', JSON.stringify(customHeaders));
+            if (!!customHeaders) {
                 for (var header in headers) {
-                    Utility.logDebug('header',header +'   In Custom Header:  ' +customHeaders[header] );
+                    Utility.logDebug('header', header + '   In Custom Header:  ' + customHeaders[header]);
 
-                    if(!!customHeaders[header]) {
+                    if (!!customHeaders[header]) {
                         headers[header] = customHeaders[header];
 
                     }
@@ -1119,10 +1115,10 @@ EbayWrapper = (function () {
             var res = responseCheck(response);
 
             var logRec = nlapiCreateRecord('customrecord_ebayreqxml');
-            logRec.setFieldValue('custrecord_xml',postData);
-            logRec.setFieldValue('custrecord_endpoint',url);
-            logRec.setFieldValue('custrecord_headers',JSON.stringify(headerValues));
-            logRec.setFieldValue('custrecord_response',res.getBody());
+            logRec.setFieldValue('custrecord_xml', postData);
+            logRec.setFieldValue('custrecord_endpoint', url);
+            logRec.setFieldValue('custrecord_headers', JSON.stringify(headerValues));
+            logRec.setFieldValue('custrecord_response', res.getBody());
             nlapiSubmitRecord(logRec);
 
             //return responseCheck(response);
@@ -1132,7 +1128,6 @@ EbayWrapper = (function () {
             throw exp;
         }
     }
-
 
 
     function responseCheck(response) {
@@ -1150,7 +1145,7 @@ EbayWrapper = (function () {
                 var shortErrorMessage = nlapiSelectValue(errorNode, '//nlapi:ShortMessage');
                 var longErrorMessage = nlapiSelectValue(errorNode, '//nlapi:LongMessage');
                 Utility.logException('eBay Error Code', errorCode);
-                Utility.logException( 'Short eBay Error Message', shortErrorMessage);
+                Utility.logException('Short eBay Error Message', shortErrorMessage);
                 Utility.logException('Long  eBay Error Message', longErrorMessage);
                 expirationNode = nlapiSelectNode(responseXml, '//nlapi:HardExpirationWarning');
                 if (expirationNode != null && expirationNode != undefined && expirationNode != '') {
@@ -1191,10 +1186,11 @@ EbayWrapper = (function () {
     }
 
     function sendNotification(subject, body) {
-        //TODO : fetch from configuration
-        var to = 'smehmood@folio3.com';
-        //TODO : fetch from configuration
-        var from = '3042'; //Employee Id
+
+        var to = storeConfiguration.entitySyncInfo.notification_config.to;
+        var from = storeConfiguration.entitySyncInfo.notification_config.from;
+
+        //notification_config
 
         if (to && from) {
             var toArr = to.split(',');
@@ -1238,12 +1234,10 @@ EbayWrapper = (function () {
     //get all the recent ebay orders
     function getRecentAuctions(pageNumber) {
         try {
-            //TODO: to fetch from configuration
-            var durationdays = 20;
-            var orderStatusFilter = 2;
-            var orderStatus = getOrderStatus(orderStatusFilter);
 
-            Utility.logDebug('orderStatusFilter', orderStatusFilter);
+            var durationdays = storeConfiguration.entitySyncInfo.salesorder.ageOfRecordsToSyncInDays;
+            var orderStatus = storeConfiguration.entitySyncInfo.salesorder.ebayfetchorderstatus;
+
             if (isNaN(durationdays) || durationdays < 1) {
                 durationdays = 1;
             }
@@ -1257,7 +1251,7 @@ EbayWrapper = (function () {
     }
 
 
-    function  GetAuctions (GetMyebaySellingResponse) {
+    function GetAuctions(GetMyebaySellingResponse) {
         try {
             var ebayTransactionsArray = [];
             var j = 0;
@@ -1314,6 +1308,7 @@ EbayWrapper = (function () {
             Utility.logDebug('error in XMLtoObj', ex.toString());
         }
     }
+
     //get ebay user info
     function getEbayUser(auctionId, transactionId) {
         try {
@@ -1343,15 +1338,14 @@ EbayWrapper = (function () {
     }
 
 
-    function GetEbayItem(itemResponse)
-    {
+    function GetEbayItem(itemResponse) {
         try {
             var ordersXml;
             var regex = new RegExp('"', 'g');
             ordersXml = itemResponse.getBody().replace(regex, '\"');
             var itemId = null;
             var itemXml = nlapiStringToXML(ordersXml);
-            Utility.logDebug( 'itemXML', nlapiEscapeXML(ordersXml));
+            Utility.logDebug('itemXML', nlapiEscapeXML(ordersXml));
             var itemNode = nlapiSelectNode(itemXml, '//nlapi:Item');
             Utility.logDebug('itemNode', itemNode);
             var nodeList = nlapiSelectNode(itemNode, '//nlapi:ItemSpecifics');
@@ -1376,10 +1370,10 @@ EbayWrapper = (function () {
         }
     }
 
-    function generateXmlForGetItemRequest  (itemId){
+    function generateXmlForGetItemRequest(itemId) {
         var operation = Operations.GetItem;
-        Utility.logDebug('RequestXmlHeader',getBasicXmlHeader(operation));
-        Utility.logDebug('RequestXmlFooter',getBasicXmlFooter(operation));
+        Utility.logDebug('RequestXmlHeader', getBasicXmlHeader(operation));
+        Utility.logDebug('RequestXmlFooter', getBasicXmlFooter(operation));
         var xml = getBasicXmlHeader(operation)
             + ' <ItemID>' + itemId + '</ItemID>'
             + '<IncludeItemSpecifics>1</IncludeItemSpecifics>'
@@ -1387,62 +1381,55 @@ EbayWrapper = (function () {
         return xml;
     }
 
-    function GetItemDetails  (itemId) {
+    function GetItemDetails(itemId) {
         var postData = generateXmlForGetItemRequest(itemId);
         var customHeaders = {};
         customHeaders["X-EBAY-API-COMPATIBILITY-LEVEL"] = "905";
-        return callXmlService(Operations.GetItem, postData,null,customHeaders);
+        return callXmlService(Operations.GetItem, postData, null, customHeaders);
     }
 
 
-    function GetEbayUser (userResponse,transactionID,auctionID)
-    {
+    function GetEbayUser(userResponse, transactionID, auctionID) {
         var userXml = nlapiStringToXML(userResponse.getBody());
-        Utility.logDebug('UserXML',userResponse.getBody());
-        var transactionArray=nlapiSelectNode(userXml,'//nlapi:TransactionArray');
+        Utility.logDebug('UserXML', userResponse.getBody());
+        var transactionArray = nlapiSelectNode(userXml, '//nlapi:TransactionArray');
         var transactions = transactionArray.childNodes;
         var transactionXml;
-        for(var i=0;i<transactions.length;i++)
-        {
-            var transaction= transactions.item(i);
-            if(transaction.nodeType===1)
-            {
-                if(transactionID != auctionID)
-                {
-                    if(nlapiSelectValue(transaction,'nlapi:TransactionID')==transactionID)
-                    {
-                        transactionXml=transaction;
+        for (var i = 0; i < transactions.length; i++) {
+            var transaction = transactions.item(i);
+            if (transaction.nodeType === 1) {
+                if (transactionID != auctionID) {
+                    if (nlapiSelectValue(transaction, 'nlapi:TransactionID') == transactionID) {
+                        transactionXml = transaction;
                         break;
                     }
                 }
-                else
-                {
-                    transactionXml=transaction;
+                else {
+                    transactionXml = transaction;
                     break;
                 }
             }
         }
-        if(transactionXml!="" && transactionXml != null && transactionXml != undefined)
-        {
+        if (transactionXml != "" && transactionXml != null && transactionXml != undefined) {
             var userObj = {};
-            var customer = nlapiSelectNode(transactionXml,'nlapi:Buyer');
+            var customer = nlapiSelectNode(transactionXml, 'nlapi:Buyer');
             //userObj.Email = nlapiSelectValue(customer,'nlapi:Email');
-            userObj.UserName = nlapiSelectValue(customer,'nlapi:UserID');
-            var shippingAddress = nlapiSelectNode(customer,'nlapi:BuyerInfo/nlapi:ShippingAddress');
-            var tempName = nlapiSelectValue(shippingAddress ,'nlapi:Name');
+            userObj.UserName = nlapiSelectValue(customer, 'nlapi:UserID');
+            var shippingAddress = nlapiSelectNode(customer, 'nlapi:BuyerInfo/nlapi:ShippingAddress');
+            var tempName = nlapiSelectValue(shippingAddress, 'nlapi:Name');
             tempName = tempName.split(" ");
-            userObj.Status = nlapiSelectValue(shippingAddress ,'nlapi:Status');
-            userObj.Phone = nlapiSelectValue(shippingAddress ,'nlapi:Phone');
-            userObj.PostalCode = nlapiSelectValue(shippingAddress ,'nlapi:PostalCode');
-            userObj.Address1 = nlapiSelectValue(shippingAddress ,'nlapi:Street1');
-            userObj.Address2 = nlapiSelectValue(shippingAddress ,'nlapi:Street2');
-            userObj.City = nlapiSelectValue(shippingAddress ,'nlapi:CityName');
-            userObj.State = nlapiSelectValue(shippingAddress ,'nlapi:StateOrProvince');
-            userObj.CountryCode = nlapiSelectValue(shippingAddress ,'nlapi:Country');
-            userObj.CountryName = nlapiSelectValue(shippingAddress ,'nlapi:CountryName');
+            userObj.Status = nlapiSelectValue(shippingAddress, 'nlapi:Status');
+            userObj.Phone = nlapiSelectValue(shippingAddress, 'nlapi:Phone');
+            userObj.PostalCode = nlapiSelectValue(shippingAddress, 'nlapi:PostalCode');
+            userObj.Address1 = nlapiSelectValue(shippingAddress, 'nlapi:Street1');
+            userObj.Address2 = nlapiSelectValue(shippingAddress, 'nlapi:Street2');
+            userObj.City = nlapiSelectValue(shippingAddress, 'nlapi:CityName');
+            userObj.State = nlapiSelectValue(shippingAddress, 'nlapi:StateOrProvince');
+            userObj.CountryCode = nlapiSelectValue(shippingAddress, 'nlapi:Country');
+            userObj.CountryName = nlapiSelectValue(shippingAddress, 'nlapi:CountryName');
             userObj._isGuestCustomer = false;
             userObj.customer_id = 1;
-            userObj.email = nlapiSelectValue(customer,'nlapi:Email');
+            userObj.email = nlapiSelectValue(customer, 'nlapi:Email');
             userObj.customer_firstname = tempName[0];
             userObj.customer_middlename = '';
             userObj.customer_lastname = tempName[1];
@@ -1452,21 +1439,18 @@ EbayWrapper = (function () {
             userObj.customer_dob = null;
 
 
-            Utility.logDebug('USERNAME',userObj.UserName);
-            Utility.logDebug('TempNAME',tempName);
-            var buyerMessageNode = nlapiSelectNode(transactionXml,'nlapi:BuyerCheckoutMessage');
-            if(buyerMessageNode != null && buyerMessageNode != '' && buyerMessageNode != undefined)
-            {
-                BUYER_CHECKOUT_MESSAGE = nlapiSelectValue(transactionXml ,'nlapi:BuyerCheckoutMessage');
+            Utility.logDebug('USERNAME', userObj.UserName);
+            Utility.logDebug('TempNAME', tempName);
+            var buyerMessageNode = nlapiSelectNode(transactionXml, 'nlapi:BuyerCheckoutMessage');
+            if (buyerMessageNode != null && buyerMessageNode != '' && buyerMessageNode != undefined) {
+                BUYER_CHECKOUT_MESSAGE = nlapiSelectValue(transactionXml, 'nlapi:BuyerCheckoutMessage');
             }
-            else
-            {
+            else {
                 BUYER_CHECKOUT_MESSAGE = '';
             }
             return userObj;
         }
-        else
-        {
+        else {
             return false;
         }
     }
@@ -1565,19 +1549,17 @@ EbayWrapper = (function () {
                 Utility.logDebug('Response Pages Number', i);
                 //get Auctions on the page
                 var AuctionResult = getRecentAuctions(i);
-                if(!!AuctionResult) {
+                if (!!AuctionResult) {
                     Utility.logDebug('AuctionResult', AuctionResult.length);
                     for (var j in AuctionResult) {
                         dataObject = {};
-                        dataObject.increment_id  = AuctionResult[j].TransactionID;
-                        dataObject.order_id  = AuctionResult[j].TransactionID;
+                        dataObject.increment_id = AuctionResult[j].TransactionID;
+                        dataObject.order_id = AuctionResult[j].TransactionID;
                         dataObject.itemid = AuctionResult[j].ItemID;
                         dataObject.quantity = AuctionResult[j].QuantitySold;
                         dataObject.price = AuctionResult[j].TransactionPrice;
                         auctionDataCollection[dataObject.increment_id] = dataObject;
                         serverFinalResponse.orders.push(dataObject);
-                        //TODO :added break to procss only one transaction during development
-                        break;
                     }
                 }
                 else
@@ -1587,7 +1569,6 @@ EbayWrapper = (function () {
             //ConnectorConstants.Client = F3ClientFactory.createClient('F3BaseV1Ebay');
             return serverFinalResponse;
         },
-
 
 
         /**
@@ -1602,16 +1583,16 @@ EbayWrapper = (function () {
             //serverFinalResponse.shippingAddress
             //serverFinalResponse.billingAddress;
 
-            serverFinalResponse.customer =  getEbayUser(auctionDataCollection[increment_id].itemid, increment_id);
-            if(!!serverFinalResponse.customer) {
+            serverFinalResponse.customer = getEbayUser(auctionDataCollection[increment_id].itemid, increment_id);
+            if (!!serverFinalResponse.customer) {
                 serverFinalResponse.customer.increment_id = increment_id;
                 serverFinalResponse.customer.order_number = increment_id;
             }
 
-            Utility.logDebug('increment_id : ' + increment_id +'  auctionDataCollection[increment_id].itemid  ' + auctionDataCollection[increment_id].itemid );
-            Utility.logDebug('serverFinalResponse.customer' , JSON.stringify(serverFinalResponse.customer));
+            Utility.logDebug('increment_id : ' + increment_id + '  auctionDataCollection[increment_id].itemid  ' + auctionDataCollection[increment_id].itemid);
+            Utility.logDebug('serverFinalResponse.customer', JSON.stringify(serverFinalResponse.customer));
 
-            if(!!serverFinalResponse.customer) {
+            if (!!serverFinalResponse.customer) {
                 serverFinalResponse.shippingAddress = {};
                 serverFinalResponse.shippingAddress.address_id = 1;
                 serverFinalResponse.shippingAddress.city = serverFinalResponse.customer.City;
@@ -1644,7 +1625,7 @@ EbayWrapper = (function () {
             serverFinalResponse.payment = {};
             serverFinalResponse.products = [];
             serverFinalResponse.products[0] = {};
-            //serverFinalResponse.products[0].item_id = getSKU(auctionDataCollection[increment_id].itemid);
+            serverFinalResponse.products[0].sku = getSKU(auctionDataCollection[increment_id].itemid);
             serverFinalResponse.products[0].item_id = auctionDataCollection[increment_id].itemid;
             serverFinalResponse.products[0].product_id = auctionDataCollection[increment_id].itemid;
             serverFinalResponse.products[0].qty_ordered = auctionDataCollection[increment_id].quantity;
@@ -1731,13 +1712,13 @@ EbayWrapper = (function () {
                 status: true,
                 faultCode: '',
                 faultString: '',
-                result:''
+                result: ''
             };
 
             return serverFinalResponse;
         },
 
-        createTracking: function (result, carrier, carrierText, tracking, sessionID, serverSOId,otherInfo) {
+        createTracking: function (result, carrier, carrierText, tracking, sessionID, serverSOId, otherInfo) {
 
             var serverFinalResponse = {};
             var shipmentDetails = [];
@@ -1747,7 +1728,6 @@ EbayWrapper = (function () {
             shipDetail.TransactionId = serverSOId;
             shipDetail.AuthToken = storeConfiguration.entitySyncInfo.ebayKeys.token;
             shipDetail.TrackingNumber = tracking;
-            //TODO:Not Sending Current Unified Connector User Event Script - Need to handle
             shipDetail.Quantity = otherInfo.itemQty;
             shipDetail.Carrier = carrier;
             shipmentDetails[shipmentDetails.length] = shipDetail;
@@ -1755,8 +1735,8 @@ EbayWrapper = (function () {
             var response = SetTrackingNumber(shipmentDetails);
 
             serverFinalResponse.status = true;
-            //TODO: current ebay code not doing any thing after return, temporarily set the tracking as the key
-            serverFinalResponse.result = shipDetail.TransactionId + '_' +  shipDetail.AuctionId;
+            //current ebay code not doing any thing after return, temporarily set the tracking as the key
+            serverFinalResponse.result = shipDetail.TransactionId + '_' + shipDetail.AuctionId;
             return serverFinalResponse;
         },
 
@@ -2319,16 +2299,18 @@ EbayWrapper = (function () {
             var resultArray = [];
             var result = {};
             var magentoIdId;
+            var skuWiseProductIds = {};
             magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
             result.errorMsg = '';
             try {
                 filterExpression = "[[";
                 for (var x = 0; x < magentoIds.length; x++) {
                     // multiple store handling
-                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].sku + "']";
                     if ((x + 1) < magentoIds.length) {
                         filterExpression = filterExpression + ",'or' ,";
                     }
+                    skuWiseProductIds[magentoIds[x].sku] = magentoIds[x].product_id;
                 }
                 filterExpression = filterExpression + ']';
                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
@@ -2346,7 +2328,7 @@ EbayWrapper = (function () {
                             var itemidArr = itemid.split(':');
                             itemid = (itemidArr[itemidArr.length - 1]).trim();
                         }
-                        obj.magentoID = itemid;
+                        obj.magentoID = skuWiseProductIds[itemid];
                         resultArray[resultArray.length] = obj;
                     }
                 }
