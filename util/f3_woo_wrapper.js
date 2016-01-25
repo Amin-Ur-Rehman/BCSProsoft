@@ -43,8 +43,10 @@ WooWrapper = (function () {
         // hack for SO list logic changes
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.order_number.toString();
-        localOrder.customer.order_number = serverOrder.order_number.toString();
+        localOrder.customer.order_number = "UC-" + serverOrder.order_number.toString();
         localOrder.customer.updatedAt = serverOrder.updated_at;
+        localOrder.customer.total = serverOrder.total;
+        localOrder.customer.subtotal = serverOrder.subtotal;
 
         if (serverOrder.shipping_lines && serverOrder.shipping_lines.length > 0) {
             localOrder.shipping_amount = serverOrder.shipping_lines[0].total;
@@ -185,11 +187,14 @@ WooWrapper = (function () {
         localProduct.grams = serverProduct.grams;
         localProduct.id = serverProduct.id;
         // calculate unit price
-        localProduct.price = (serverProduct.subtotal / serverProduct.qty_ordered).toFixed(2);
+        //localProduct.price = (serverProduct.subtotal / serverProduct.qty_ordered).toFixed(2);
+        localProduct.price = serverProduct.price;
         // discount will be handling usig total discounts of the order. because in api there is no actual
         // discount value of a unit quantity is found and we'll have to calculate unit price after discount which
         // will cause precision errors
+        //localProduct.original_price = (serverProduct.subtotal / serverProduct.qty_ordered).toFixed(2);
         localProduct.original_price = "0";
+        localProduct.total = serverProduct.total;// used to calculate discount while creating order in netsuite
         localProduct.requires_shipping = serverProduct.requires_shipping;
         localProduct.sku = serverProduct.sku;
         localProduct.taxable = serverProduct.taxable;
@@ -2002,6 +2007,23 @@ WooWrapper = (function () {
             }
 
             return customer;
+        },
+        getDiscount: function (salesOrderObj) {
+            var orderTotal = Utility.parseFloatNum(salesOrderObj.order.total);
+            var subtotal = Utility.parseFloatNum(salesOrderObj.order.subtotal);
+
+            var orderDiscount = Utility.parseFloatNum(salesOrderObj.order.discount_amount);// will be -ve value
+            if (orderDiscount === 0) {
+                return 0;
+            }
+
+            var calculatedDiscount = (((orderTotal * 100) - (subtotal * 100)) / 100).toFixed(2);
+
+            if (Math.abs(orderDiscount) === Math.abs(calculatedDiscount)) {
+                return 0;
+            }
+
+            return -1 * calculatedDiscount;
         }
     };
 
