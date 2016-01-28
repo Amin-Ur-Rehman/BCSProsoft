@@ -54,6 +54,8 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
 
         // Make Call and Get Data
+
+        Utility.logDebug('sessionID', sessionID);
         serverOrdersResponse = getSalesOrderList(order, sessionID, ConnectorConstants.CurrentStore);
         Utility.logDebug('syncSalesOrderMagento > serverOrdersResponse', JSON.stringify(serverOrdersResponse));
 
