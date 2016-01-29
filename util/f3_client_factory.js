@@ -711,7 +711,7 @@ function F3ClientBase() {
                 infoMsg: ''
             };
             try {
-                var rec = nlapiCreateRecord('lead', null);
+                var rec = nlapiCreateRecord('lead', {recordmode: "dynamic"});
                 //rec.setFieldValue('isperson', 'T');
                 //rec.setFieldValue('subsidiary', '3');// TODO: generalize location
                 //   rec.setFieldValue('salutation', '');
@@ -828,7 +828,7 @@ function F3ClientBase() {
             Utility.logDebug("sessionID", JSON.stringify(sessionID));
             var result = {};
             try {
-                var rec = nlapiLoadRecord('customer', customerId, null);
+                var rec = nlapiLoadRecord('customer', customerId, {recordmode: "dynamic"});
 
                 // mulitple stores handling
 
@@ -877,12 +877,14 @@ function F3ClientBase() {
                 }
 
                 addresses = responseMagento.addresses;
+                Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
 
                 if (!Utility.isBlankOrNull(addresses)) {
                     rec = ConnectorCommon.setAddresses(rec, addresses);
                 }
                 // setting magento addresses from sales order
                 addresses = magentoCustomerObj.addresses;
+                Utility.logDebug("set customer addresses from salesorder", JSON.stringify(addresses));
                 rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
 
                 // zee: get customer address list: end
@@ -1033,6 +1035,27 @@ function F3ClientBase() {
             Utility.logDebug('setting method ', nsShipMethod.join(','));
 
             // settting shipping method: end
+        },
+        createInventoryItem: function (data) {
+            // create a Parent Matrix Item
+            var inventoryItem = nlapiCreateRecord('inventoryitem');
+            inventoryItem.setFieldValue('itemid', data.itemId);
+            inventoryItem.setFieldValue('displayname', data.displayName);
+            inventoryItem.setFieldValue('matrixtype', data.matrixType);
+            inventoryItem.setFieldValue('parent', data.matrixParentId);
+
+            // define the Item's options
+            for(var i in data.matrixAttributes){
+                var matrixAttribute = data.matrixAttributes[i];
+
+                var attributeId = matrixAttribute.attributeId;
+                var attributeValues  = matrixAttribute.attributeValues;
+                inventoryItem.setFieldValue(attributeId, attributeValues);
+            }
+
+            var id = nlapiSubmitRecord(inventoryItem);
+
+            return id;
         }
 
     };

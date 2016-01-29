@@ -1,19 +1,11 @@
 /**
- * Created by wahajahmed on 11/27/2015.
- * TODO:
- * -
- * Referenced By:
- * -
- * -
- * Dependencies:
- * -
- * -
+ * Created by zahmed on 25-Jan-16.
  */
 
 /**
- * ItemExportLibrary class that has the functionality of
+ * ItemImportLibrary class that has the functionality of
  */
-var ItemExportLibrary = (function () {
+var ItemImportLibrary = (function () {
     return {
         configData: {
             ItemTypes: {
@@ -26,11 +18,8 @@ var ItemExportLibrary = (function () {
          */
         getItems: function (store, criteriaObj) {
             var results = null;
-            if (!!criteriaObj.identifierType && !!criteriaObj.identifierValue) {
-                results = this.getItemsByIdentifier(store, criteriaObj);
-            } else {
-                results = this.getItemsFromPreviousDays(store);
-            }
+
+            results = this.getItemsFromPreviousDays(store);
 
             return results;
         },
@@ -50,18 +39,17 @@ var ItemExportLibrary = (function () {
          */
         getItemsFromPreviousDays: function (store) {
             Utility.logDebug('log_w', 'calling getItemsFromPreviousDays');
-            var filters = [];
-            var ageOfItemToExportInDays = store.entitySyncInfo.item.ageOfItemToExportInDays;
-            var previousDate = this.getPreviousDayDate(ageOfItemToExportInDays);
-            //filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', previousDate));
-            // TODO: undo test
-            filters.push(new nlobjSearchFilter('internalid', null, 'is', '1267'));// matrix parent
+            var ageOfItemToImportInDays = store.entitySyncInfo.item.ageOfItemToImportInDays;
+            //var previousDate = this.getPreviousDayDate(ageOfItemToImportInDays);
+            var previousDate = ConnectorConstants.CurrentWrapper.getPreviousDayDate(ageOfItemToImportInDays);
+            var itemListData = {};
+            itemListData.previousDate = previousDate;
             //filters.push(new nlobjSearchFilter('internalid', null, 'is', '1270'));// matrix child
-            return this.getItemsData(filters);
+            return ConnectorConstants.CurrentWrapper.getItems(itemListData);
         },
 
         /**
-         * Get Items data from NetSuite to Export
+         * Get Items data from NetSuite to Import
          */
         getItemsData: function (filters) {
             filters.push(new nlobjSearchFilter('type', null, 'anyof', ['InvtPart']));
@@ -88,16 +76,14 @@ var ItemExportLibrary = (function () {
         /**
          * Process item for external system
          * @param store
-         * @param itemInternalId
-         * @param itemType
          */
-        processItem: function (store, itemInternalId, itemType, createOnly) {
-            var itemObject = this.getItemObject(store, itemInternalId, itemType);
+        processItem: function (store, record) {
+            var itemObject = ConnectorConstants.CurrentWrapper.getItemInfo(store, record);
             Utility.logDebug('itemObject', JSON.stringify(itemObject));
-            // skip export if instructed to created only and record is already exported to other system
-            if (!(!!createOnly && itemObject.alreadySyncToCurrentExternalSystem)) {
-                var responseBody = this.exportItemToExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
-                Utility.logDebug('ItemExportLibrary.responseBody', JSON.stringify(responseBody));
+            // skip Import if instructed to created only and record is already Imported to other system
+            if ((itemObject.alreadySyncToCurrentExternalSystem)) {
+                var responseBody = this.importItemFromExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
+                Utility.logDebug('ItemImportLibrary.responseBody', JSON.stringify(responseBody));
                 if (!!responseBody.status) {
                     if (!!responseBody.data.externalSystemItemId) {
                         var otherSystemsItemIdsArray = this.getExternalSystemIdObjectArrayString(store.systemId, responseBody.data.externalSystemItemId, !!itemObject.externalSystemIdsString ? 'update' : 'create', itemObject.externalSystemIdsString);
@@ -109,7 +95,7 @@ var ItemExportLibrary = (function () {
                     Utility.logDebug('successfully', 'Other system Item created');
                 } else {
                     Utility.logException('Some error occurred while creating Other system Item', responseBody.error);
-                    Utility.throwException("RECORD_EXPORT", 'Some error occurred while creating Other system Item - ' + responseBody.error);
+                    Utility.throwException("RECORD_IMPORT", 'Some error occurred while creating Other system Item - ' + responseBody.error);
                 }
             }
         },
@@ -123,7 +109,7 @@ var ItemExportLibrary = (function () {
             try {
                 nlapiSubmitField(itemRecordType, netSuiteItemId, [ConnectorConstants.Item.Fields.MagentoId, ConnectorConstants.Item.Fields.MagentoSync], [externalSystemItemId, 'T']);
             } catch (e) {
-                Utility.logException('ItemExportLibrary.setItemExternalSystemId', e);
+                Utility.logException('ItemImportLibrary.setItemExternalSystemId', e);
                 this.markStatus(itemRecordType, netSuiteItemId, e.toString());
             }
         },
@@ -137,7 +123,7 @@ var ItemExportLibrary = (function () {
             try {
                 nlapiSubmitField(itemRecordType, netsuiteItemId, ConnectorConstants.Item.Fields.MagentoSyncStatus, msg);
             } catch (e) {
-                Utility.logException('ItemExportLibrary.markStatus', e);
+                Utility.logException('ItemImportLibrary.markStatus', e);
             }
         },
 
@@ -162,16 +148,10 @@ var ItemExportLibrary = (function () {
             itemObject.itemId = itemRecord.getFieldValue('itemid');
             itemObject.displayName = itemRecord.getFieldValue('displayname');
             itemObject.upcCode = itemRecord.getFieldValue('upccode');
-            itemObject.isInactive = itemRecord.getFieldValue('isinactive');
-
             itemObject.parentItem = itemRecord.getFieldValue('parent');
             itemObject.isMatrixChildItem = itemRecord.getFieldValue('matrixtype') === "CHILD";
             itemObject.isMatrixParentItem = itemRecord.getFieldValue('matrixtype') === "PARENT";
             itemObject.isMatrix = itemObject.isMatrixParentItem || itemObject.isMatrixChildItem;
-            var parentItemRec = null;
-            if(itemObject.isMatrixChildItem && !!itemObject.parentItem) {
-                parentItemRec = nlapiLoadRecord(itemType, itemObject.parentItem);
-            }
 
             itemObject.category = itemRecord.getFieldValue('category');
             itemObject.isTaxable = itemRecord.getFieldValue('istaxable');
@@ -180,28 +160,20 @@ var ItemExportLibrary = (function () {
             itemObject.isSpecialOrderItem = itemRecord.getFieldValue('isspecialorderitem');
             itemObject.isTaxable = itemRecord.getFieldValue('istaxable');
 
-
             itemObject.purchaseDescription = itemRecord.getFieldValue('purchasedescription');
             itemObject.salesDescription = itemRecord.getFieldValue('salesdescription');
             itemObject.stockDescription = itemRecord.getFieldValue('stockdescription');
-            itemObject.isOnline = itemRecord.getFieldValue('isonline');
-
-            itemObject.storeDisplayName = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'storedisplayname');
-            itemObject.featuredDescription = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'featureddescription');
-            itemObject.storeDescription = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'storedescription');
-            itemObject.storeDetailedDescription = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'storedetaileddescription');
-            itemObject.urlComponent = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'urlcomponent');
-            itemObject.pageTitle = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'pagetitle');
-            itemObject.metaTagHtml = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'metataghtml');
-            itemObject.searchKeywords = this.getRecordFieldValue(itemRecord, parentItemRec, itemObject.isMatrixChildItem, 'searchkeywords');
-
+            itemObject.storeDisplayName = itemRecord.getFieldValue('storedisplayname');
+            itemObject.featuredDescription = itemRecord.getFieldValue('featureddescription');
+            itemObject.storeDescription = itemRecord.getFieldValue('storedescription');
+            itemObject.storeDetailedDescription = itemRecord.getFieldValue('storedetaileddescription');
+            itemObject.urlComponent = itemRecord.getFieldValue('urlcomponent');
             var imageField = store.entitySyncInfo.item.imageField;
             imageField = imageField || 'storedisplayimage';
             itemObject.imageFileId = itemRecord.getFieldValue(imageField);
             itemObject.imageFileUrl = nlapiLookupField('file', itemObject.imageFileId, 'url');
             var imageBaseUrl = store.entitySyncInfo.item.imageBaseUrl;
             itemObject.imageFullUrl = imageBaseUrl + itemObject.imageFileUrl;
-
 
             itemObject.purchasePrice = itemRecord.getFieldValue('cost');
             itemObject.onlineCustomerPrice = itemRecord.getFieldValue('onlinecustomerprice');
@@ -224,20 +196,6 @@ var ItemExportLibrary = (function () {
         },
 
         /**
-         * Get Parent Item Field Value, because some of fields doesn't exist in child item
-         * @param itemRec
-         * @param isChild
-         * @param fieldName
-         */
-        getRecordFieldValue: function(itemRec, parentItemRec, isChild, fieldName) {
-            if(isChild) {
-                return parentItemRec.getFieldValue(fieldName);
-            } else {
-                return itemRec.getFieldValue(fieldName);
-            }
-        },
-
-        /**
          * Set external system category
          * @param store
          * @param itemInternalId
@@ -246,17 +204,14 @@ var ItemExportLibrary = (function () {
          * @param itemRecord
          * @returns {*}
          */
-        setExternalSystemCategory: function(store, itemInternalId, itemType, itemObject, itemRecord) {
-            itemObject.externalSystemCategories = [];
-            var extSysCategories = itemRecord.getFieldValues('custitem_f3_ext_sys_item_category');
-            if(!!extSysCategories && extSysCategories.length > 0) {
+        setExternalSystemCategory: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            itemObject.externalSystemCategory = {};
+            itemObject.externalSystemCategory.netsuiteCategoryId = itemRecord.getFieldValue('custitem_f3_ext_sys_item_category');
+            itemObject.externalSystemCategory.externalSystemCategoryId = '';
+            if (!!itemObject.externalSystemCategory.netsuiteCategoryId) {
                 var externalSystemCategories = ConnectorConstants.ItemConfigRecords.ExternalSystemItemCategory;
-                for (var i = 0; i < extSysCategories.length; i++) {
-                    var nsCatId = extSysCategories[i];
-                    var extSysCategoryObj = _.findWhere(externalSystemCategories, {id: nsCatId});
-                    var extSysCatId = !!extSysCategoryObj ? extSysCategoryObj.itemCategoryId : '';
-                    itemObject.externalSystemCategories.push({netsuiteId: nsCatId, externalSystemId: extSysCatId });
-                }
+                var extSysCategoryObj = _.findWhere(externalSystemCategories, {id: itemObject.externalSystemCategory.netsuiteCategoryId});
+                itemObject.externalSystemCategory.externalSystemCategoryId = !!extSysCategoryObj ? extSysCategoryObj.itemCategoryId : '';
             }
         },
 
@@ -268,11 +223,11 @@ var ItemExportLibrary = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setExternalSystemItemAttributeSet: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+        setExternalSystemItemAttributeSet: function (store, itemInternalId, itemType, itemObject, itemRecord) {
             itemObject.itemAttributeSet = {};
             itemObject.itemAttributeSet.netsuiteItemAttrSetId = itemRecord.getFieldValue('custitem_f3_ext_sys_item_attribute_set');
             itemObject.itemAttributeSet.externalSystemItemAttrSetId = '';
-            if(!!itemObject.itemAttributeSet.netsuiteItemAttrSetId) {
+            if (!!itemObject.itemAttributeSet.netsuiteItemAttrSetId) {
                 var externalSystemItemAttrSets = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
                 var extSysItemAttrSetObj = _.findWhere(externalSystemItemAttrSets, {id: itemObject.itemAttributeSet.netsuiteItemAttrSetId});
                 itemObject.itemAttributeSet.externalSystemItemAttrSetId = !!extSysItemAttrSetObj ? extSysItemAttrSetObj.itemAttributeSetId : '';
@@ -335,17 +290,17 @@ var ItemExportLibrary = (function () {
             if (externalSystemMatrixFieldMap instanceof Array) {
                 // iterating through custom item options defined in ExternalSystemMatrixFieldMap record
                 for (var i in externalSystemMatrixFieldMap) {
-                    //Utility.logDebug('w_externalSystemMatrixFieldMap', JSON.stringify(externalSystemMatrixFieldMap))
+                    Utility.logDebug('w_externalSystemMatrixFieldMap', JSON.stringify(externalSystemMatrixFieldMap))
                     fieldMap = externalSystemMatrixFieldMap[i];
                     var netSuiteItemOptionsObj = this.getNetSuiteItemOptionObject(fieldMap.externalSystemId, fieldMap.netSuiteItemOptionField);
-                    var netSuiteItemOptionField = !!netSuiteItemOptionsObj? netSuiteItemOptionsObj.nsItemAttributeId : '';
+                    var netSuiteItemOptionField = !!netSuiteItemOptionsObj ? netSuiteItemOptionsObj.nsItemAttributeId : '';
                     var externalSystemId = fieldMap.externalSystemId;
                     // if custom item option field is defined in custom record and this field has options defined in
                     // matrix parent item then push this field into an array for future use
                     if (externalSystemId.toString() === ConnectorConstants.CurrentStore.systemId.toString() && !!netSuiteItemOptionField) {
                         if (matrixParentAttributesList.indexOf(fieldMap.netSuiteItemOptionField) === -1) {
                             var netSuiteMatrixFieldValues = null;
-                            if(netSuiteItemOptionsObj.nsItemAttributeType == ConnectorConstants.Item.FieldTypes.Select
+                            if (netSuiteItemOptionsObj.nsItemAttributeType == ConnectorConstants.Item.FieldTypes.Select
                                 && netSuiteItemOptionsObj.nsItemAttributeUseForVariantProduct === 'T'
                                 && itemRecord.getFieldValues(netSuiteItemOptionField) instanceof Array) {
                                 netSuiteMatrixFieldValues = itemRecord.getFieldValues(netSuiteItemOptionField);
@@ -374,9 +329,12 @@ var ItemExportLibrary = (function () {
          * @param externalSystemId
          * @param netSuiteItemOptionFieldRecordId
          */
-        getNetSuiteItemOptionObject: function(externalSystemId, netSuiteItemOptionFieldRecordId) {
+        getNetSuiteItemOptionObject: function (externalSystemId, netSuiteItemOptionFieldRecordId) {
             var netSuiteItemOptions = ConnectorConstants.ItemConfigRecords.NetSuiteItemOptions;
-            var netSuiteItemOptionsObj = _.findWhere(netSuiteItemOptions, {externalSystemId: externalSystemId, id: netSuiteItemOptionFieldRecordId});
+            var netSuiteItemOptionsObj = _.findWhere(netSuiteItemOptions, {
+                externalSystemId: externalSystemId,
+                id: netSuiteItemOptionFieldRecordId
+            });
             return netSuiteItemOptionsObj;
         },
 
@@ -409,10 +367,10 @@ var ItemExportLibrary = (function () {
             // append external system item attribute information in newMap
             for (var k in matrixParentAttributesList) {
                 fieldMap = matrixParentAttributesList[k];
-                if(fieldMap.netSuiteItemOptionFieldType == ConnectorConstants.Item.FieldTypes.Select) {
+                if (fieldMap.netSuiteItemOptionFieldType == ConnectorConstants.Item.FieldTypes.Select) {
                     // If field type if select list
                     var netSuiteMatrixFieldValues = fieldMap.netSuiteMatrixFieldValues;
-                    if(fieldMap.netSuiteItemOptionUseForVariantProduct === 'T') {
+                    if (fieldMap.nsItemAttributeUseForVariantProduct === 'T') {
                         // If item attribute is using for variant product, then netSuiteMatrixFieldValues will contains array of values
                         for (var l in netSuiteMatrixFieldValues) {
                             var netSuiteMatrixFieldValue = netSuiteMatrixFieldValues[l];
@@ -495,7 +453,7 @@ var ItemExportLibrary = (function () {
                 for (var i in externalSystemMatrixFieldMap) {
                     fieldMap = externalSystemMatrixFieldMap[i];
                     var netSuiteItemOptionsObj = this.getNetSuiteItemOptionObject(fieldMap.externalSystemId, fieldMap.netSuiteItemOptionField);
-                    var netSuiteItemOptionField = !!netSuiteItemOptionsObj? netSuiteItemOptionsObj.nsItemAttributeId : '';
+                    var netSuiteItemOptionField = !!netSuiteItemOptionsObj ? netSuiteItemOptionsObj.nsItemAttributeId : '';
                     var externalSystemId = fieldMap.externalSystemId;
                     // if custom item option field is defined in custom record and this field has options defined in
                     // matrix parent item then push this field into an array for future use
@@ -543,7 +501,7 @@ var ItemExportLibrary = (function () {
             for (var k in matrixChildAttributesList) {
                 fieldMap = matrixChildAttributesList[k];
                 var netSuiteMatrixFieldValue = fieldMap.netSuiteMatrixFieldValue;
-                if(fieldMap.netSuiteItemOptionFieldType == ConnectorConstants.Item.FieldTypes.Select) {
+                if (fieldMap.netSuiteItemOptionFieldType == ConnectorConstants.Item.FieldTypes.Select) {
                     var externalSystemMatrixFieldValue = ItemConfigRecordHandler.findExternalSystemMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, fieldMap.externalSystemMatrixFieldMapId, netSuiteMatrixFieldValue);
                     fieldMap.itemAttributeValue = externalSystemMatrixFieldValue.otherSystemMatrixFieldValue;
                     // make a two-way value map for attribute value
@@ -698,17 +656,17 @@ var ItemExportLibrary = (function () {
         },
 
         /**
-         * Export Item To External System
+         * Import Item To External System
          * @param store
          * @param itemInternalId
          * @param itemType
          * @param itemObject
          */
-        exportItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
+        importItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
             var responseBody = null;
             switch (itemType) {
                 case this.configData.ItemTypes.InventoryItem:
-                    responseBody = this.exportInventoryItemToExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
+                    responseBody = this.importInventoryItemToExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
                     break;
                 default:
                     break;
@@ -717,14 +675,14 @@ var ItemExportLibrary = (function () {
         },
 
         /**
-         * Export Inventory item to External System
+         * Import Inventory item to External System
          * @param store
          * @param itemInternalId
          * @param itemType
          * @param itemObject
          */
-        exportInventoryItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
-            return ConnectorConstants.CurrentWrapper.exportInventoryItem(store, itemInternalId, itemType, itemObject, createOnly);
+        importInventoryItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
+            return ConnectorConstants.CurrentWrapper.importInventoryItem(store, itemInternalId, itemType, itemObject, createOnly);
         },
 
         /**
@@ -772,365 +730,4 @@ var ItemExportLibrary = (function () {
         }
 
     };
-})();
-
-var ItemConfigRecordHandler = (function () {
-    return {
-
-        /**
-         * Get external system categories list
-         * @returns {*}
-         */
-        getAllExternalSystemItemCategoriesList: function () {
-            var list = [];
-
-            // if ExternalSystemItemCategories are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.ExternalSystemItemCategory instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.ExternalSystemItemCategory;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_cat_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_cat_id", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_cat_code", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_cat_details", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_ext_sys_category", null, null, columns, null);
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_ext_sys_cat_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_ext_sys_cat_sys") || "";
-                    var itemCategoryId = result.getValue("custrecord_f3_ext_sys_cat_id") || "";
-                    var itemCategoryCode = result.getValue("custrecord_f3_ext_sys_cat_code") || "";
-                    var itemCategoryDetails = result.getValue("custrecord_f3_ext_sys_cat_details") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        itemCategoryId: itemCategoryId,
-                        itemCategoryCode: itemCategoryCode,
-                        itemCategoryDetails: itemCategoryDetails
-                    });
-                }
-            }
-            return list;
-        },
-
-        /**
-         * Get Complete List of ExternalSystemItemAttributeSets
-         * @return {*}
-         */
-        getAllExternalSystemAttributeSetList: function () {
-            var list = [];
-
-            // if ExternalSystemItemAttributeSets are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_ext_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_id", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_code", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_set_details", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_ext_sys_item_att_set", null, null, columns, null);
-
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_item_att_set_ext_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_item_att_set_ext_sys") || "";
-                    var itemAttributeSetId = result.getValue("custrecord_f3_item_att_set_id") || "";
-                    var itemAttributeSetCode = result.getValue("custrecord_f3_item_att_set_code") || "";
-                    var itemAttributeSetDetails = result.getValue("custrecord_f3_item_att_set_details") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        itemAttributeSetId: itemAttributeSetId,
-                        itemAttributeSetCode: itemAttributeSetCode,
-                        itemAttributeSetDetails: itemAttributeSetDetails
-                    });
-                }
-            }
-            return list;
-        },
-
-        /**
-         * Get Complete List of ExternalSystemItemAttributes
-         * @return {*}
-         */
-        getAllExternalSystemAttributeList: function () {
-            var list = [];
-
-            // if ExternalSystemItemAttributes are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ext_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_id", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_code", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_type", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_use_for_var_prod", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_details", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_ext_sys_item_att", null, null, columns, null);
-
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_item_att_ext_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_item_att_ext_sys") || "";
-                    var itemAttributeId = result.getValue("custrecord_f3_item_att_id") || "";
-                    var itemAttributeCode = result.getValue("custrecord_f3_item_att_code") || "";
-                    var itemAttributeType = result.getValue("custrecord_f3_item_att_type") || "";
-                    var itemAttributeUseForVariantProduct = result.getValue("custrecord_f3_item_att_use_for_var_prod") || "";
-                    var itemAttributeDetails = result.getValue("custrecord_f3_item_att_details") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        itemAttributeId: itemAttributeId,
-                        itemAttributeCode: itemAttributeCode,
-                        itemAttributeType: itemAttributeType,
-                        itemAttributeUseForVariantProduct: itemAttributeUseForVariantProduct,
-                        itemAttributeDetails: itemAttributeDetails
-                    });
-                }
-            }
-
-            return list;
-        },
-
-        /**
-         * Get Complete List of NetSuite Item Options
-         * @return {*}
-         */
-        getAllNetSuiteItemOptionsList: function () {
-            var list = [];
-
-            // if NetSuiteItemOptions are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.NetSuiteItemOptions instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.NetSuiteItemOptions;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_ext_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_id", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_type", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_cust_lst_id", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_cust_lst_name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_use_for_var", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_use_cust_opt", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_item_att_ns_details", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_netsuite_item_att", null, null, columns, null);
-
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_item_att_ns_ext_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_item_att_ns_ext_sys") || "";
-                    var nsItemAttributeId = result.getValue("custrecord_f3_item_att_ns_id") || "";
-                    var nsItemAttributeType = result.getValue("custrecord_f3_item_att_ns_type") || "";
-                    var nsItemAttributeCustomListId = result.getValue("custrecord_f3_item_att_ns_cust_lst_id") || "";
-                    var nsItemAttributeCustomListName = result.getValue("custrecord_f3_item_att_ns_cust_lst_name") || "";
-                    var nsItemAttributeUseForVariantProduct = result.getValue("custrecord_f3_item_att_ns_use_for_var") || "";
-                    var nsItemAttributeUseAsCustomOption = result.getValue("custrecord_f3_item_att_ns_use_cust_opt") || "";
-                    var nsItemAttributeDetails = result.getValue("custrecord_f3_item_att_ns_details") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        nsItemAttributeId: nsItemAttributeId,
-                        nsItemAttributeType: nsItemAttributeType,
-                        nsItemAttributeCustomListId: nsItemAttributeCustomListId,
-                        nsItemAttributeCustomListName: nsItemAttributeCustomListName,
-                        nsItemAttributeUseForVariantProduct: nsItemAttributeUseForVariantProduct,
-                        nsItemAttributeUseAsCustomOption: nsItemAttributeUseAsCustomOption,
-                        nsItemAttributeDetails: nsItemAttributeDetails
-                    });
-                }
-            }
-
-            return list;
-        },
-
-        /**
-         * Get Complete List of ExternalSystemMatrixFieldMap
-         * @return {*}
-         */
-        getAllExternalSystemMatrixFieldMapList: function () {
-            var list = [];
-
-            // if ExternalSystemMatrixFieldMap are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ext_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ext_sys_att", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_ns_itm_opt_fld", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_detials", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_ext_sys_mat_fld_map", null, null, columns, null);
-
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_mat_fld_map_ext_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_mat_fld_map_ext_sys") || "";
-                    var externalSystemAttributeId = result.getValue("custrecord_f3_mat_fld_map_ext_sys_att") || "";
-                    var externalSystemAttributeText = result.getText("custrecord_f3_mat_fld_map_ext_sys_att") || "";
-                    var netSuiteItemOptionField = result.getValue("custrecord_f3_mat_fld_map_ns_itm_opt_fld") || "";
-                    var details = result.getValue("custrecord_f3_mat_fld_map_detials") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        externalSystemAttributeId: externalSystemAttributeId,
-                        externalSystemAttributeText: externalSystemAttributeText,
-                        netSuiteItemOptionField: netSuiteItemOptionField,
-                        details: details
-                    });
-                }
-            }
-
-            return list;
-        },
-
-        /**
-         * Get Complete List of ExternalSystemMatrixFieldValues
-         * @return {*}
-         */
-        getAllExternalSystemMatrixFieldValuesList: function () {
-            var list = [];
-
-            // if ExternalSystemMatrixFieldValues are already fecthed the return extisng ones
-            if (ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues instanceof Array) {
-                return ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues;
-            }
-
-            var columns = [];
-            columns.push(new nlobjSearchColumn("name", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_ext_sys", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_fld_map", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_ns_fld_val", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_os_fld_val", null, null));
-            columns.push(new nlobjSearchColumn("custrecord_f3_mat_fld_map_val_details", null, null));
-            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
-
-            var results = Utility.getRecords("customrecord_f3_ext_sys_mat_fld_val_map", null, null, columns, null);
-
-            if (!!results && results.length > 0) {
-                for (var i in results) {
-                    var result = results[i];
-                    var id = result.getId() || "";
-                    var name = result.getValue("name") || "";
-                    var externalSystemId = result.getValue("custrecord_f3_mat_fld_map_val_ext_sys") || "";
-                    var externalSystemText = result.getText("custrecord_f3_mat_fld_map_val_ext_sys") || "";
-                    var itemMatrixFieldMapId = result.getValue("custrecord_f3_mat_fld_map_val_fld_map") || "";
-                    var itemMatrixFieldMapText = result.getText("custrecord_f3_mat_fld_map_val_fld_map") || "";
-                    var netSuiteMatrixFieldValue = result.getValue("custrecord_f3_mat_fld_map_val_ns_fld_val") || "";
-                    var otherSystemMatrixFieldValue = result.getValue("custrecord_f3_mat_fld_map_val_os_fld_val") || "";
-                    var details = result.getValue("custrecord_f3_mat_fld_map_val_details") || "";
-
-                    list.push({
-                        id: id,
-                        name: name,
-                        externalSystemId: externalSystemId,
-                        externalSystemText: externalSystemText,
-                        itemMatrixFieldMapId: itemMatrixFieldMapId,
-                        itemMatrixFieldMapText: itemMatrixFieldMapText,
-                        netSuiteMatrixFieldValue: netSuiteMatrixFieldValue,
-                        otherSystemMatrixFieldValue: otherSystemMatrixFieldValue,
-                        details: details
-                    });
-                }
-            }
-
-            return list;
-        },
-        /**
-         * This method is used to fetch attribute information depending on passing parameters
-         * @param currentStoreId
-         * @param externalSystemAttributeId
-         * @returns {null | object}
-         */
-        getExternalSystemItemAttributeInfo: function (currentStoreId, externalSystemAttributeId) {
-            var externalSystemItemAttributes = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
-            if (externalSystemItemAttributes instanceof Array) {
-                for (var i in externalSystemItemAttributes) {
-                    var externalSystemItemAttribute = externalSystemItemAttributes[i];
-                    if (externalSystemItemAttribute.externalSystemId.toString() === currentStoreId.toString() &&
-                        externalSystemItemAttribute.id.toString() === externalSystemAttributeId.toString()) {
-                        return externalSystemItemAttribute;
-                    }
-                }
-            }
-            return null;
-        },
-
-        /**
-         * This method is used to fetch attribute values of external system defined against NetSuite's item
-         * option values information depending on passing parameters
-         * @param currentStoreId
-         * @param externalSystemMatrixFieldMapId
-         * @param netSuiteMatrixFieldValue
-         * @returns {null | string}
-         */
-        findExternalSystemMatrixFieldValue: function (currentStoreId, externalSystemMatrixFieldMapId, netSuiteMatrixFieldValue) {
-            var externalSystemMatrixFieldValues = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues;
-            if (externalSystemMatrixFieldValues instanceof Array) {
-                for (var i in externalSystemMatrixFieldValues) {
-                    var externalSystemMatrixFieldValue = externalSystemMatrixFieldValues[i];
-                    if (externalSystemMatrixFieldValue.externalSystemId.toString() === currentStoreId.toString() &&
-                        externalSystemMatrixFieldValue.itemMatrixFieldMapId.toString() === externalSystemMatrixFieldMapId.toString() &&
-                        externalSystemMatrixFieldValue.netSuiteMatrixFieldValue.toString() === netSuiteMatrixFieldValue.toString()) {
-                        return externalSystemMatrixFieldValue;
-                    }
-                }
-            }
-            return null;
-        }
-    };
-
-    //endregion
-
-
 })();

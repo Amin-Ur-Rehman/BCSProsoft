@@ -479,9 +479,10 @@ var ConnectorCommon = (function () {
                 addressSubRec.setFieldValue('addr2', stAddr2);
                 addressSubRec.setFieldValue('city', city);
 
-                magentoId = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, addressId, 'create', null);
+                //magentoId = ConnectorCommon.getMagentoIdObjectArrayString(ConnectorConstants.CurrentStore.systemId, addressId, 'create', null);
+                //addressSubRec.setFieldValue(ConnectorConstants.OtherCustom.MagentoId, magentoId);
 
-                addressSubRec.setFieldValue(ConnectorConstants.OtherCustom.MagentoId, magentoId);
+                Utility.logDebug("set customer addresses - final", JSON.stringify(addressObj));
 
                 try {
                     addressSubRec.setFieldValue('state', regionId);
@@ -1327,6 +1328,56 @@ var ConnectorCommon = (function () {
          * @param rec
          * @return {boolean}
          */
+        addressExists2: function (add, isBilling, isShipping, rec) {
+            for (var t = 1; t <= rec.getLineItemCount('addressbook'); t++) {
+                var subRec = rec.viewLineItemSubrecord("addressbook", "addressbookaddress", t);
+                var str = '';
+                var line;
+                str += (subRec.getFieldValue('addr1', t) || '') + ' === ' + add.addr1.replace(/"/g, '') + ' || ';
+                str += (subRec.getFieldValue('addr2', t) || '') + ' === ' + add.addr2.replace(/"/g, '') + ' || ';
+                str += (subRec.getFieldValue('addressee', t) || '') + ' === ' + add.addressee.replace(/"/g, '') + ' || ';
+                str += (subRec.getFieldValue('city', t) || '') + ' === ' + add.city.replace(/"/g, '') + ' || ';
+                str += (subRec.getFieldValue('state', t) || '') + ' === ' + add.state.replace(/"/g, '') + ' || ';
+                str += (subRec.getFieldValue('zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
+                str += 'isShipping' + ' === ' + isShipping + ' || ';
+                str += 'isBilling' + ' === ' + isBilling;
+                Utility.logDebug('addressExists', str);
+
+                if ((subRec.getFieldValue('addr1', t) || '').trim().toLowerCase() === add.addr1.replace(/"/g, '').trim().toLowerCase() &&
+                    (subRec.getFieldValue('addr2', t) || '').trim().toLowerCase() === add.addr2.replace(/"/g, '').trim().toLowerCase() &&
+                    (subRec.getFieldValue('addressee', t) || '').trim().toLowerCase() === add.addressee.replace(/"/g, '').trim().toLowerCase() &&
+                    (subRec.getFieldValue('city', t) || '' ).trim().toLowerCase() === add.city.replace(/"/g, '').trim().toLowerCase() &&
+                    (subRec.getFieldValue('state', t) || '').trim().toLowerCase() === add.state.replace(/"/g, '').trim().toLowerCase() &&
+                    (subRec.getFieldValue('zip', t) || '' ).trim() === add.zip.replace(/"/g, '').trim()) {
+                    if (isShipping === 'T') {
+                        line = rec.findLineItemValue("addressbook", "defaultshipping", "T");
+                        if (line > 0) {
+                            rec.setLineItemValue('addressbook', 'defaultshipping', line, "F");
+                        }
+                        rec.setLineItemValue('addressbook', 'defaultshipping', t, isShipping);
+                    }
+                    if (isBilling === 'T') {
+                        line = rec.findLineItemValue("addressbook", "defaultbilling", "T");
+                        if (line > 0) {
+                            rec.setLineItemValue('addressbook', 'defaultbilling', line, "F");
+                        }
+                        rec.setLineItemValue('addressbook', 'defaultbilling', t, isBilling);
+                    }
+                    Utility.logDebug('addressExists', "MATCHED");
+                    return true;
+                }
+            }
+            Utility.logDebug('addressExists', 'NOT MATCHED');
+            return false;
+        },
+        /**
+         * Check if address exist
+         * @param add
+         * @param isBilling
+         * @param isShipping
+         * @param rec
+         * @return {boolean}
+         */
         addressExists: function (add, isBilling, isShipping, rec) {
             for (var t = 1; t <= rec.getLineItemCount('addressbook'); t++) {
                 var str = '';
@@ -1339,7 +1390,7 @@ var ConnectorCommon = (function () {
                 str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
                 str += 'isShipping' + ' === ' + isShipping + ' || ';
                 str += 'isBilling' + ' === ' + isBilling;
-                //Utility.logDebug('addressExists', str);
+                Utility.logDebug('addressExists', str);
 
                 if ((rec.getLineItemValue('addressbook', 'addr1', t) || '').trim().toLowerCase() === add.addr1.replace(/"/g, '').trim().toLowerCase() &&
                     (rec.getLineItemValue('addressbook', 'addr2', t) || '').trim().toLowerCase() === add.addr2.replace(/"/g, '').trim().toLowerCase() &&
@@ -1361,8 +1412,7 @@ var ConnectorCommon = (function () {
                         }
                         rec.setLineItemValue('addressbook', 'defaultbilling', t, isBilling);
                     }
-                    Utility.logDebug('addressExists', str);
-                    Utility.logDebug('addressExists - addressid: ' + rec.getLineItemValue('addressbook', 'addressid', t), 'MATCHED');
+                    Utility.logDebug('addressExists', "MATCHED");
                     return true;
                 }
             }
