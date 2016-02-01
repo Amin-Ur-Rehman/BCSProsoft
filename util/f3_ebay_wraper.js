@@ -693,7 +693,7 @@ EbayWrapper = (function () {
 
         return data;
     }
-
+    /*get Discount Type from External System*/
     function getDiscountType(discountType) {
         var type = null;
         if (discountType.toString() === "percent") {
@@ -702,7 +702,7 @@ EbayWrapper = (function () {
             type = "fixed_cart";
         }
     }
-
+    /*get Discount Coupon Data from External System*/
     function getSingleCouponData(promoCodeRecord) {
         var couponData = WOOModels.coupon();
         if (promoCodeRecord.hasOwnProperty("record_id") && !!promoCodeRecord.record_id) {
@@ -716,14 +716,14 @@ EbayWrapper = (function () {
         couponData.description = promoCodeRecord.description;
         return couponData;
     }
-
+    /*get Discount Coupon Data from External System*/
     function getCouponsData(promoCodeRecord) {
         var couponsData = {};
         couponsData.coupons = [];
         couponsData.coupons.push(getSingleCouponData(promoCodeRecord));
         return couponsData;
     }
-
+    /*Parse Coupons Response*/
     function parseCouponsResponse(coupons) {
         var couponsList = [];
         for (var i in coupons) {
@@ -732,7 +732,7 @@ EbayWrapper = (function () {
         }
         return couponsList;
     }
-
+    /*Parse Coupons Response*/
     function parseSingleCouponResponse(coupon) {
         var couponObj = WOOModels.coupon();
         couponObj.id = coupon.id.toString();
@@ -855,7 +855,7 @@ EbayWrapper = (function () {
 
         return serverResponse;
     }
-
+    /*Get Create Fulfillment Items Data*/
     function getCreateFulfillmentLineItemsData() {
         var lineItems = [];
         // we are in after submit event of item fulfillment that's why I have accessed the record
@@ -877,7 +877,7 @@ EbayWrapper = (function () {
         }
         return lineItems;
     }
-
+    /*Get Create Fulfillment Tracking Number Data*/
     function getCreateFulfillmentTrackingNumbersData() {
         var trackingNumbersData = {};
         var trackingNumbers = [];
@@ -902,7 +902,7 @@ EbayWrapper = (function () {
         trackingNumbersData.trackingNumbers = trackingNumbers;
         return trackingNumbersData;
     }
-
+    /*Get Create Fulfillment Data*/
     function getCreateFulfillmentData() {
         var data = {
             "tracking_numbers": [],
@@ -917,7 +917,7 @@ EbayWrapper = (function () {
         data.tracking_numbers = trackingNumbersData.trackingNumbers;
         return data;
     }
-
+    /*Parse Sales Order Response Data*/
     function parseCancelSalesOrderResponse(serverResponse) {
         var finalResult = {
             status: false
@@ -1078,12 +1078,12 @@ EbayWrapper = (function () {
             Utility.logException('Error in getOrderStatus', 'Error Message:' + ex.message + ' Error:' + ex.toString());
         }
     }
-
+    /*Get Ebay Transactions*/
     function GetMyEbaySelling(pagenumber, durationdays, orderStatusFilter) {
         var postData = generateXmlForMyEbaySelling(pagenumber, durationdays, orderStatusFilter);
         return callXmlService(Operations.GetMyeBaySelling, postData, null);
     }
-
+    /*Send Request to Ebay API*/
     function callXmlService(operation, postData, credentials, customHeaders) {
         try {
 
@@ -1128,8 +1128,7 @@ EbayWrapper = (function () {
             throw exp;
         }
     }
-
-
+    /*Parse Ebay Response*/
     function responseCheck(response) {
         try {
             var responseString;
@@ -1184,7 +1183,7 @@ EbayWrapper = (function () {
             throw ex;
         }
     }
-
+    /*Send Error or notifications email*/
     function sendNotification(subject, body) {
 
         var to = storeConfiguration.entitySyncInfo.notification_config.to;
@@ -1203,7 +1202,7 @@ EbayWrapper = (function () {
             }
         }
     }
-
+    /*Cook credentials info for ebay api call*/
     function getHttpCredentials(credentials) {
         var params = [];
         params[HttpHeaders.SECURITY_APPNAME] = storeConfiguration.entitySyncInfo.ebayKeys.appid;
@@ -1211,18 +1210,17 @@ EbayWrapper = (function () {
         params[HttpHeaders.X_EBAY_API_CERT_NAME] = storeConfiguration.entitySyncInfo.ebayKeys.certid;
         return params;
     }
-
-
+    /*Generatre XML for ebay transaction call*/
     function generateXmlForMyEbaySelling(pagenumber, durationdays, orderStatusFilter) {
         var operation = Operations.GetMyeBaySelling;
         var xml = getBasicXmlHeader(operation, null) + '<SoldList>' + '<DurationInDays>' + durationdays + '</DurationInDays>' + '<Include>1</Include>' + '<IncludeNotes>0</IncludeNotes>' + '<OrderStatusFilter>' + orderStatusFilter + '</OrderStatusFilter>' + '<Pagination> ' + '<EntriesPerPage>200</EntriesPerPage>' + '<PageNumber>' + pagenumber + '</PageNumber>' + '</Pagination>' + '<Sort>EndTimeDescending</Sort>' + '</SoldList>' + '<WarningLevel>High</WarningLevel>' + getBasicXmlFooter(operation);
         return xml;
     }
-
+    /*XML footer for ebay call xml*/
     function getBasicXmlFooter(operation) {
         return '</' + Operations[operation] + 'Request>';
     }
-
+    /*XML header for ebay call xml*/
     function getBasicXmlHeader(operation) {
         Utility.logDebug('storeConfiguration', JSON.stringify(storeConfiguration));
         var authToken = storeConfiguration.entitySyncInfo.ebayKeys.token;
@@ -1250,7 +1248,7 @@ EbayWrapper = (function () {
 
     }
 
-
+    /*Fetch transactions details from ebay*/
     function GetAuctions(GetMyebaySellingResponse) {
         try {
             var ebayTransactionsArray = [];
@@ -1287,7 +1285,7 @@ EbayWrapper = (function () {
         }
     }
 
-
+    /*Function to convert xml received frome ebay to object*/
     function XMLtoObj(transactionXML) {
         try {
             var orderObj = {};
@@ -1337,7 +1335,7 @@ EbayWrapper = (function () {
         }
     }
 
-
+    /*Fetch ebay item data from ebay*/
     function GetEbayItem(itemResponse) {
         try {
             var ordersXml;
@@ -1369,7 +1367,7 @@ EbayWrapper = (function () {
             return null;
         }
     }
-
+    /*Produce xml for ebay item call*/
     function generateXmlForGetItemRequest(itemId) {
         var operation = Operations.GetItem;
         Utility.logDebug('RequestXmlHeader', getBasicXmlHeader(operation));
@@ -1380,7 +1378,7 @@ EbayWrapper = (function () {
             + getBasicXmlFooter(operation);
         return xml;
     }
-
+    /*Fetch Item Details*/
     function GetItemDetails(itemId) {
         var postData = generateXmlForGetItemRequest(itemId);
         var customHeaders = {};
@@ -1388,7 +1386,7 @@ EbayWrapper = (function () {
         return callXmlService(Operations.GetItem, postData, null, customHeaders);
     }
 
-
+    /*Fetch Ebay User*/
     function GetEbayUser(userResponse, transactionID, auctionID) {
         var userXml = nlapiStringToXML(userResponse.getBody());
         Utility.logDebug('UserXML', userResponse.getBody());
@@ -1454,18 +1452,18 @@ EbayWrapper = (function () {
             return false;
         }
     }
-
+    /*Fetch Ebay User Details*/
     function GetUserDetails(itemId, pageNumber, transactionId) {
         var postData = generateXmlForGetUserRequest(itemId, pageNumber, transactionId);
         return callXmlService(Operations.GetItemTransactions, postData, null);
     }
-
+    /*Get Ebay user xml*/
     function generateXmlForGetUserRequest(itemId, pageNumber, transactionId) {
         var operation = Operations.GetItemTransactions;
         var xml = getBasicXmlHeader(operation, null) + ' <ItemID>' + itemId + '</ItemID>' + '<TransactionID>' + transactionId + '</TransactionID>' + ' <Pagination>' + '<EntriesPerPage>200</EntriesPerPage>' + '<PageNumber>' + pageNumber + '</PageNumber>' + '</Pagination>' + getBasicXmlFooter(operation);
         return xml;
     }
-
+    /*Mark sales complete at ebay*/
     function generateXmlForCompleteSale(shipmentDetails) {
         var operation = Operations.CompleteSale;
         var shipDetailXML = '';
@@ -1476,8 +1474,7 @@ EbayWrapper = (function () {
         var xml = getBasicXmlHeader(operation, null) + '<WarningLevel>High</WarningLevel>' + '<ItemID>' + shipmentDetails[0].AuctionId + '</ItemID>' + '<Shipment>' + shipDetailXML + '</Shipment>' + '<TransactionID>' + shipmentDetails[0].TransactionId + '</TransactionID>' + '<RequesterCredentials>' + '<eBayAuthToken>' + shipmentDetails[0].AuthToken + '</eBayAuthToken>' + '</RequesterCredentials>' + '<WarningLevel>High</WarningLevel>' + getBasicXmlFooter(operation);
         return xml;
     }
-
-
+    /*Set Tracking number on ebay transaction*/
     function SetTrackingNumber(shipmentDetails) {
         var postData = generateXmlForCompleteSale(shipmentDetails);
         return callXmlService(Operations.CompleteSale, postData, null);
@@ -2404,7 +2401,7 @@ EbayWrapper = (function () {
 
 })();
 
-
+//Class will hold the functions to communicate with Ebay API
 EbayCommunication = (function () {
 
 
