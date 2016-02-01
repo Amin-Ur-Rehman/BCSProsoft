@@ -156,10 +156,11 @@ function F3ClientBase() {
          * @param {nlobjRecord} rec
          * @param {float} discountAmount
          */
-        setDiscountInOrder: function (rec, discountAmount) {
+        setDiscountInOrder: function (rec, salesOrderObj) {
             // Discount handling
-            Utility.logDebug('discountAmount setp-1', discountAmount);
-            discountAmount = !Utility.isBlankOrNull(discountAmount) && !isNaN(discountAmount) ? parseFloat(Math.abs(discountAmount)) : 0;
+            Utility.logDebug('discountAmount setp-1', salesOrderObj.order.discount_amount);
+            var discountAmount = ConnectorConstants.CurrentWrapper.getDiscount(salesOrderObj);
+            //discountAmount = !Utility.isBlankOrNull(discountAmount) && !isNaN(discountAmount) ? parseFloat(Math.abs(discountAmount)) : 0;
             Utility.logDebug('discountAmount step-2', discountAmount);
 
             if (!!discountAmount && parseFloat(discountAmount) !== 0) {
@@ -255,7 +256,7 @@ function F3ClientBase() {
                 this.setSalesOrderLineItemFields(rec, salesOrderObj);
                 Utility.logDebug("createSalesOrder", "setDiscountInOrder");
                 // set discount if found in order
-                this.setDiscountInOrder(rec, salesOrderObj.order.discount_amount);
+                this.setDiscountInOrder(rec, salesOrderObj);
                 Utility.logDebug("createSalesOrder", "setGiftCardLineItem");
                 // set gift card in order
                 this.setGiftCardLineItem(rec, salesOrderObj.order.quote_id);
@@ -370,7 +371,7 @@ function F3ClientBase() {
                         rec.setLineItemValue('item', 'price', x + 1, 1);
                     } else {
                         rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
-                        rec.setLineItemValue('item', 'amount', x + 1, products[x].price);
+                        rec.setLineItemValue('item', 'rate', x + 1, products[x].price);
                     }
 
                     if (products[x].product_type === ConnectorConstants.MagentoProductTypes.GiftCard
