@@ -24,9 +24,6 @@ F3ClientFactory = (function () {
                 case "925507":
                     client = new F3FmwShopifyClient();
                     break;
-                case 'F3BaseV1Ebay':
-                    client = new F3BaseV1ClientEbay();
-                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
