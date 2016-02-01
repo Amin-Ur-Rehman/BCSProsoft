@@ -28,8 +28,10 @@ ConnectorConstants = (function () {
         ExternalSystemConfig: [],
         CurrentStore: {},
         ItemConfigRecords: {
-            ExternalSystemItemAttributes: null,
+            ExternalSystemItemCategory: null,
             ExternalSystemItemAttributeSets: null,
+            ExternalSystemItemAttributes: null,
+            NetSuiteItemOptions: null,
             ExternalSystemMatrixFieldMap: null,
             ExternalSystemMatrixFieldValues: null
         },
@@ -94,6 +96,9 @@ ConnectorConstants = (function () {
                 AllowOpenAmount: 'custitem_f3mg_price_allow_open_amount',
                 OpenAmountMinValue: 'custitem_f3mg_price_open_amount_min',
                 OpenAmountMaxValue: 'custitem_f3mg_price_open_amount_max'
+            },
+            FieldTypes: {
+                Select: '1'
             }
         },
         OtherCustom: {
@@ -217,8 +222,10 @@ ConnectorConstants = (function () {
             this.ScrubsList = FC_ScrubHandler.getAllScrubsList();
         },
         loadItemConfigRecords: function () {
-            this.ItemConfigRecords.ExternalSystemItemAttributes = ItemConfigRecordHandler.getAllExternalSystemAttributeList();
+            this.ItemConfigRecords.ExternalSystemItemCategory = ItemConfigRecordHandler.getAllExternalSystemItemCategoriesList();
             this.ItemConfigRecords.ExternalSystemItemAttributeSets = ItemConfigRecordHandler.getAllExternalSystemAttributeSetList();
+            this.ItemConfigRecords.ExternalSystemItemAttributes = ItemConfigRecordHandler.getAllExternalSystemAttributeList();
+            this.ItemConfigRecords.NetSuiteItemOptions = ItemConfigRecordHandler.getAllNetSuiteItemOptionsList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
         },
