@@ -7,7 +7,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get external system categories list
-         * @returns {*}
+         * @return {[] | object[]}
          */
         getAllExternalSystemItemCategoriesList: function () {
             var list = [];
@@ -53,7 +53,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get Complete List of ExternalSystemItemAttributeSets
-         * @return {*}
+         * @return {[] | object[]}
          */
         getAllExternalSystemAttributeSetList: function () {
             var list = [];
@@ -100,7 +100,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get Complete List of ExternalSystemItemAttributes
-         * @return {*}
+         * @return {[] | object[]}
          */
         getAllExternalSystemAttributeList: function () {
             var list = [];
@@ -154,7 +154,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get Complete List of NetSuite Item Options
-         * @return {*}
+         * @return {[] | object[]}
          */
         getAllNetSuiteItemOptionsList: function () {
             var list = [];
@@ -214,7 +214,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get Complete List of ExternalSystemMatrixFieldMap
-         * @return {*}
+         * @return {[] | object[]}
          */
         getAllExternalSystemMatrixFieldMapList: function () {
             var list = [];
@@ -264,7 +264,7 @@ var ItemConfigRecordHandler = (function () {
 
         /**
          * Get Complete List of ExternalSystemMatrixFieldValues
-         * @return {*}
+         * @return {[] | object[]}
          */
         getAllExternalSystemMatrixFieldValuesList: function () {
             var list = [];
@@ -357,7 +357,13 @@ var ItemConfigRecordHandler = (function () {
             return null;
         },
 
-        findExternalSystemItemAttributeInternalId: function (curentStoreId, externalSystemItemAttributeCode) {
+        /**
+         * This method is used to find the external system attribute object by external system attribute value
+         * @param currentStoreId
+         * @param externalSystemItemAttributeCode
+         * @returns {null | object}
+         */
+        findExternalSystemItemAttribute: function (currentStoreId, externalSystemItemAttributeCode) {
             var externalSystemItemAttributes = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
 
             for (var i in externalSystemItemAttributes) {
@@ -365,24 +371,115 @@ var ItemConfigRecordHandler = (function () {
 
                 // TODO: check itemAttributeUseForVariantProduct flag if necessary
                 if (externalSystemItemAttributeCode === externalSystemItemAttribute.itemAttributeCode &&
-                    curentStoreId === externalSystemItemAttribute.externalSystemId) {
-                    return externalSystemItemAttribute.id;
+                    currentStoreId === externalSystemItemAttribute.externalSystemId) {
+                    return externalSystemItemAttribute;
                 }
             }
             return null;
         },
 
-        findNetSuiteOptionFieldInternalId: function (curentStoreId, externalSystemItemAttributeInternalId) {
+        /**
+         * This method is used to find the external system matrix field map object by external system item attribute's
+         * internal id
+         * @param currentStoreId
+         * @param externalSystemItemAttributeInternalId
+         * @returns {null | object}
+         */
+        findExtSysMatrixFldMapByExtSysItemAttrInternalId: function (currentStoreId, externalSystemItemAttributeInternalId) {
             var externalSystemMatrixFieldMap = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldMap;
 
             for (var i in externalSystemMatrixFieldMap) {
                 var extSysMatrixFieldMap = externalSystemMatrixFieldMap[i];
-                if (externalSystemItemAttributeInternalId === extSysMatrixFieldMap.itemAttributeCode &&
-                    curentStoreId === extSysMatrixFieldMap.externalSystemId) {
-                    return extSysMatrixFieldMap.id;
+                if (externalSystemItemAttributeInternalId === extSysMatrixFieldMap.externalSystemAttributeId &&
+                    currentStoreId === extSysMatrixFieldMap.externalSystemId) {
+                    return extSysMatrixFieldMap;
                 }
-                return null;
             }
+            return null;
+        },
+        /**
+         * This method is used to find the NetSuite item attribute object by netsuite item attribute's internal id
+         * @param currentStoreId
+         * @param netSuiteItemAttributeInternalId
+         * @returns {null | object}
+         */
+        findNetSuiteItemAttribute: function (currentStoreId, netSuiteItemAttributeInternalId) {
+            var netSuiteItemOptions = ConnectorConstants.ItemConfigRecords.NetSuiteItemOptions;
+
+            for (var i in netSuiteItemOptions) {
+                var netSuiteItemOption = netSuiteItemOptions[i];
+                if (netSuiteItemAttributeInternalId === netSuiteItemOption.id &&
+                    currentStoreId === netSuiteItemOption.externalSystemId) {
+                    return netSuiteItemOption;
+                }
+            }
+            return null;
+        },
+
+        /**
+         * This method is used to fetch attribute values of NetSuite defined against external system's item
+         * option values information depending on passing parameters
+         * @param currentStoreId
+         * @param externalSystemMatrixFieldMapInternalId
+         * @param externalSystemAttributeFieldValue
+         * @returns {null | string}
+         */
+        findNetSuiteMatrixFieldValue: function (currentStoreId, externalSystemMatrixFieldMapInternalId, externalSystemAttributeFieldValue) {
+            var externalSystemMatrixFieldValues = ConnectorConstants.ItemConfigRecords.ExternalSystemMatrixFieldValues;
+            if (externalSystemMatrixFieldValues instanceof Array) {
+                for (var i in externalSystemMatrixFieldValues) {
+                    var externalSystemMatrixFieldValue = externalSystemMatrixFieldValues[i];
+                    if (externalSystemMatrixFieldValue.externalSystemId.toString() === currentStoreId.toString() &&
+                        externalSystemMatrixFieldValue.itemMatrixFieldMapId.toString() === externalSystemMatrixFieldMapInternalId.toString() &&
+                        externalSystemMatrixFieldValue.otherSystemMatrixFieldValue.toString() === externalSystemAttributeFieldValue.toString()) {
+                        return externalSystemMatrixFieldValue.netSuiteMatrixFieldValue;
+                    }
+                }
+            }
+            return null;
+        },
+
+        getNetSuiteAttributeSetId: function (currentStoreId, extSysAttrSetId) {
+            debugger;
+            var externalSystemItemAttributeSets = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
+            if (externalSystemItemAttributeSets instanceof Array) {
+                for (var i in externalSystemItemAttributeSets) {
+                    var externalSystemItemAttributeSet = externalSystemItemAttributeSets[i];
+                    if (externalSystemItemAttributeSet.externalSystemId.toString() === currentStoreId.toString() &&
+                        externalSystemItemAttributeSet.itemAttributeSetId.toString() === extSysAttrSetId.toString()) {
+                        return externalSystemItemAttributeSet.id;
+                    }
+                }
+            }
+            return null;
+        },
+
+        getNetSuiteCategoryId: function (currentStoreId, extSysCategoryId){
+            var externalSystemItemCategories = ConnectorConstants.ItemConfigRecords.ExternalSystemItemCategory;
+            if (externalSystemItemCategories instanceof Array) {
+                for (var i in externalSystemItemCategories) {
+                    var externalSystemItemCategory = externalSystemItemCategories[i];
+                    if (externalSystemItemCategory.externalSystemId.toString() === currentStoreId.toString() &&
+                        externalSystemItemCategory.itemCategoryId.toString() === extSysCategoryId.toString()) {
+                        return externalSystemItemCategory.id;
+                    }
+                }
+            }
+            return null;
+        },
+        getNetSuiteCategoryIds: function (currentStoreId, extSysCategoryIds) {
+            var nsSysCategoryIds = [];
+            if (extSysCategoryIds instanceof Array) {
+                for (var i in extSysCategoryIds) {
+                    var extSysCategoryId = extSysCategoryIds[i];
+                    var nsSysCategoryId = this.getNetSuiteCategoryId(currentStoreId, extSysCategoryId);
+                    if (!Utility.isBlankOrNull(nsSysCategoryId)) {
+                        nsSysCategoryIds.push(nsSysCategoryId);
+                    }
+                }
+            }
+
+            return nsSysCategoryIds;
         }
     };
 

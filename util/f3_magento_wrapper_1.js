@@ -2847,7 +2847,20 @@ MagentoXmlWrapper = (function () {
             var items = [];
 
             var complexFilters = [];
-            complexFilters.push({key: "updated_at", value: {key: "gt", value: [itemListData.previousDate]}});
+            // TODO: undo after testing
+            //complexFilters.push({key: "updated_at", value: {key: "gt", value: [itemListData.previousDate]}});
+            complexFilters.push({
+                key: "sku",
+                value: {
+                    key: "in",
+                    value: [
+                        "Pmtk006",
+                        "acj005ZEE",
+                        "Pmtk006xs",
+                        "Pmtk006s"
+                    ]
+                }
+            });
             itemListData.filters = null;
             itemListData.complexFilters = complexFilters;
 
@@ -2861,19 +2874,76 @@ MagentoXmlWrapper = (function () {
         },
 
         getAttributeIdForNetSuite: function (attributeId) {
-            var nsAttributeId = "";
+            Utility.logDebug("getAttributeIdForNetSuite - START", JSON.stringify(arguments));
+            var nsAttributeId;
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
 
-            var externalSystemItemAttributeInternalId = ItemConfigRecordHandler.findExternalSystemItemAttributeInternalId(ConnectorConstants.CurrentStore.systemId, attributeId);
-            var netSuiteOptionFieldInternalId = ItemConfigRecordHandler.findNetSuiteOptionFieldInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
-            var netSuiteItemAttributeId =  ItemConfigRecordHandler.findNetSuiteItemAttributeId(ConnectorConstants.CurrentStore.systemId, netSuiteOptionFieldInternalId);
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
 
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            var netSuiteItemAttributeInternalId = extSysMatrixFldMap.netSuiteItemOptionField;
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
 
+            var netSuiteItemAttribute = ItemConfigRecordHandler.findNetSuiteItemAttribute(ConnectorConstants.CurrentStore.systemId, netSuiteItemAttributeInternalId);
+            nsAttributeId = netSuiteItemAttribute.nsItemAttributeId;
+            Utility.logDebug("netSuiteItemAttribute", JSON.stringify(netSuiteItemAttribute));
+
+            Utility.logDebug("getAttributeIdForNetSuite - END", JSON.stringify(nsAttributeId));
             return nsAttributeId;
         },
-        getAttributeValuesForNetSuite: function (nsAttributeId, attributeValues) {
+        getAttributeValuesForNetSuiteChildItem: function (attributeId, externaSystemAttributeValue) {
+            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - START", JSON.stringify(arguments));
+            var value;
+
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
+
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
+
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
+
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
+
+            value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue);
+
+            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - END", JSON.stringify(value));
+            return value;
+        },
+
+        getAttributeValuesForNetSuiteParentItem: function (attributeId, externaSystemAttributeValues) {
+            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - START", JSON.stringify(arguments));
             var values = [];
 
-            return values = [];
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
+
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
+
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
+
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
+
+            for (var i in externaSystemAttributeValues) {
+                var externaSystemAttributeValue = externaSystemAttributeValues[i];
+                var value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue.id);
+                Utility.logDebug("value", JSON.stringify(value));
+                values.push(value);
+            }
+
+            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - END", JSON.stringify(values));
+
+            return values;
         },
 
         /**
@@ -2885,13 +2955,13 @@ MagentoXmlWrapper = (function () {
             var attributes = [];
 
             for (var attributeId in configurableAttributes) {
-                var attributeValues = configurableAttributes[attributeId];
+                var attributeValue = configurableAttributes[attributeId];
 
                 var nsAttributeId = this.getAttributeIdForNetSuite(attributeId);
-                var nsAttributeValues = this.getAttributeValuesForNetSuite(nsAttributeId, attributeValues);
+                var nsAttributeValue = this.getAttributeValuesForNetSuiteChildItem(attributeId, attributeValue);
                 attributes.push({
                     attributeId: nsAttributeId,
-                    attributeValues: nsAttributeValues
+                    attributeValues: nsAttributeValue
                 });
             }
 
@@ -2899,49 +2969,76 @@ MagentoXmlWrapper = (function () {
         },
 
         transformAttributesForNetSuiteParentItem: function (configurableAttributes) {
+            Utility.logDebug("transformAttributesForNetSuiteParentItem - START", JSON.stringify(arguments));
+            var attributes = [];
+
+            for (var i in configurableAttributes) {
+                var configurableAttribute = configurableAttributes[i];
+
+                var nsAttributeId = this.getAttributeIdForNetSuite(configurableAttribute.attributeCode);
+                var nsAttributeValues = this.getAttributeValuesForNetSuiteParentItem(configurableAttribute.attributeCode, configurableAttribute.options);
+                attributes.push({
+                    attributeId: nsAttributeId,
+                    attributeValues: nsAttributeValues
+                });
+            }
+
+            Utility.logDebug("transformAttributesForNetSuiteParentItem - END", JSON.stringify(attributes));
+            return attributes;
         },
 
         transformSimpleItemForNetSuite: function (product) {
+            Utility.logDebug("transformSimpleItemForNetSuite - START", JSON.stringify(arguments));
             var result = {};
             result.parent = null;
 
             result.id = product.entityId;
             result.itemId = product.sku;
-            result.set = this.getAttributeIdForNetSuite(product.attributeSetId);
+            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
+            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
             result.displayName = product.name;
-            result.matrixType = "CHILD";
+            result.matrixType = "";
             result.matrixParentId = "";
             result.matrixAttributes = this.transformAttributesForNetSuiteChildItem(product.configurableAttributes);
 
             if (product.hasParent) {
                 result.parent = this.transformConfigurableItemForNetSuite(product.parent);
+                result.matrixType = "CHILD";
             }
+
+            Utility.logDebug("transformSimpleItemForNetSuite - END", JSON.stringify(result));
 
             return result;
         },
         transformConfigurableItemForNetSuite: function (product) {
+            Utility.logDebug("transformConfigurableItemForNetSuite - START", JSON.stringify(arguments));
             var result = {};
 
-            result.id = result.entityId;
-            result.itemId = result.sku;
-            result.set = this.getAttributeIdForNetSuite(result.attributeSetId);
-            result.displayName = result.name;
+            result.id = product.entityId;
+            result.itemId = product.sku;
+            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
+            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
+            result.displayName = product.name;
             result.matrixType = "PARENT";
             result.matrixParentId = "";
-            result.matrixAttributes = this.transformAttributesForNetSuiteParentItem(result.configurableAttributes);
+            result.matrixAttributes = this.transformAttributesForNetSuiteParentItem(product.configurableAttributes);
 
+            Utility.logDebug("transformConfigurableItemForNetSuite - END", JSON.stringify(result));
             return result;
         },
 
         tranformItemForNetSuite: function (product) {
+            Utility.logDebug("tranformItemForNetSuite - START", JSON.stringify(arguments));
             var result = {};
-            var type = result.type;
+            var type = product.type;
 
             if (type === "simple") {
                 result = this.transformSimpleItemForNetSuite(product);
             } else if (type === "configurable") {
                 result = this.transformConfigurableItemForNetSuite(product);
             }
+
+            Utility.logDebug("tranformItemForNetSuite - END", JSON.stringify(result));
 
             return result;
         },
@@ -2955,7 +3052,7 @@ MagentoXmlWrapper = (function () {
             if (!!store.entitySyncInfo.common && !!store.entitySyncInfo.common.customRestApiUrl) {
                 Utility.logDebug('Inside MagentoRestApiWrapper', 'getItemInfo call');
                 var mgRestAPiWrapper = new MagentoRestApiWrapper();
-                var responseMagentoItemInfo = mgRestAPiWrapper.getItemInfo(record.type, record.id, "id", store);
+                var responseMagentoItemInfo = mgRestAPiWrapper.getItemInfo(record.type, record.product_id, "id", store);
                 Utility.logDebug('responseMagentoItemInfo from MagentoRestApiWrapper', JSON.stringify(responseMagentoItemInfo));
 
                 item = this.tranformItemForNetSuite(responseMagentoItemInfo.product);

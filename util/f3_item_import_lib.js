@@ -74,30 +74,78 @@ var ItemImportLibrary = (function () {
         },
 
         /**
+         * Get the item info if already sycned with store
+         * @param currentStoreId
+         * @param extSysId
+         * @returns {*}
+         */
+        getItemIfAlreadySyncedInNS: function (currentStoreId, extSysId) {
+            if (!Utility.isBlankOrNull(currentStoreId) && !Utility.isBlankOrNull(extSysId)) {
+                var itemIdJSON = ConnectorCommon.getMagentoIdForSearching(currentStoreId, extSysId);
+
+                var filExp = [];
+                var cols = [];
+                var results;
+
+                if (!Utility.isBlankOrNull(itemIdJSON)) {
+                    filExp.push([ConnectorConstants.Item.Fields.MagentoId, 'contains', itemIdJSON]);
+                }
+
+                cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                cols.push(new nlobjSearchColumn('internalid', null, null).setSort(true));
+
+                results = ConnectorCommon.getRecords('item', filExp, cols);
+
+                if (results instanceof Array && results.length > 0) {
+                    return {
+                        itemType: results[0].getRecordType(),
+                        internalId: results[0].getId()
+                    };
+                }
+            }
+
+            return null;
+        },
+
+        /**
          * Process item for external system
          * @param store
+         * @param record
          */
         processItem: function (store, record) {
             var itemObject = ConnectorConstants.CurrentWrapper.getItemInfo(store, record);
             Utility.logDebug('itemObject', JSON.stringify(itemObject));
-            // skip Import if instructed to created only and record is already Imported to other system
-            if ((itemObject.alreadySyncToCurrentExternalSystem)) {
-                var responseBody = this.importItemFromExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
-                Utility.logDebug('ItemImportLibrary.responseBody', JSON.stringify(responseBody));
-                if (!!responseBody.status) {
-                    if (!!responseBody.data.externalSystemItemId) {
-                        var otherSystemsItemIdsArray = this.getExternalSystemIdObjectArrayString(store.systemId, responseBody.data.externalSystemItemId, !!itemObject.externalSystemIdsString ? 'update' : 'create', itemObject.externalSystemIdsString);
-                        Utility.logDebug('otherSystemsItemIdsArray', JSON.stringify(otherSystemsItemIdsArray));
-                        this.setItemExternalSystemId(itemType, otherSystemsItemIdsArray, itemInternalId);
-                    } else {
-                        Utility.logDebug('Error', 'Other system Item Id not generated');
-                    }
-                    Utility.logDebug('successfully', 'Other system Item created');
-                } else {
-                    Utility.logException('Some error occurred while creating Other system Item', responseBody.error);
-                    Utility.throwException("RECORD_IMPORT", 'Some error occurred while creating Other system Item - ' + responseBody.error);
+            // TODO: undo after testing
+            //return;
+
+            var parentRecordId = "";
+            if (!Utility.isBlankOrNull(itemObject.parent)) {
+                Utility.logDebug("In Parent Check", "");
+                // check if item is already created
+                var itemSearchObj = this.getItemIfAlreadySyncedInNS(ConnectorConstants.CurrentStore.systemId, itemObject.parent.id);
+                Utility.logDebug("itemSearchObj", itemSearchObj);
+                if (!Utility.isBlankOrNull(itemSearchObj)) {
+                    // update item
+                    itemObject.parent.netSuiteRecordType = itemSearchObj.itemType;
+                    itemObject.parent.netSuiteInternalId = itemSearchObj.internalId;
                 }
+
+                parentRecordId = ConnectorConstants.Client.upsertInventoryItem(itemObject.parent);
+                itemObject.matrixParentId = parentRecordId;
+                Utility.logDebug("parentRecordId", parentRecordId);
             }
+
+            // check if item is already created
+            var itemSearchObj = this.getItemIfAlreadySyncedInNS(ConnectorConstants.CurrentStore.systemId, itemObject.id);
+            Utility.logDebug("itemSearchObj", itemSearchObj);
+            if (!Utility.isBlankOrNull(itemSearchObj)) {
+                // update item
+                itemObject.netSuiteRecordType = itemSearchObj.itemType;
+                itemObject.netSuiteInternalId = itemSearchObj.internalId;
+            }
+
+            parentRecordId = ConnectorConstants.Client.upsertInventoryItem(itemObject);
+            Utility.logDebug("Child/SimpleRecordId", parentRecordId);
         },
         /**
          * Set items external system ids array
