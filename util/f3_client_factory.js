@@ -386,7 +386,8 @@ function F3ClientBase() {
                         rec.setLineItemValue('item', 'price', x + 1, '-1');
                         // set custom amount
                         rec.setLineItemValue('item', 'amount', x + 1, products[x].product_options.aw_gc_amounts);
-                        rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
+                        if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
+                        rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
                     }
 
                     rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
@@ -409,7 +410,12 @@ function F3ClientBase() {
                     salesOrderObj.isDummyItemSetInOrder = true;
                     rec.setLineItemValue('item', 'amount', x + 1, '0');
                     rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
-                    rec.setLineItemValue('item', 'taxcode', x + 1, '-7');// -Not Taxable-
+                    //Added check to avoid error on setting -7 as default tax code
+                    if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
+                        rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);
+
+
+
                 }
 
                 if (isSerial === 'T') {

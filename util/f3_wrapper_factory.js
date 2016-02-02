@@ -30,6 +30,9 @@ F3WrapperFactory = (function () {
                 case 'WOO':
                     client = WooWrapper;
                     break;
+                case 'EBAY':
+                    client = EbayWrapper;
+                    break;
             }
 
             client.clientType = type;

@@ -57,8 +57,9 @@ ExternalSystemConfig = (function () {
          * @returns {Array} Returns an array of objects
          */
         getConfig: function () {
-            var systemConfig = [];
+            var systemConfig = {};
             var res = this.lookup(new nlobjSearchFilter('isinactive',null,'is','F'));
+
 
             for (var i in res) {
                 var config = res[i];
@@ -90,6 +91,8 @@ ExternalSystemConfig = (function () {
                 };
 
                 systemConfig[systemId] = obj;
+
+                Utility.logDebug('ExternalSystemConfig.getConfig in dao',JSON.stringify(config));
             }
             Utility.logDebug('ExternalSystemConfig.getConfig', JSON.stringify(systemConfig));
             return systemConfig;

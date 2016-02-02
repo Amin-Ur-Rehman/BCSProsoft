@@ -54,6 +54,8 @@ function syncSalesOrderMagento(sessionID, updateDate) {
 
 
         // Make Call and Get Data
+
+        Utility.logDebug('sessionID', sessionID);
         serverOrdersResponse = getSalesOrderList(order, sessionID, ConnectorConstants.CurrentStore);
         Utility.logDebug('syncSalesOrderMagento > serverOrdersResponse', JSON.stringify(serverOrdersResponse));
 
@@ -387,13 +389,19 @@ function startup(type) {
                 lastStoreId = specificStoreId;
             }
 
-            for (var system = lastStoreId, specificStoreCount = 0; system < externalSystemConfig.length; system++, specificStoreCount++) {
+            //for (var system = lastStoreId, specificStoreCount = 0; system < externalSystemConfig.length; system++, specificStoreCount++) {
+            for (var system  in externalSystemConfig) {
                 // Add a Check whether categories synched or not , if not then stop and give msg that ensure the sync of categories first
                 try {
-
                     // if specific store id exist then iterate loop only for one time
-                    if (!Utility.isBlankOrNull(specificStoreId) && specificStoreCount !== 0) {
-                        break;
+                    //if (!Utility.isBlankOrNull(specificStoreId) && specificStoreCount !== 0) {
+                    //    break;
+                    //}
+
+                    if(!!specificStoreId)
+                    {
+                        if(system !== specificStoreId)
+                        continue;
                     }
 
                     // getting store/system object
