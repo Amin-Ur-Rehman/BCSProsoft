@@ -14,6 +14,35 @@
  *   -
  */
 MagentoXmlWrapper = (function () {
+
+    var MagentoItemTypes = {
+        SimpleProduct: 'simple',
+        GroupedProduct: 'grouped',
+        ConfigurableProduct: 'configurable',
+        VirtualProduct: 'virtual',
+        BundleProduct: 'bundle',
+        DownloadableProduct: 'downloadable'
+    };
+
+    /**
+     * Return WOO Item Type depending on NetSuite Item data
+     * @param itemType
+     * @param itemObject
+     * @returns {*}
+     */
+    function getMagentoItemType(itemType, itemObject) {
+        var type;
+        switch (itemType) {
+            case ItemExportLibrary.configData.ItemTypes.InventoryItem:
+                type = itemObject.isMatrix
+                    ? (itemObject.isMatrixParentItem ?
+                        MagentoItemTypes.ConfigurableProduct : MagentoItemTypes.SimpleProduct)
+                    : MagentoItemTypes.SimpleProduct;
+                break;
+        }
+        return type;
+    }
+
     return {
         /**
          * Init method
@@ -22,6 +51,13 @@ MagentoXmlWrapper = (function () {
         },
         XmlHeader: '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento"><soapenv:Header/><soapenv:Body>',
         XmlFooter: '</soapenv:Body></soapenv:Envelope>',
+
+        ImageUploadXml: '<urn:catalogProductAttributeMediaCreate soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><sessionId xsi:type="xsd:string">[SESSIONID]</sessionId><product xsi:type="xsd:string">[PRODUCTID]</product><data xsi:type="urn:catalogProductAttributeMediaCreateEntity"><file xsi:type="urn:catalogProductImageFileEntity"><content xsi:type="xsd:string">[CONTENT]</content><mime xsi:type="xsd:string">[MIME]</mime><name xsi:type="xsd:string">[NAME]</name></file><label xsi:type="xsd:string">[LABEL]</label><position xsi:type="xsd:string">[POSITION]</position><types xsi:type="urn:ArrayOfString" soapenc:arrayType="xsd:string[]"><item>[TYPE]</item></types><exclude xsi:type="xsd:string">[EXCLUDE]</exclude></data></urn:catalogProductAttributeMediaCreate>',
+        ImageListXml: '<urn:catalogProductAttributeMediaList soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><sessionId xsi:type="xsd:string">[SESSIONID]</sessionId><product xsi:type="xsd:string">[PRODUCTID]</product></urn:catalogProductAttributeMediaList>',
+        ImageRemoveXml: '<urn:catalogProductAttributeMediaRemove soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><sessionId xsi:type="xsd:string">[SESSIONID]</sessionId><product xsi:type="xsd:string">[PRODUCTID]</product><file xsi:type="xsd:string">[FILE]</file></urn:catalogProductAttributeMediaRemove>',
+
+        OrderRequestXMLHeader: '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><soapenv:Header/><soapenv:Body>',
+        OrderRequestXmlFooter: '</soapenv:Body></soapenv:Envelope>',
 
         /**
          * Gets supported Date Format
@@ -2555,25 +2591,699 @@ MagentoXmlWrapper = (function () {
          * @param itemObject
          * @param itemRecord
          */
-        setInventoryItemFields: function(store, itemInternalId, itemType, itemObject, itemRecord) {
+        setInventoryItemFields: function (store, itemInternalId, itemType, itemObject, itemRecord) {
+            itemObject.otherSystemItemType = getMagentoItemType(itemType, itemObject);
 
+            if (itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
+                itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
+            }
+
+            if(itemObject.isInactive === 'T') {
+                itemObject.magentoStatus = store.entitySyncInfo.item.status.disabled;
+            } else {
+                itemObject.magentoStatus = store.entitySyncInfo.item.status.enabled;
+            }
+
+            if(itemObject.isOnline === 'T') {
+                itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.visible;
+                if(itemObject.isMatrixChildItem){
+                    if(!!store.entitySyncInfo.item.showMatrixChildIndependently && store.entitySyncInfo.item.showMatrixChildIndependently == 'true') {
+                        itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.visible;
+                    } else {
+                        itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.notVisible;
+                    }
+                }
+            } else {
+                itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.notVisible;
+            }
+
+            itemObject.additionalAttributes = [];
+            itemObject.configurableProductAttributes = [];
+            if(!!itemObject.matrixParentAttributes && itemObject.matrixParentAttributes.length > 0) {
+                for (var i = 0; i < itemObject.matrixParentAttributes.length; i++) {
+                    var matrixParentAttr = itemObject.matrixParentAttributes[i];
+                    if(matrixParentAttr.netSuiteItemOptionUseForVariantProduct === 'F') {
+                        itemObject.additionalAttributes.push({
+                            key: matrixParentAttr.itemAttributeCode,
+                            value: matrixParentAttr.itemAttributeValues
+                        });
+                    } else {
+                        itemObject.configurableProductAttributes.push({
+                            key: matrixParentAttr.itemAttributeCode,
+                            value: matrixParentAttr.itemAttributeValues
+                        });
+                    }
+                }
+            }
+
+            if(!!itemObject.matrixChildAttributes && itemObject.matrixChildAttributes.length > 0) {
+                for (var i = 0; i < itemObject.matrixChildAttributes.length; i++) {
+                    var matrixChildAttr = itemObject.matrixChildAttributes[i];
+                    itemObject.additionalAttributes.push({
+                        key: matrixChildAttr.itemAttributeCode,
+                        value: matrixChildAttr.itemAttributeValue
+                    });
+                }
+            }
+
+            if(!!itemObject.nonMatrixProductAttributes && itemObject.nonMatrixProductAttributes.length > 0) {
+                for (var i = 0; i < itemObject.nonMatrixProductAttributes.length; i++) {
+                    var nonMatrixAttr = itemObject.nonMatrixProductAttributes[i];
+                    itemObject.additionalAttributes.push({
+                        key: nonMatrixAttr.itemAttributeCode,
+                        value: nonMatrixAttr.itemAttributeValue
+                    });
+                }
+            }
+
+
+            // Image specfic properties
+            itemObject.image.types = 'image';
+            itemObject.image.position = 0;
         },
+
+
         /**
-         * Export Inventory Item to WooCommerce Store
+         * Export Inventory Item to Magento Store
          * @param store
          * @param itemInternalId
          * @param itemType
          * @param itemObject
          */
+
         exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
-            Utility.logDebug('MagentoWrapper.exportInventoryItem', JSON.stringify(itemObject));
-            var responseBody = {};
-            responseBody.status = 1;
-            responseBody.message = '';
-            responseBody.data = {
-            };
+            var responseBody = null;
+            try {
+                var id = itemObject.currentExternalSystemId;
+                var createRecord = true;
+                if(!!id) {
+                    createRecord = false;
+                }
+                var parsedResponse = null;
+                if(createRecord) {
+                    // if id not exist then create record
+                    var createProductXml = this.getCreateProductXml(store, itemInternalId, itemType, itemObject, createOnly);
+                    var responseXml = MagentoWrapper.soapRequestToServer(createProductXml);
+                    parsedResponse = ConnectorConstants.CurrentWrapper.validateAndTransformProductCreationResponse(responseXml);
+                } else {
+                    // if id exist then update record
+                    var updateProductXml = this.getUpdateProductXml(store, itemInternalId, itemType, itemObject, createOnly);
+                    var responseXml = MagentoWrapper.soapRequestToServer(updateProductXml);
+                    parsedResponse = ConnectorConstants.CurrentWrapper.validateAndTransformProductUpdationResponse(responseXml);
+                }
+                Utility.logDebug('status  #  productId', parsedResponse.status+ '  #  ' +parsedResponse.productId);
+
+                // If this item is a parent item of a matrix item
+                if(itemObject.isMatrixParentItem && createRecord) {
+                    //Assign configurable attributes to configurable product
+                    if(parsedResponse.status) {
+                        var productId = parsedResponse.productId;
+                        var mgRestAPiWrapper = new MagentoRestApiWrapper();
+                        //Utility.logDebug('itemObject.additionalAttributes', JSON.stringify(itemObject.additionalAttributes));
+                        //Utility.logDebug('itemObject.configurableProductAttributes', (!itemObject.configurableProductAttributes ? 'null' : JSON.stringify(itemObject.configurableProductAttributes)));
+                        if(!!itemObject.configurableProductAttributes && itemObject.configurableProductAttributes.length > 0) {
+                            var responseMagentoAssignAttr = mgRestAPiWrapper.assignAttributesToConfigurableProduct(productId, itemObject.configurableProductAttributes, store);
+                            Utility.logDebug('responseMagentoAssignAttr from MagentoRestApiWrapper', JSON.stringify(responseMagentoAssignAttr));
+                        }
+                    } else {
+                        //TODO: throw exception
+                    }
+                }
+
+                // If this item is a child item of a matrix item
+                var parentCreationResponse = null;
+                if(itemObject.isMatrixChildItem && createRecord) {
+                    if(parsedResponse.status) {
+                        // check if parent already exist and associate it with that parent
+                        if(!!itemObject.MatrixParent && !!itemObject.MatrixParent.currentExternalSystemId) {
+                            Utility.logDebug('Association Status', 'Parent Product already exported, Creating association....');
+                            var parentMatrixExternalSystemId = itemObject.MatrixParent.currentExternalSystemId;
+                            var simpleProductId = parsedResponse.productId;
+                            this.associateToConfigurableProduct(parentMatrixExternalSystemId, simpleProductId, store);
+                        } else if (!!itemObject.MatrixParent) {
+                            // Create parent matrix item first
+                            Utility.logDebug('Association Status 1', 'Parent Product not exported, First exporting parent....');
+                            parentCreationResponse = this.exportInventoryItem(store
+                                , itemObject.MatrixParent.internalId, itemObject.MatrixParent.itemType
+                                , itemObject.MatrixParent, createOnly);
+                            if(parentCreationResponse.status) {
+                                Utility.logDebug('Association Status 2', 'Now Creating association with exported parent....');
+                                var parentMatrixExternalSystemId = parentCreationResponse.data.externalSystemItemId;
+                                var simpleProductId = parsedResponse.productId;
+                                this.associateToConfigurableProduct(parentMatrixExternalSystemId, simpleProductId, store);
+                            }
+                        }
+                    } else {
+                        //TODO: throw exception
+                    }
+                }
+
+                if(!!store.entitySyncInfo.item.exportProductImages
+                    && store.entitySyncInfo.item.exportProductImages == 'true'
+                    && !!itemObject.image.fileId) {
+                    this.exportProductImage(store, itemInternalId, itemType, itemObject, createOnly, createRecord ? parsedResponse.productId : id);
+                }
+
+                if(parsedResponse.status) {
+                    parsedResponse.sku = parsedResponse.itemId;
+                    responseBody = this.parseItemSuccessResponse(parsedResponse, parentCreationResponse);
+                } else {
+                    responseBody = this.parseItemFailureResponse(parsedResponse);
+                }
+            }
+            catch (ex) {
+                responseBody = this.parseItemFailureResponse(null, ex);
+            }
             return responseBody;
         },
+
+        /**
+         * Export Product Image
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         */
+        exportProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            var responseBody = null;
+            try {
+                var createRecord = true;
+                if(!!itemObject.currentExternalSystemId) {
+                    createRecord = false;
+                }
+
+                if(createRecord) {
+                    responseBody = this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+                } else {
+                    responseBody = this.UpdateProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+                }
+            }
+            catch (ex) {
+                responseBody = this.parseItemFailureResponse(null, ex);
+            }
+            return responseBody;
+        },
+
+        /**
+         * Add product image in magento
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         */
+        addProductImage: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            //Utility.logDebug('adding product image', 'Start');
+            var parsedResponse = null;
+            var createImageXml = this.getCreateImageXml(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            //Utility.logDebug('createImageXml', createImageXml);
+            //ConnectorCommon.createLogRec(magentoProductId, createImageXml, "Image Export - Create");
+
+            var responseXml = MagentoWrapper.soapRequestToServer(createImageXml);
+            Utility.logDebug('addImage response', responseXml);
+        },
+
+        /**
+         * Get create image xml
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         */
+        getCreateImageXml: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            var xml;
+            xml = this.OrderRequestXMLHeader;
+            xml += this.ImageUploadXml;
+            xml += this.OrderRequestXmlFooter;
+
+            xml = xml.replace('[CONTENT]', itemObject.image.content);
+            xml = xml.replace('[MIME]', itemObject.image.mime);
+            xml = xml.replace('[POSITION]', itemObject.image.position);
+            /*if (itemObject.image.types === 'image' || itemObject.image.types === 'small_image') {
+                xml = xml.replace('[TYPE]', 'NULL');
+            } else {
+                xml = xml.replace('[TYPE]', itemObject.image.types);
+            }*/
+            xml = xml.replace('[TYPE]', 'image</item><item>small_image</item><item>thumbnail');
+
+            xml = xml.replace('[LABEL]', itemObject.image.fullName);
+            xml = xml.replace('[NAME]', itemObject.image.fullName);
+            xml = xml.replace('[EXCLUDE]', '0');
+
+            xml = xml.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
+            xml = xml.replace('[PRODUCTID]', magentoProductId);
+
+            return xml;
+        },
+
+        /**
+         * Update Product Image in magento
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         * @constructor
+         */
+        UpdateProductImage: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            var parsedResponse = null;
+            var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
+
+            for (var i = 0; i < magentoImagesList.length; i++) {
+                this.removeImageFromMagento(store, magentoProductId, magentoImagesList[i]);
+            }
+
+            this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+        },
+
+        /**
+         * Get magento product images list
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         */
+        getMagentoProductImagesList: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            var xmlRequest = this.ImageListXml;
+            xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
+            xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
+            var getMagentoProductImagesListXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
+            Utility.logDebug('getMagentoProductImagesList xmlRequest', getMagentoProductImagesListXml);
+            var imgListResponse = MagentoWrapper.soapRequestToServer(getMagentoProductImagesListXml);
+            Utility.logDebug('getMagentoProductImagesList response', imgListResponse);
+
+            var imageList = [];
+            try {
+                var imageFiles = nlapiSelectNodes(imgListResponse, '//item');
+                if (!!imageFiles) {
+                    for (var i = 0; i < imageFiles.length; i++) {
+                        imageList.push(nlapiSelectValue(imageFiles[i], 'file'));
+                    }
+                }
+            } catch (ex) {
+                Utility.logException('Error in parsing magento images list for product: ' + magentoProductId, ex);
+            }
+            return imageList;
+        },
+
+        /**
+         * Remove Image from magento
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @param magentoProductId
+         */
+        removeImageFromMagento: function(store, magentoProductId, magentoImageFile){
+            var xmlRequest = this.ImageRemoveXml;
+            xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
+            xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
+            xmlRequest = xmlRequest.replace('[FILE]', magentoImageFile);
+            var removeImageFromMagentoXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
+            Utility.logDebug('removeImageFromMagento xmlRequest', removeImageFromMagentoXml);
+            var imgListResponse = MagentoWrapper.soapRequestToServer(removeImageFromMagentoXml);
+            Utility.logDebug('removeImageFromMagento response', imgListResponse);
+        },
+
+        /**
+         * Re-index Products data
+         * @param store
+         */
+        reIndexProductsData: function (store) {
+            var mgRestAPiWrapper = new MagentoRestApiWrapper();
+            var responseMagentoReIndexJob = mgRestAPiWrapper.reIndexProductsData(store);
+            Utility.logDebug('responseMagentoReIndexJob from MagentoRestApiWrapper', JSON.stringify(responseMagentoReIndexJob));
+        },
+
+        /**
+         * Associate simple product to config product
+         * @param configProductId
+         * @param simpleProductId
+         * @param store
+         */
+        associateToConfigurableProduct: function(configProductId, simpleProductId, store) {
+            Utility.logDebug('configProductId # simpleProductId', configProductId+ '   #   ' + simpleProductId)
+            var mgRestAPiWrapper = new MagentoRestApiWrapper();
+            var responseMagentoAssignAttr = mgRestAPiWrapper.associateProductToConfigurableProduct(configProductId, simpleProductId, store);
+            Utility.logDebug('responseMagentoAssignAttr from MagentoRestApiWrapper', JSON.stringify(responseMagentoAssignAttr));
+        },
+
+        /**
+         * validate and transform xml response of product creation call
+         * @param xml
+         * @param incrementalIdData
+         * @returns {{}}
+         */
+        validateAndTransformProductCreationResponse: function (xml) {
+            var responseMagento = {};
+            var faultCode;
+            var faultString;
+            responseMagento.productId = null;
+
+            try {
+                faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+                faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+            } catch (ex) {
+                Utility.logException('XmlUtility.validateAndTransformResponse', ex);
+            }
+
+            if (!Utility.isBlankOrNull(faultCode)) {
+                responseMagento.status = false;
+                responseMagento.faultCode = faultCode;
+                responseMagento.faultString = faultString;
+                Utility.logDebug('An error has occurred with Product Creation request xml', responseMagento.faultString);
+            } else {
+                var productId = this.transformProductCreationResponse(xml);
+                if (!!productId) {
+                    responseMagento.status = true;
+                    responseMagento.productId = productId;
+                } else {
+                    responseMagento.status = false;
+                    responseMagento.faultCode = '000';
+                    responseMagento.faultString = 'Unexpected Error';
+                    Utility.logDebug('An error has occurred with request xml', responseMagento.faultString);
+                }
+            }
+
+            return responseMagento;
+        },
+
+        /**
+         * This function transform create product response into object
+         * @param xml
+         * @return {object}
+         */
+        transformProductCreationResponse: function (xml) {
+            //Utility.logDebug('response xml for logging', nlapiXMLToString(xml));
+            var productId = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/ns1:catalogProductCreateResponse/result");
+            return productId;
+        },
+
+        /**
+         * validate and transform xml response of product updation call
+         * @param xml
+         * @param incrementalIdData
+         * @returns {{}}
+         */
+        validateAndTransformProductUpdationResponse: function (xml) {
+            var responseMagento = {};
+            var faultCode;
+            var faultString;
+            responseMagento.productId = null;
+
+            try {
+                faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+                faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+            } catch (ex) {
+                Utility.logException('XmlUtility.validateAndTransformResponse', ex);
+            }
+
+            if (!Utility.isBlankOrNull(faultCode)) {
+                responseMagento.status = false;
+                responseMagento.faultCode = faultCode;
+                responseMagento.faultString = faultString;
+                Utility.logDebug('An error has occurred with Product Updation request xml', responseMagento.faultString);
+            } else {
+                var isUpdated = this.transformProductUpdationResponse(xml);
+                if (!!isUpdated) {
+                    responseMagento.status = true;
+                } else {
+                    responseMagento.status = false;
+                    responseMagento.faultCode = '000';
+                    responseMagento.faultString = 'Unexpected Error';
+                    Utility.logDebug('An error has occurred with request xml', responseMagento.faultString);
+                }
+            }
+
+            return responseMagento;
+        },
+
+        /**
+         * This function transform update product response into object
+         * @param xml
+         * @return {object}
+         */
+        transformProductUpdationResponse: function (xml) {
+            //Utility.logDebug('response xml for logging', nlapiXMLToString(xml));
+            var isUpdated = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/ns1:catalogProductUpdateResponse/result");
+            return isUpdated;
+        },
+
+
+
+        /**
+         * Parse item export success response
+         * @param serverResponse
+         */
+        parseItemSuccessResponse: function(serverResponse, parentServerResponse) {
+            var responseBody = {};
+            responseBody.status = 1;
+            responseBody.message = 'Product exported successfully';
+            responseBody.data = {
+                externalSystemItemId: serverResponse.productId || '',
+                sku: serverResponse.sku || ''
+            };
+
+            if(!!parentServerResponse) {
+                responseBody.data.parent = {
+                    externalSystemItemId: parentServerResponse.data.externalSystemItemId || '',
+                    sku: parentServerResponse.data.sku || ''
+                };
+            }
+
+            return responseBody;
+        },
+
+        /**
+         * Parse item export failure response
+         * @param serverResponse
+         */
+         parseItemFailureResponse: function(serverResponse, exp) {
+            var errMsg = '';
+            if(!!serverResponse) {
+                errMsg = 'faultCode: ' + serverResponse.faultCode + '   #   faultString: ' + serverResponse.faultString;
+            } else {
+                errMsg = exp.toString();
+            }
+
+            var responseBody = {};
+            responseBody.status = 0;
+            responseBody.message = errMsg;
+            responseBody.error = errMsg;
+            return responseBody;
+        },
+
+        /**
+         * Get Create product XML
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @returns {*}
+         */
+        getCreateProductXml: function(store, itemInternalId, itemType, itemObject, createOnly) {
+            var xml;
+
+            xml = this.OrderRequestXMLHeader;
+            xml = xml + '<urn:catalogProductCreate soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
+            xml = xml + '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + ConnectorConstants.CurrentStore.sessionID + '</sessionId>';
+            xml = xml + '<type xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.otherSystemItemType + '</type>';
+
+            xml = xml + '<set xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.itemAttributeSet.externalSystemItemAttrSetId + '</set>';
+            xml = xml + '<sku xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.itemId + '</sku>';
+            xml = xml + '<productData xsi:type="urn:catalogProductCreateEntity" xs:type="type:catalogProductCreateEntity" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">';
+
+
+            xml = xml + '<categories xsi:type="urn:ArrayOfString" soapenc:arrayType="xsd:string[' + itemObject.externalSystemCategories.length + ']" xs:type="type:catalogProductTierPriceEntity">';
+            if (itemObject.externalSystemCategories.length > 0) {
+                for (var i = 0; i < itemObject.externalSystemCategories.length; i++) {
+                    xml = xml + '<item xsi:type="xsd:string">' + itemObject.externalSystemCategories[i].externalSystemId + '</item>';
+                }
+            }
+            xml = xml + '</categories>';
+
+            xml = xml + '<websites xsi:type="urn:ArrayOfString" soapenc:arrayType="xsd:string[' + itemObject.externalSystemCategories.length + ']" xs:type="type:catalogProductTierPriceEntity">';
+            if (store.entitySyncInfo.item.websiteIds.length > 0) {
+                for (var i = 0; i < store.entitySyncInfo.item.websiteIds.length; i++) {
+                    xml = xml + '<item xsi:type="xsd:string">' + store.entitySyncInfo.item.websiteIds[i] + '</item>';
+                }
+            }
+            xml = xml + '</websites>';
+
+            xml = xml + '<name xsi:type="xsd:string">' + (!!itemObject.displayName ? itemObject.displayName : itemObject.itemId) + '</name>';
+            xml = xml + '<description xsi:type="xsd:string">' + itemObject.storeDetailedDescription.trim() + '</description>';
+            xml = xml + '<short_description xsi:type="xsd:string">' + itemObject.storeDescription.trim() + '</short_description>';
+            xml = xml + '<weight xsi:type="xsd:string">' + (!!itemObject.itemWeight ? itemObject.itemWeight : '0') + '</weight>';
+            xml = xml + '<status xsi:type="xsd:string">' + itemObject.magentoStatus + '</status>';
+            xml = xml + '<url_key xsi:type="xsd:string">' + itemObject.urlComponent + '</url_key>';
+            xml = xml + '<visibility xsi:type="xsd:string">' + itemObject.magentoVisibility + '</visibility>';
+            xml = xml + '<price xsi:type="xsd:string">' + itemObject.price + '</price>';
+            xml = xml + '<tax_class_id xsi:type="xsd:string">' + store.entitySyncInfo.item.taxClass + '</tax_class_id>';
+            xml = xml + '<meta_title xsi:type="xsd:string">' + itemObject.pageTitle + '</meta_title>';
+            xml = xml + '<meta_keyword xsi:type="xsd:string">' + itemObject.searchKeywords + '</meta_keyword>';
+            xml = xml + '<meta_description xsi:type="xsd:string">' + itemObject.metaTagHtml + '</meta_description>';
+            xml = xml + '<custom_design xsi:type="xsd:string">' + store.entitySyncInfo.item.customDesign + '</custom_design>';
+
+            if (itemObject.isMatrixParentItem) {
+                xml = xml + '<has_options xsi:type="xsd:string">0</has_options>';
+                xml = xml + '<options_container xsi:type="xsd:string">'+store.entitySyncInfo.item.optionsContainer+'</options_container>';
+            }
+
+            xml = xml + '<stock_data xsi:type="urn:catalogInventoryStockItemUpdateEntity" xs:type="type:catalogInventoryStockItemUpdateEntity">';
+            xml = xml + '<qty xsi:type="xsd:string" xn:type="http://www.w3.org/2001/XMLSchema">' + itemObject.quatity + '</qty>';
+            xml = xml + '<is_in_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.stockAvailability + '</is_in_stock>';
+            xml = xml + '<manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.manageStock + '</manage_stock>';
+            xml = xml + '<use_config_manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.useConfigManageStock + '</use_config_manage_stock>';
+            xml = xml + '</stock_data>';
+
+            if(itemObject.additionalAttributes.length > 0) {
+                //*
+                // set additional attributes: start
+                xml = xml + '<additional_attributes xsi:type="urn:catalogProductAdditionalAttributesEntity">';
+                xml = xml + '<single_data xsi:type="urn:associativeArray" soapenc:arrayType="urn:associativeEntity[' + itemObject.additionalAttributes.length + ']">';
+
+                itemObject.additionalAttributes.forEach(function (addAttr) {
+                    xml = xml + '<item>';
+                    xml = xml + '<key xsi:type="xsd:string">' + addAttr.key + '</key>';
+                    xml = xml + '<value xsi:type="xsd:string">' + addAttr.value + '</value>';
+                    xml = xml + '</item>';
+                });
+
+                xml = xml + '</single_data>';
+                xml = xml + '</additional_attributes>';
+                // set additional attributes: end
+                //*/
+            }
+
+            xml = xml + '</productData>';
+            //xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
+            xml = xml + '</urn:catalogProductCreate>';
+
+            xml = xml + this.OrderRequestXmlFooter;
+
+            //nlapiLogExecution('DEBUG', 'request XML', xml);
+
+            return xml;
+        },
+
+        /**
+         * Get Update product XML
+         * @param store
+         * @param itemInternalId
+         * @param itemType
+         * @param itemObject
+         * @param createOnly
+         * @returns {*}
+         */
+        getUpdateProductXml: function(store, itemInternalId, itemType, itemObject, createOnly) {
+
+            var xml = '';
+            xml = this.OrderRequestXMLHeader;
+            xml += '<urn:catalogProductUpdate>';
+            xml = xml + '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + ConnectorConstants.CurrentStore.sessionID + '</sessionId>';
+            xml = xml + '<product xsi:type="xsd:string">' + itemObject.currentExternalSystemId + '</product>';
+            xml = xml + '<type xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.otherSystemItemType + '</type>';
+
+            xml = xml + '<set xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.itemAttributeSet.externalSystemItemAttrSetId + '</set>';
+            xml = xml + '<sku xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + itemObject.itemId + '</sku>';
+            xml = xml + '<productData xsi:type="urn:catalogProductCreateEntity" xs:type="type:catalogProductCreateEntity" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">';
+
+
+            xml = xml + '<categories xsi:type="urn:ArrayOfString" soapenc:arrayType="xsd:string[' + itemObject.externalSystemCategories.length + ']" xs:type="type:catalogProductTierPriceEntity">';
+            if (itemObject.externalSystemCategories.length > 0) {
+                for (var i = 0; i < itemObject.externalSystemCategories.length; i++) {
+                    xml = xml + '<item xsi:type="xsd:string">' + itemObject.externalSystemCategories[i].externalSystemId + '</item>';
+                }
+            }
+            xml = xml + '</categories>';
+
+            xml = xml + '<websites xsi:type="urn:ArrayOfString" soapenc:arrayType="xsd:string[' + itemObject.externalSystemCategories.length + ']" xs:type="type:catalogProductTierPriceEntity">';
+            if (store.entitySyncInfo.item.websiteIds.length > 0) {
+                for (var i = 0; i < store.entitySyncInfo.item.websiteIds.length; i++) {
+                    xml = xml + '<item xsi:type="xsd:string">' + store.entitySyncInfo.item.websiteIds[i] + '</item>';
+                }
+            }
+            xml = xml + '</websites>';
+
+            xml = xml + '<name xsi:type="xsd:string">' + (!!itemObject.displayName ? itemObject.displayName : itemObject.itemId) + '</name>';
+            xml = xml + '<description xsi:type="xsd:string">' + itemObject.storeDetailedDescription + '</description>';
+            xml = xml + '<short_description xsi:type="xsd:string">' + itemObject.storeDescription + '</short_description>';
+            xml = xml + '<weight xsi:type="xsd:string">' + (!!itemObject.itemWeight ? itemObject.itemWeight : '') + '</weight>';
+            xml = xml + '<status xsi:type="xsd:string">' + itemObject.magentoStatus + '</status>';
+            xml = xml + '<url_key xsi:type="xsd:string">' + itemObject.urlComponent + '</url_key>';
+            xml = xml + '<visibility xsi:type="xsd:string">' + itemObject.magentoVisibility + '</visibility>';
+            xml = xml + '<price xsi:type="xsd:string">' + itemObject.price + '</price>';
+            xml = xml + '<tax_class_id xsi:type="xsd:string">' + store.entitySyncInfo.item.taxClass + '</tax_class_id>';
+            xml = xml + '<meta_title xsi:type="xsd:string">' + itemObject.pageTitle + '</meta_title>';
+            xml = xml + '<meta_keyword xsi:type="xsd:string">' + itemObject.searchKeywords + '</meta_keyword>';
+            xml = xml + '<meta_description xsi:type="xsd:string">' + itemObject.metaTagHtml + '</meta_description>';
+            xml = xml + '<custom_design xsi:type="xsd:string">' + store.entitySyncInfo.item.customDesign + '</custom_design>';
+
+            if (itemObject.isMatrixParentItem) {
+                xml = xml + '<has_options xsi:type="xsd:string">0</has_options>';
+                xml = xml + '<options_container xsi:type="xsd:string">'+store.entitySyncInfo.item.optionsContainer+'</options_container>';
+            }
+
+            xml = xml + '<stock_data xsi:type="urn:catalogInventoryStockItemUpdateEntity" xs:type="type:catalogInventoryStockItemUpdateEntity">';
+            xml = xml + '<qty xsi:type="xsd:string" xn:type="http://www.w3.org/2001/XMLSchema">' + itemObject.quatity + '</qty>';
+            xml = xml + '<is_in_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.stockAvailability + '</is_in_stock>';
+            xml = xml + '<manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.manageStock + '</manage_stock>';
+            xml = xml + '<use_config_manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.useConfigManageStock + '</use_config_manage_stock>';
+            xml = xml + '</stock_data>';
+
+            if(itemObject.additionalAttributes.length > 0) {
+                //*
+                // set additional attributes: start
+                xml = xml + '<additional_attributes xsi:type="urn:catalogProductAdditionalAttributesEntity">';
+                xml = xml + '<single_data xsi:type="urn:associativeArray" soapenc:arrayType="urn:associativeEntity[' + itemObject.additionalAttributes.length + ']">';
+
+                itemObject.additionalAttributes.forEach(function (addAttr) {
+                    xml = xml + '<item>';
+                    xml = xml + '<key xsi:type="xsd:string">' + addAttr.key + '</key>';
+                    xml = xml + '<value xsi:type="xsd:string">' + addAttr.value + '</value>';
+                    xml = xml + '</item>';
+                });
+
+                xml = xml + '</single_data>';
+                xml = xml + '</additional_attributes>';
+                // set additional attributes: end
+                //*/
+            }
+
+            xml = xml + '</productData>';
+            //xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
+            xml = xml + '</urn:catalogProductUpdate>';
+            xml = xml + this.OrderRequestXmlFooter;
+
+            return xml;
+
+        },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         getCustomerListXML: function (obj, sessionID) {
             var customerXML = "";
