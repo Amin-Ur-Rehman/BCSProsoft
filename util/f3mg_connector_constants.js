@@ -42,6 +42,7 @@ ConnectorConstants = (function () {
         CurrentWrapper: {},
         Client: null,
         ScrubsList: {},
+        FileMimeTypes: {},
         DummyItem: {
             ItemId: 'unmatched_magento_item',
             Id: null
@@ -132,7 +133,11 @@ ConnectorConstants = (function () {
             SalesOrderExportStoreId: "custscript_salesorder_exp_storeid",
             SalesOrderImportStoreId: "custscript_salesorder_imp_storeid",
             CashRefundExportStoreId: "custscript_cashrefund_exp_storeid",
-            InventoryExportStoreId: "custscript_inventory_exp_storeid"
+            InventoryExportStoreId: "custscript_inventory_exp_storeid",
+
+            SelectiveItemExportIdentifierType: 'custscript_f3_identifier_type',
+            SelectiveItemExportIdentifierValue: 'custscript_f3_identifier_value',
+            SelectiveItemExportStoreId: 'custscript_f3_storeid'
         },
         SuiteScripts: {
             Suitelet: {
@@ -217,6 +222,41 @@ ConnectorConstants = (function () {
             //this.ExternalSystemConfig = ExternalSystemConfig.getConfig();
             this.ExternalSystemConfig = ExternalSystemConfig.getConfig();
             this.Client = F3ClientFactory.createClient(nlapiGetContext().getCompany().toString());
+            this.FileMimeTypes = this.loadFileMimeTypes();
+        },
+        loadFileMimeTypes: function() {
+            var mimeTypes = {};
+            mimeTypes['AUTOCAD'] = 'application/x-autocad';
+            mimeTypes['BMPIMAGE'] = 'image/x-xbitmap';
+            mimeTypes['CSV'] = 'text/csv';
+            mimeTypes['EXCEL'] = 'application/vnd.ms-excel';
+            mimeTypes['FLASH'] = 'application/​x-​shockwave-​flash';
+            mimeTypes['GIFIMAGE'] = 'image/gif';
+            mimeTypes['GZIP'] = 'application/​x-​gzip-​compressed';
+            mimeTypes['HTMLDOC'] = 'text/html';
+            mimeTypes['ICON'] = 'image/ico';
+            mimeTypes['JAVASCRIPT'] = 'text/javascript';
+            mimeTypes['JPGIMAGE'] = 'image/jpeg';
+            mimeTypes['MESSAGERFC'] = 'message/rfc822';
+            mimeTypes['MP3'] = 'audio/mpeg';
+            mimeTypes['MPEGMOVIE'] = 'video/mpeg';
+            mimeTypes['MSPROJECT'] = 'application/vnd.ms-project';
+            mimeTypes['PDF'] = 'application/pdf';
+            mimeTypes['PJPGIMAGE'] = 'image/pjpeg';
+            mimeTypes['PLAINTEXT'] = 'text/plain';
+            mimeTypes['PNGIMAGE'] = 'image/png';
+            mimeTypes['POSTSCRIPT'] = 'application/postscript';
+            mimeTypes['POWERPOINT'] = 'application/​vnd.​ms-​powerpoint';
+            mimeTypes['QUICKTIME'] = 'video/quicktime';
+            mimeTypes['RTF'] = 'application/rtf';
+            mimeTypes['SMS'] = 'application/sms';
+            mimeTypes['STYLESHEET'] = 'text/css';
+            mimeTypes['TIFFIMAGE'] = 'image/tiff';
+            mimeTypes['VISIO'] = 'application/vnd.visio';
+            mimeTypes['WORD'] = 'application/msword';
+            mimeTypes['XMLDOC'] = 'text/xml';
+            mimeTypes['ZIP'] = 'application/zip';
+            return mimeTypes;
         },
         initializeScrubList: function () {
             this.ScrubsList = FC_ScrubHandler.getAllScrubsList();

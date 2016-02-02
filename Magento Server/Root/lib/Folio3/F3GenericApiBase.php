@@ -132,7 +132,7 @@ class F3_Generic_Api_Base
         return $response;
     }
 
-	public function getSalesOrderList($data){
+    public function getSalesOrderList($data){
         try {
             $responseData = array();
             $fromDate = $data->fromDate;
@@ -160,41 +160,41 @@ class F3_Generic_Api_Base
     }
 
     public function cancelSalesOrder($data)
-        {
-            try {
-                $orderIncrementId = property_exists($data, "orderIncrementId") && !empty($data->orderIncrementId) ? $data->orderIncrementId : null;
-                $nsTransactionId = property_exists($data, "nsTransactionId") && !empty($data->nsTransactionId) ? $data->nsTransactionId : null;
+    {
+        try {
+            $orderIncrementId = property_exists($data, "orderIncrementId") && !empty($data->orderIncrementId) ? $data->orderIncrementId : null;
+            $nsTransactionId = property_exists($data, "nsTransactionId") && !empty($data->nsTransactionId) ? $data->nsTransactionId : null;
 
-                if ($orderIncrementId == null) {
-                    throw new Exception("Undefined Order IncrementId");
-                }
-
-                if ($nsTransactionId == null) {
-                    throw new Exception("Undefined NetSuite Transaction Id");
-                }
-
-                $order = Mage::getModel('sales/order')->loadByIncrementId($orderIncrementId);
-
-                $state = Mage_Sales_Model_Order::STATE_CANCELED;
-                $order->setData('state', $state);
-                $order->setStatus($state);
-                $history = $order->addStatusHistoryComment('This order has been cancelled due to editing of its NetSuite Sales Order Having Transaction Id: ' . $nsTransactionId, false);
-                $history->setIsCustomerNotified(false);
-
-                $order->save();
-                $responseData = array();
-
-                // making response object
-                $response["status"] = 1;
-                $response["message"] = "Sales Order has been cancelled";
-                $response["data"] = $responseData;
-            } catch (Exception $e) {
-                Mage::log("F3_Generic_Api_Base.cancelSalesOrder - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
-                throw new Exception($e->getMessage());
+            if ($orderIncrementId == null) {
+                throw new Exception("Undefined Order IncrementId");
             }
 
-            return $response;
+            if ($nsTransactionId == null) {
+                throw new Exception("Undefined NetSuite Transaction Id");
+            }
+
+            $order = Mage::getModel('sales/order')->loadByIncrementId($orderIncrementId);
+
+            $state = Mage_Sales_Model_Order::STATE_CANCELED;
+            $order->setData('state', $state);
+            $order->setStatus($state);
+            $history = $order->addStatusHistoryComment('This order has been cancelled due to editing of its NetSuite Sales Order Having Transaction Id: ' . $nsTransactionId, false);
+            $history->setIsCustomerNotified(false);
+
+            $order->save();
+            $responseData = array();
+
+            // making response object
+            $response["status"] = 1;
+            $response["message"] = "Sales Order has been cancelled";
+            $response["data"] = $responseData;
+        } catch (Exception $e) {
+            Mage::log("F3_Generic_Api_Base.cancelSalesOrder - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+            throw new Exception($e->getMessage());
         }
+
+        return $response;
+    }
 
     public function createInvoice($data){
         try {
@@ -337,6 +337,329 @@ class F3_Generic_Api_Base
             Mage::log("F3_Generic_Api_Base.createCreditMemo - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
             throw new Exception($e->getMessage());
         }
+        return $response;
+    }
+
+
+    /**
+     * Assign attributes to configurable product
+     * @param $requestData
+     * @return mixed
+     * @throws Exception
+     */
+    function assignAttributesToConfigurableProduct($requestData) {
+        try {
+            if(isset($requestData->configurable_product_id) && isset($requestData->products_attributes)) {
+                //Mage::log('inside assignAttributesToConfigurableProduct start', null, 'assignAttributesToConfigurableProduct.log', true);
+                $configurable_product_id = $requestData->configurable_product_id;
+                $products_attributes = $requestData->products_attributes;
+
+                $configProduct = Mage::getModel('catalog/product')->load($configurable_product_id);
+                $newAttributes = array();
+                foreach ($products_attributes as $products_attribute) {
+                    $configProductAttrCode = $products_attribute->key;
+
+                    $super_attribute= Mage::getModel('eav/entity_attribute')->loadByCode('catalog_product', $configProductAttrCode);
+                    $configurableAtt = Mage::getModel('catalog/product_type_configurable_attribute')->setProductAttribute($super_attribute);
+
+                    $newAttribute = array(
+                        'id'             => $configurableAtt->getId(),
+                        'label'          => $configurableAtt->getLabel(),
+                        'position'       => $super_attribute->getPosition(),
+                        'values'         => $configurableAtt->getPrices() ? $configProduct->getPrices() : array(),
+                        'attribute_id'   => $super_attribute->getId(),
+                        'attribute_code' => $super_attribute->getAttributeCode(),
+                        'frontend_label' => $super_attribute->getFrontend()->getLabel(),
+                    );
+                    $newAttributes[] = $newAttribute;
+                }
+
+                $existingAttributes = $configProduct->getTypeInstance()->getConfigurableAttributesAsArray();
+                $allAttributes = array_merge($existingAttributes, $newAttributes);
+
+                $configProduct->setCanSaveConfigurableAttributes(true);
+                $configProduct->setConfigurableAttributesData($allAttributes);
+                $configProduct->save();
+
+
+                /* try {
+                     $process = Mage::getModel('index/indexer')->getProcessByCode('catalog_product_attribute');
+                     $process->reindexAll();
+                 }
+                 catch(Exception $e) {
+                     Mage::log("F3_Generic_Api_Base.assignAttributesToConfigurableProduct - Exception in Re-indexing products data = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+                 }*/
+
+
+                $responseArr = array();
+                $responseArr["assignment_id"] = '';
+                $response["status"] = 1;
+                $response["message"] = "Attributes have been assigned to configurable product";
+                $response["data"] = $responseArr;
+
+            }
+            else {
+                throw new Exception('Please provide configurable_product_id and products_attributes values in request param');
+            }
+
+        } catch (Exception $e) {
+            Mage::log("F3_Generic_Api_Base.assignAttributesToConfigurableProduct - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+            throw new Exception($e->getMessage());
+        }
+        return $response;
+    }
+
+    /**
+     * Associate Simple Product with configurable product
+     * @param $requestData
+     * @return mixed
+     * @throws Exception
+     */
+    function associateProductWithConfigurableProduct($requestData) {
+        try {
+            if(isset($requestData->configurable_product_id) && isset($requestData->simple_product_id)) {
+                //Mage::log('inside assignAttributesToConfigurableProduct start', null, 'assignAttributesToConfigurableProduct.log', true);
+                $configurable_product_id = $requestData->configurable_product_id;
+                $simple_product_id = $requestData->simple_product_id;
+
+                $configProduct = Mage::getModel('catalog/product')->load($configurable_product_id);
+
+                $existingAssociatedProductsIds = $configProduct->getTypeInstance()->getUsedProductIds();
+                $allAssociatedProductIds = array();
+                $allAssociatedProductIds[] = $simple_product_id;
+                foreach ($existingAssociatedProductsIds as $existingAssociatedProductsId ) {
+                    $allAssociatedProductIds[] = $existingAssociatedProductsId;
+                }
+
+                Mage::getResourceModel('catalog/product_type_configurable')->saveProducts($configProduct, $allAssociatedProductIds);
+
+
+                /*try {
+                    $process = Mage::getModel('index/indexer')->getProcessByCode('catalog_product_attribute');
+                    $process->reindexAll();
+                }
+                catch(Exception $e) {
+                    Mage::log("F3_Generic_Api_Base.associateProductWithConfigurableProduct - Exception in Re-indexing products data = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+                }*/
+
+
+                $responseArr = array();
+                $responseArr["association_id"] = '';
+                $response["status"] = 1;
+                $response["message"] = "Product has been associated to configurable product";
+                $response["data"] = $responseArr;
+
+            }
+            else {
+                throw new Exception('Please provide configurable_product_id and simple_product_id values in request param');
+            }
+
+        } catch (Exception $e) {
+            Mage::log("F3_Generic_Api_Base.associateProductWithConfigurableProduct - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+            throw new Exception($e->getMessage());
+        }
+        return $response;
+    }
+
+    function reindexProductsData($requestData) {
+        try {
+            //@var $indexCollection Mage_Index_Model_Resource_Process_Collection
+            /*$indexCollection = Mage::getModel('index/process')->getCollection();
+            foreach ($indexCollection as $index) {
+                //@var $index Mage_Index_Model_Process
+                $index->reindexAll();
+            }*/
+
+            //$processes = Mage::getSingleton('index/indexer')->getProcessesCollection();
+            //$processes->walk('reindexAll');
+
+            if(isset($requestData->store_root_path)) {
+                //exec('php /var/www/html/f3store6/shell/indexer.php --reindex all >> /var/www/html/f3store6/log.txt');
+
+                $storeRootPath = $requestData->store_root_path;
+                $reIndexingCommand = 'php '.$storeRootPath.'/shell/indexer.php --reindex all >> '.$storeRootPath.'/log.txt';
+                exec($reIndexingCommand);
+
+                $response["status"] = 1;
+                $response["message"] = "Data Re-indexing job invoked successfully.";
+            }
+            else {
+                throw new Exception('Please provide store_root_path values in request param');
+            }
+        } catch (Exception $e) {
+            Mage::log("F3_Generic_Api_Base.reindexProductsData - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+            throw new Exception($e->getMessage());
+        }
+        return $response;
+    }
+
+    private function validateGetProductRequestData($data)
+    {
+        $productType = $data->productType;
+        $productId = $data->productId;
+        $identifierType = $data->identifierType;
+
+        if (empty($productType)) {
+            throw new Exception("Product Type is empty");
+        }
+        if (empty($productId)) {
+            throw new Exception("Product Id is empty");
+        }
+        if (empty($identifierType)) {
+            throw new Exception("Identifier Type is empty");
+        }
+
+        $productTypes = array("simple", "configurable", "grouped", "bundle", "virtual", "downloadable");
+        if (!in_array($productType, $productTypes)) {
+            throw new Exception("Product Type is invalid");
+        }
+        $identifierTypes = array("sku", "id");
+        if (!in_array($identifierType, $identifierTypes)) {
+            throw new Exception("Identifier Type is invalid");
+        }
+    }
+
+    private function simple($product)
+    {
+        $productData = new StdClass();
+
+        // getting all attributes of product - start
+        $attributes = $product->getAttributes();
+        // get all attributes of a product
+        foreach ($attributes as $attribute) {
+            $attributeCode = $attribute->getAttributeCode();
+            if (!empty($attributeCode)) {
+                $productData->{$attributeCode} = $product->getData($attributeCode);
+            }
+        }
+        // getting all attributes of product - end
+
+        // get category ids
+        $productData->category_ids = $product->getCategoryIds();
+
+        // get information form parent
+        $productData->parent = null;
+        // getting parent product - start
+        $parent = Mage::getModel('catalog/product_type_configurable')->getParentIdsByChild($product->getId());
+        if (sizeof($parent) > 0) {
+            $parentProduct = Mage::getModel('catalog/product')->load($parent[0]);
+            $productData->parent = $this->configurable($parentProduct);
+        } else {
+            $parent = Mage::getModel('catalog/product_type_grouped')->getParentIdsByChild($product->getId());
+            if (sizeof($parent) > 0) {
+                $parentProduct = Mage::getModel('catalog/product')->load($parent[0]);
+                $productData->parent = $this->grouped($parentProduct);
+            }
+        }
+        // getting parent product - end
+
+        return $productData;
+    }
+
+    private function configurable($product)
+    {
+        $productData = new StdClass();
+
+        // getting all attributes of product - start
+        $attributes = $product->getAttributes();
+        //$productData->attributes= $attributes;
+
+        // get category ids
+        $productData->category_ids = $product->getCategoryIds();
+
+        // get all attributes of a product
+        foreach ($attributes as $attribute) {
+            $attributeCode = $attribute->getAttributeCode();
+            if (!empty($attributeCode)) {
+                $productData->{$attributeCode} = $product->getData($attributeCode);
+            }
+        }
+        // getting all attributes of product - end
+
+        $productData->used_product_attribute_ids = $product->getTypeInstance()->getUsedProductAttributeIds();
+        $productData->configurable_attributes_as_array = $product->getTypeInstance()->getConfigurableAttributesAsArray();
+        $productData->configurable_attributesData = $product->getConfigurableAttributesData();
+        $productData->configurable_products_data = $product->getConfigurableProductsData();
+
+        /**
+         * Get child products id (only ids)
+         */
+        $productData->child_product_ids = Mage::getModel('catalog/product_type_configurable')->getChildrenIds($product->getId());
+
+        /**
+         * Get children products (all associated children products data)
+         */
+        /*$productData->childProducts = array();
+        $childProducts = Mage::getModel('catalog/product_type_configurable')->getUsedProducts(null, $product);
+
+        foreach ($childProducts as $childProduct) {
+            $type = $childProduct->getTypeId();
+            array_push($productData->childProducts, $type);
+            array_push($productData->childProducts, $this->{$type}($childProduct));
+        }*/
+
+        return $productData;
+    }
+
+    private function grouped($product)
+    {
+        throw new Exception("Product Type (grouped) is not supported");
+    }
+
+    private function bundle($product)
+    {
+        throw new Exception("Product Type (bundle) is not supported");
+    }
+
+    private function virtual($product)
+    {
+        throw new Exception("Product Type (virtual) is not supported");
+    }
+
+    private function downloadable($product)
+    {
+        throw new Exception("Product Type (downloadable)) is not supported");
+    }
+
+    private function getProduct($data)
+    {
+        $this->validateGetProductRequestData($data);
+
+        $product = null;
+        $productType = $data->productType;
+        $productId = $data->productId;
+        $identifierType = $data->identifierType;
+
+        try {
+            $product = Mage::getModel('catalog/product');
+            $product = $identifierType === "sku" ? $product->loadByAttribute($identifierType, $productId) : $product->load($productId);
+        } catch (Exception $e) {
+            throw $e;
+        }
+
+        if (method_exists($this, $productType)) {
+            $productData = $this->{$productType}($product);
+        } else {
+            throw new Exception("Product Type ($productType) is not supported");
+        }
+
+        return $productData;
+    }
+
+    public function getProductInfo($data)
+    {
+        try {
+            $responseData = array();
+            $responseData["product"] = $this->getProduct($data);
+            // making response object
+            $response["status"] = 1;
+            $response["message"] = "getProductInfo";
+            $response["data"] = $responseData;
+        } catch (Exception $e) {
+            Mage::log("F3_Generic_Api_Base.getProductInfo - Exception = " . $e->getMessage(), null, date("d_m_Y") . '.log', true);
+            throw new Exception($e->getMessage());
+        }
+
         return $response;
     }
 }

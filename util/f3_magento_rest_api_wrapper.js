@@ -1,11 +1,10 @@
 /**
  * Created by wahajahmed on 10/13/2015.
  */
-var __extends = this.__extends || function (d, b) {
+var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 // Declaration of all NetSuite SuiteScript 1.0 APIs
 /// <reference path="../util/SuiteScriptAPITS.d.ts" />
@@ -73,6 +72,94 @@ var MagentoRestApiWrapper = (function (_super) {
             soDataList.push(obj);
         }
         return soDataList;
+    };
+    /**
+     * Assign attributes to a configurable product
+     * @param productId
+     * @param attributes
+     * @param store
+     * @returns {any}
+     */
+    MagentoRestApiWrapper.prototype.assignAttributesToConfigurableProduct = function (productId, attributes, store) {
+        var result = {};
+        try {
+            var customRestApiUrl = store.entitySyncInfo.common.customRestApiUrl;
+            var dataObj = {};
+            dataObj.configurable_product_id = productId;
+            dataObj.products_attributes = attributes;
+            var requestParam = { "apiMethod": "assignAttributesToConfigurableProduct", "data": JSON.stringify(dataObj) };
+            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var responseBody = resp.getBody();
+            Utility.logDebug('assignAttributesToConfigurableProduct responseBody', responseBody);
+            var responseBodyData = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+                result.attributeAssignmentId = responseBodyData.data.assignment_id;
+            }
+            else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    };
+    /**
+     * Associate Product to configurable product
+     * @param configProductId
+     * @param simpleProductId
+     * @param store
+     * @returns {any}
+     */
+    MagentoRestApiWrapper.prototype.associateProductToConfigurableProduct = function (configProductId, simpleProductId, store) {
+        var result = {};
+        try {
+            var customRestApiUrl = store.entitySyncInfo.common.customRestApiUrl;
+            var dataObj = {};
+            dataObj.configurable_product_id = configProductId;
+            dataObj.simple_product_id = simpleProductId;
+            var requestParam = { "apiMethod": "associateProductWithConfigurableProduct", "data": JSON.stringify(dataObj) };
+            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var responseBody = resp.getBody();
+            Utility.logDebug('associateProductWithConfigurableProduct responseBody', responseBody);
+            var responseBodyData = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+                result.productAssociationId = responseBodyData.data.association_id;
+            }
+            else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    };
+    MagentoRestApiWrapper.prototype.reIndexProductsData = function (store) {
+        var result = {};
+        try {
+            var customRestApiUrl = store.entitySyncInfo.common.customRestApiUrl;
+            var storeRootUrl = store.entitySyncInfo.item.storeRootPath;
+            var dataObj = {};
+            dataObj.store_root_path = storeRootUrl;
+            var requestParam = { "apiMethod": "reindexProductsData", "data": JSON.stringify(dataObj) };
+            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var responseBody = resp.getBody();
+            Utility.logDebug('reindexProductsData responseBody', responseBody);
+            var responseBodyData = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+            }
+            else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
     };
     return MagentoRestApiWrapper;
 })(MagentoWrapper);

@@ -2039,6 +2039,14 @@ ShopifyWrapper = (function () {
             return responseBody;
         },
 
+        /**
+         * Re-index Products data
+         * @param store
+         */
+        reIndexProductsData: function (store) {
+
+        },
+
         getCustomerList: function (customerObj) {
             var serverResponse = null;
 

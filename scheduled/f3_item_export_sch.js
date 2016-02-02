@@ -22,7 +22,8 @@ var ItemExportManager = (function () {
 
         ScriptParams: {
             IdentifierType: 'custscript_f3_identifier_type',
-            IdentifierValue: 'custscript_f3_identifier_value'
+            IdentifierValue: 'custscript_f3_identifier_value',
+            StoreId: 'custscript_f3_storeid'
         },
 
         /**
@@ -40,8 +41,9 @@ var ItemExportManager = (function () {
                     return null;
                 }
 
-                var identifierType = ctx.getSetting('SCRIPT', this.ScriptParams.IdentifierType);
-                var identifierValue = ctx.getSetting('SCRIPT', this.ScriptParams.IdentifierType);
+                var identifierType = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierType);
+                var identifierValue = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierValue);
+                var selectedStoreId = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemExportStoreId);
                 //nlapiLogExecution('DEBUG', 'lastId: ' + lastId, '');
 
                 //initialize constants
@@ -76,11 +78,12 @@ var ItemExportManager = (function () {
                         var criteriaObj = {};
                         criteriaObj.identifierType = identifierType;
                         criteriaObj.identifierValue = identifierValue;
-
+                        criteriaObj.selectedStoreId = selectedStoreId;
                         //For testing
-                        criteriaObj.identifierType = 'internalid';
+                        //criteriaObj.identifierType = 'internalid';
                         //criteriaObj.identifierValue = '1708';
-                        criteriaObj.identifierValue = '1706';
+                        //criteriaObj.identifierValue = '1706';
+                        //criteriaObj.identifierValue = '1711';
 
                         var records = this.getRecords(store, criteriaObj);
                         Utility.logDebug('fetched items count', !!records ? records.length : '0');
@@ -91,6 +94,14 @@ var ItemExportManager = (function () {
                         } else {
                             nlapiLogExecution('DEBUG', ' No records found to process', '');
                         }
+
+
+                        if(!!store.entitySyncInfo.item.reIndexAfterProductExport && store.entitySyncInfo.item.reIndexAfterProductExport == 'true') {
+                            Utility.logDebug('running re-indexing job', 'Started');
+                            this.reIndexProductsDataOnExternalSystem(store);
+                            Utility.logDebug('running re-indexing job', 'Completed');
+                        }
+
 
                         if (this.rescheduleIfNeeded(ctx, null)) {
                             return null;
@@ -242,6 +253,14 @@ var ItemExportManager = (function () {
                     }
                 }
             }
+        },
+
+        /**
+         * Re-index products data on external system
+         * @param store
+         */
+        reIndexProductsDataOnExternalSystem: function(store) {
+            ConnectorConstants.CurrentWrapper.reIndexProductsData(store);
         },
 
         /**

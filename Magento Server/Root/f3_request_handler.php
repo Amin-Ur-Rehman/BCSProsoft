@@ -9,6 +9,8 @@
 include_once 'app/Mage.php';
 session_start();
 session_write_close();
+set_time_limit(0);
+ini_set('memory_limit', '-1');
 umask(0);
 Mage::app()->setCurrentStore(Mage_Core_Model_App::ADMIN_STORE_ID);
 Mage::log("Mage::getBaseDir('lib') = " . Mage::getBaseDir('lib'), null, date("d_m_Y") . '.log', true);

@@ -100,6 +100,9 @@ var ConnectorDashboardApi = (function () {
                 case 'executeItemExportScript':
                     return this.executeItemExportScript(request, response);
                     break;
+                case 'selectiveItemExportScript':
+                    return this.selectiveItemExportScript(request, response);
+                    break;
                 case 'getItemExportScriptDeploymentInstances':
                     return this.getItemExportScriptDeploymentInstances(request, response);
                     break;
@@ -378,6 +381,30 @@ var ConnectorDashboardApi = (function () {
                 null
             );
         },
+
+        selectiveItemExportScript: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var itemId = request.getParameter('record_id');
+            var params = {};
+
+            /*var data = {};
+            data[RecordsToSync.FieldName.RecordId] = itemId;
+            data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+            data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+            data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+            data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
+            data[RecordsToSync.FieldName.ExternalSystem] = storeId;
+            RecordsToSync.upsert(data);*/
+
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportStoreId] = storeId;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierType] = 'internalid';
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierValue] = itemId;
+            return this.executeScheduledScript(
+                'customscript_item_export_sch',
+                'customdeploy_item_export_sch_dash',
+                params);
+        },
+
         executeSOSyncScript: function (request, response) {
             var storeId = request.getParameter('store_id');
             var params = {};
@@ -773,6 +800,18 @@ var ConnectorDashboardApi = (function () {
                                 url: "/itemsexport",
                                 templateUrl: "/f3-dash/templates/actions-execute-item-export-sync-script.html",
                                 controller: 'ExecuteItemExportScriptController',
+                                controllerAs: 'viewModel'
+                            });
+                            menu.push({
+                                key: 'selective-exportitems',
+                                menuOrder: 19,
+                                group: '',
+                                groupIcon: 'icon-refresh',
+                                icon: 'icon-list',
+                                title: 'Selective Items Export',
+                                url: "/selective-itemsexport",
+                                templateUrl: "/f3-dash/templates/actions-selective-export-item.html",
+                                controller: 'SelectiveExportItemController',
                                 controllerAs: 'viewModel'
                             });
                             break;
