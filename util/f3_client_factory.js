@@ -717,7 +717,7 @@ function F3ClientBase() {
                 infoMsg: ''
             };
             try {
-                var rec = nlapiCreateRecord('lead', null);
+                var rec = nlapiCreateRecord('lead', {recordmode: "dynamic"});
                 //rec.setFieldValue('isperson', 'T');
                 //rec.setFieldValue('subsidiary', '3');// TODO: generalize location
                 //   rec.setFieldValue('salutation', '');
@@ -834,7 +834,7 @@ function F3ClientBase() {
             Utility.logDebug("sessionID", JSON.stringify(sessionID));
             var result = {};
             try {
-                var rec = nlapiLoadRecord('customer', customerId, null);
+                var rec = nlapiLoadRecord('customer', customerId, {recordmode: "dynamic"});
 
                 // mulitple stores handling
 
@@ -883,12 +883,14 @@ function F3ClientBase() {
                 }
 
                 addresses = responseMagento.addresses;
+                Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
 
                 if (!Utility.isBlankOrNull(addresses)) {
                     rec = ConnectorCommon.setAddresses(rec, addresses);
                 }
                 // setting magento addresses from sales order
                 addresses = magentoCustomerObj.addresses;
+                Utility.logDebug("set customer addresses from salesorder", JSON.stringify(addresses));
                 rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
 
                 // zee: get customer address list: end
@@ -1039,6 +1041,75 @@ function F3ClientBase() {
             Utility.logDebug('setting method ', nsShipMethod.join(','));
 
             // settting shipping method: end
+        },
+        upsertInventoryItem: function (data) {
+            Utility.logDebug("upsertInventoryItem", JSON.stringify(data));
+            debugger;
+            var isCreating = !data.hasOwnProperty("netSuiteInternalId");
+            // create Matrix Item Parent/Child/Simple
+            var inventoryItem = isCreating ? nlapiCreateRecord('inventoryitem') : nlapiLoadRecord('inventoryitem', data.netSuiteInternalId, {recordmode:"dynamic"});
+            inventoryItem.setFieldValue('itemid', data.itemId);
+            inventoryItem.setFieldValue('displayname', data.displayName);
+            inventoryItem.setFieldValue('matrixtype', data.matrixType);
+            inventoryItem.setFieldValue('parent', data.matrixParentId);
+
+            // define the Item's options
+            for (var i in data.matrixAttributes) {
+                var matrixAttribute = data.matrixAttributes[i];
+
+                var attributeId = matrixAttribute.attributeId;
+                var attributeValues = matrixAttribute.attributeValues;
+                inventoryItem.setFieldValue((!!data.matrixParentId ? "matrixoption" : "") + attributeId, attributeValues);
+            }
+
+            // set categories and attribute set
+            inventoryItem.setFieldValue("custitem_f3_ext_sys_item_attribute_set", data.attributeSet);
+            inventoryItem.setFieldValue("custitem_f3_ext_sys_item_category", data.categories);
+
+            var existingJSONArray = inventoryItem.getFieldValue(ConnectorConstants.Item.Fields.MagentoId);
+            existingJSONArray = !Utility.isBlankOrNull(existingJSONArray) ? JSON.parse(existingJSONArray) : [];
+            var existingStores = inventoryItem.getFieldValues(ConnectorConstants.Item.Fields.MagentoStores);
+            existingStores = !Utility.isBlankOrNull(existingStores) ? existingStores : [];
+            var newStores = [];
+            var newJSONArray = [];
+            var itemIdJSON;
+
+            // selecting stores in item record
+            if (existingStores instanceof Array) {
+                if (existingStores.length === 0) {
+                    newStores.push(ConnectorConstants.CurrentStore.systemId);
+                }
+                else if (existingStores.length > 0) {
+                    newStores = newStores.concat(existingStores);
+                    newStores.push(ConnectorConstants.CurrentStore.systemId);
+                }
+                else {
+                    newStores = existingStores;
+                }
+            }
+
+            if (isCreating) {
+                // making a JSON array
+                if (existingJSONArray instanceof Array) {
+                    itemIdJSON = JSON.parse(ConnectorCommon.getMagentoIdForSearching(ConnectorConstants.CurrentStore.systemId, data.id));
+                    if (existingJSONArray.length === 0) {
+                        newJSONArray.push(itemIdJSON);
+                    } else if (existingJSONArray.length > 0) {
+                        newJSONArray = newJSONArray.concat(existingJSONArray);
+                        newJSONArray.push(itemIdJSON);
+                    } else {
+                        newJSONArray = existingJSONArray;
+                    }
+                }
+                inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoId, JSON.stringify(newJSONArray));
+            }
+
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoStores, newStores);
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoSync, "T");
+
+            var id = nlapiSubmitRecord(inventoryItem);
+
+            return id;
         }
 
     };

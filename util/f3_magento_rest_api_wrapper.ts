@@ -11,7 +11,7 @@
 /**
  * Wrapper class for magento custom rest api
  */
-class MagentoRestApiWrapper extends MagentoWrapper{
+class MagentoRestApiWrapper extends MagentoWrapper {
 
     /**
      * get Sales Orders Increment Ids list
@@ -19,28 +19,55 @@ class MagentoRestApiWrapper extends MagentoWrapper{
      * @param statuses
      * @param store
      */
-    public getSalesOrdersList(fromDate: string, statuses: Array<string>, store: any) {
-        var result: any  = {};
+    public getSalesOrdersList(fromDate:string, statuses:Array<string>, store:any) {
+        var result:any = {};
         try {
-            var customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
+            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
 
-            var dataObj: any = {};
+            var dataObj:any = {};
             dataObj.fromDate = fromDate;
             dataObj.statuses = statuses;
             var requestParam = {"apiMethod": "getSalesOrderList", "data": JSON.stringify(dataObj)};
             var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody: string = resp.getBody();
+            var responseBody:string = resp.getBody();
             Utility.logDebug('getSalesOrdersList responseBody', responseBody);
 
-            var responseBodyData: any = JSON.parse(responseBody);
-            if(!!responseBodyData.status) {
+            var responseBodyData:any = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
                 result.status = true;
                 result.orders = this.getSalesOrderParsedData(responseBodyData.data.orders);
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
         }
-        catch(ex) {
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    }
+
+    public getItemInfo(productType:string, productId:string, identifierType:string, store:any) {
+        var result:any = {};
+        try {
+            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
+            var dataObj:any = {};
+            dataObj.productType = productType;
+            dataObj.productId = productId;
+            dataObj.identifierType = identifierType;
+            var requestParam = {"apiMethod": "getItemInfo", "data": JSON.stringify(dataObj)};
+            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var responseBody:string = resp.getBody();
+            Utility.logDebug('getItemInfo responseBody', responseBody);
+
+            var responseBodyData:any = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+                result.product = this.getItemInfoParsedData(responseBodyData.data.product);
+            } else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
@@ -51,20 +78,21 @@ class MagentoRestApiWrapper extends MagentoWrapper{
      * @param result
      * @param errorMessage
      */
-    private setErrorResponse(result: any, errorMessage: string) {
+    private setErrorResponse(result:any, errorMessage:string) {
         result.status = false;
         result.faultCode = 'ERROR';
         result.faultString = errorMessage;
     }
+
     /**
      * Get Sales order parsed data
      * @param soList
      */
-    private getSalesOrderParsedData(soList: any) {
-        var soDataList: Array<any> = [];
+    private getSalesOrderParsedData(soList:any) {
+        var soDataList:Array<any> = [];
         for (var i = 0; i < soList.length; i++) {
-            var incrementalId: string = soList[i];
-            var obj: any = {};
+            var incrementalId:string = soList[i];
+            var obj:any = {};
             obj.increment_id = incrementalId;
             soDataList.push(obj);
         }

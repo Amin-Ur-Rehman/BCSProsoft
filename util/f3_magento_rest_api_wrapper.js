@@ -49,6 +49,32 @@ var MagentoRestApiWrapper = (function (_super) {
         }
         return result;
     };
+    MagentoRestApiWrapper.prototype.getItemInfo = function (productType, productId, identifierType, store) {
+        var result = {};
+        try {
+            var customRestApiUrl = store.entitySyncInfo.common.customRestApiUrl;
+            var dataObj = {};
+            dataObj.productType = productType;
+            dataObj.productId = productId;
+            dataObj.identifierType = identifierType;
+            var requestParam = { "apiMethod": "getItemInfo", "data": JSON.stringify(dataObj) };
+            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var responseBody = resp.getBody();
+            Utility.logDebug('getItemInfo responseBody', responseBody);
+            var responseBodyData = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+                result.product = this.getItemInfoParsedData(responseBodyData.data.product);
+            }
+            else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    };
     /**
      * Error message response
      * @param result

@@ -177,6 +177,8 @@ var ItemExportLibrary = (function () {
             itemObject.upcCode = itemRecord.getFieldValue('upccode') || '';
             itemObject.isInactive = itemRecord.getFieldValue('isinactive');
 
+            itemObject.isInactive = itemRecord.getFieldValue('isinactive');
+
             itemObject.parentItem = itemRecord.getFieldValue('parent');
             itemObject.isMatrixChildItem = itemRecord.getFieldValue('matrixtype') === "CHILD";
             itemObject.isMatrixParentItem = itemRecord.getFieldValue('matrixtype') === "PARENT";
