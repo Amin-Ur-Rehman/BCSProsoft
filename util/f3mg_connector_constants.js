@@ -137,7 +137,11 @@ ConnectorConstants = (function () {
 
             SelectiveItemExportIdentifierType: 'custscript_f3_identifier_type',
             SelectiveItemExportIdentifierValue: 'custscript_f3_identifier_value',
-            SelectiveItemExportStoreId: 'custscript_f3_storeid'
+            SelectiveItemExportStoreId: 'custscript_f3_storeid',
+
+            SelectiveItemImportIdentifierType: 'custscript_f3_identifier_type_imp',
+            SelectiveItemImportIdentifierValue: 'custscript_f3_identifier_value_imp',
+            SelectiveItemImportStoreId: 'custscript_f3_storeid_imp'
         },
         SuiteScripts: {
             Suitelet: {
@@ -224,7 +228,7 @@ ConnectorConstants = (function () {
             this.Client = F3ClientFactory.createClient(nlapiGetContext().getCompany().toString());
             this.FileMimeTypes = this.loadFileMimeTypes();
         },
-        loadFileMimeTypes: function() {
+        loadFileMimeTypes: function () {
             var mimeTypes = {};
             mimeTypes['AUTOCAD'] = 'application/x-autocad';
             mimeTypes['BMPIMAGE'] = 'image/x-xbitmap';

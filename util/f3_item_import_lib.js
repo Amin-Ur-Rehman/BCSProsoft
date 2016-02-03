@@ -19,7 +19,11 @@ var ItemImportLibrary = (function () {
         getItems: function (store, criteriaObj) {
             var results = null;
 
-            results = this.getItemsFromPreviousDays(store);
+            if (!!criteriaObj.identifierType && !!criteriaObj.identifierValue) {
+                results = this.getItemsByIdentifier(store, criteriaObj);
+            } else {
+                results = this.getItemsFromPreviousDays(store);
+            }
 
             return results;
         },
@@ -29,9 +33,7 @@ var ItemImportLibrary = (function () {
          */
         getItemsByIdentifier: function (store, criteriaObj) {
             Utility.logDebug('log_w', 'calling getItemsByIdentifier');
-            var filters = [];
-            filters.push(new nlobjSearchFilter(criteriaObj.identifierType, null, 'is', criteriaObj.identifierValue));
-            return this.getItemsData(filters);
+            return ConnectorConstants.CurrentWrapper.getItemsById( criteriaObj);
         },
 
         /**
@@ -46,15 +48,6 @@ var ItemImportLibrary = (function () {
             itemListData.previousDate = previousDate;
             //filters.push(new nlobjSearchFilter('internalid', null, 'is', '1270'));// matrix child
             return ConnectorConstants.CurrentWrapper.getItems(itemListData);
-        },
-
-        /**
-         * Get Items data from NetSuite to Import
-         */
-        getItemsData: function (filters) {
-            filters.push(new nlobjSearchFilter('type', null, 'anyof', ['InvtPart']));
-            var results = nlapiSearchRecord('item', null, filters);
-            return results;
         },
 
         /**

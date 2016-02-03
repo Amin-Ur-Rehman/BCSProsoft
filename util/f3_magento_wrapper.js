@@ -524,10 +524,10 @@ MagentoXmlWrapper = (function () {
             shippingObj.address_id = nlapiSelectValue(shipping[0], 'address_id');
             shippingObj.street = nlapiSelectValue(shipping[0], 'street');
             shippingObj.city = nlapiSelectValue(shipping[0], 'city');
-            shippingObj.telephone = nlapiSelectValue(shipping[0], 'telephone');
+            shippingObj.phone = nlapiSelectValue(shipping[0], 'telephone');
             shippingObj.region = nlapiSelectValue(shipping[0], 'region');
             shippingObj.region_id = nlapiSelectValue(shipping[0], 'region_id');
-            shippingObj.postcode = nlapiSelectValue(shipping[0], 'postcode');
+            shippingObj.zip = nlapiSelectValue(shipping[0], 'postcode');
             shippingObj.country_id = nlapiSelectValue(shipping[0], 'country_id');
             shippingObj.firstname = nlapiSelectValue(shipping[0], 'firstname');
             shippingObj.lastname = nlapiSelectValue(shipping[0], 'lastname');
@@ -543,8 +543,8 @@ MagentoXmlWrapper = (function () {
             billingObj.phone = nlapiSelectValue(billing[0], 'telephone');
             billingObj.region = nlapiSelectValue(billing[0], 'region');
             billingObj.region_id = nlapiSelectValue(billing[0], 'region_id');
-            billingObj.postcode = nlapiSelectValue(billing[0], 'postcode');
-            billingObj.country_id = nlapiSelectValue(billing[0], 'country_id');
+            billingObj.zip = nlapiSelectValue(billing[0], 'postcode');
+            billingObj.country = nlapiSelectValue(billing[0], 'country_id');
             billingObj.firstname = nlapiSelectValue(billing[0], 'firstname');
             billingObj.lastname = nlapiSelectValue(billing[0], 'lastname');
 
@@ -3352,6 +3352,375 @@ MagentoXmlWrapper = (function () {
         },
         getDiscount:function(salesOrderObj){
             return salesOrderObj.order.discount_amount;
+        },
+        // get previous date w.r.t. Magento for making filter in XML
+        getPreviousDayDate: function (ageOfItemToImportInDays, format) {
+            var currentDate = new Date();
+            var soUpdateDate;
+            soUpdateDate = nlapiAddDays(currentDate, ageOfItemToImportInDays);
+            soUpdateDate = soUpdateDate.getFullYear() + '-' + Utility.addZeroes((soUpdateDate.getMonth() + 1), 2) + '-' + Utility.addZeroes(soUpdateDate.getDate(), 2) + ' ' + Utility.addZeroes(soUpdateDate.getHours(), 2) + ':' + Utility.addZeroes(soUpdateDate.getMinutes(), 2) + ':' + '00';
+            return soUpdateDate
+        },
+        /**
+         * Make an associative entity for filters
+         * @param key
+         * @param value
+         * @returns {string}
+         */
+        getAssociativeEntity: function (key, value) {
+            var xml = "";
+            xml += "<value>";
+            xml += '<key xs:type="type:string">' + key + '</key>';
+            if (value instanceof Array) {
+                for (var i in  value) {
+                    xml += '<value xs:type="type:string">' + value[i] + '</value>';
+                }
+            } else {
+                xml += '<value xs:type="type:string">' + value + '</value>';
+            }
+            xml += "</value>";
+            return xml;
+        },
+        /**
+         * Make a complex filter
+         * @param key
+         * @param value
+         * @returns {string}
+         */
+        getComplexFilter: function (key, value) {
+            var xml = "";
+            xml += '<complexFilter>';
+            xml += '<key xs:type="type:string">' + key + '</key>';
+            xml += this.getAssociativeEntity(value.key, value.value);
+            xml += '</complexFilter>';
+            return xml;
+        },
+        /**
+         * Make an associativeArray filters for XML request
+         * @param filters
+         * @returns {string}
+         * Sample: filters: [{key: "gt", value: [itemListData.previousDate]}]
+         */
+        getSimpleFilters: function (filters) {
+            var xml = "";
+            if (filters instanceof Array && filters.length > 0) {
+                if (filters.length > 0) {
+                    xml += '<filter>';
+                    for (var i in filters) {
+                        xml += this.getAssociativeEntity(filters[i].key, filters[i].value);
+                    }
+                    xml += '</filter>';
+                }
+            }
+            return xml;
+        },
+        /**
+         * Make a complexFilterArray filters for XML request
+         * @param complexFilters
+         * @returns {string}
+         * Sample complexFilters: [{key: "updated_at", value: {key: "gt", value: [itemListData.previousDate]}}]
+         */
+        getComplexFilters: function (complexFilters) {
+            var xml = "";
+            if (complexFilters instanceof Array && complexFilters.length > 0) {
+                xml += '<complex_filter>';
+                for (var i in complexFilters) {
+                    var complexFilter = complexFilters[i];
+                    xml += this.getComplexFilter(complexFilter.key, complexFilter.value);
+                }
+                xml += '</complex_filter>';
+            }
+            return xml;
+        },
+        /**
+         * Item List XML
+         * @param obj
+         * @param sessionId
+         * @returns {string}
+         */
+        getItemListXML: function (obj, sessionId) {
+            var xml = "";
+            xml += this.XmlHeader;
+            xml += '<urn:catalogProductList>';
+            xml += '<sessionId urn:type="xsd:string">' + sessionId + '</sessionId>';
+            xml += '<filters>';
+            // making simple filters
+            if (obj.hasOwnProperty("filters")) {
+                xml += this.getSimpleFilters(obj.filters);
+            }
+            // making complex filters
+            if (obj.hasOwnProperty("complexFilters")) {
+                xml += this.getComplexFilters(obj.complexFilters);
+            }
+            xml += '</filters>';
+            xml += '</urn:catalogProductList>';
+            xml += this.XmlFooter;
+            return xml;
+        },
+        getCategoryIds: function (xml) {
+            var websiteIds = [];
+            var items = nlapiSelectNodes(xml, "website_ids");
+            if (items instanceof Array) {
+                for (var i in items) {
+                    var websiteId = nlapiSelectValue(items[i], "item");
+                    websiteIds.push(websiteId);
+                }
+            }
+            return websiteIds;
+        },
+        getWebsiteIds: function (xml) {
+            var categoryIds = [];
+            var items = nlapiSelectNodes(xml, "category_ids");
+            if (items instanceof Array) {
+                for (var i in items) {
+                    var categoryId = nlapiSelectValue(items[i], "item");
+                    categoryIds.push(categoryId);
+                }
+            }
+            return categoryIds;
+        },
+        tranformItemListXMLtoArray: function (items) {
+            var itemList = [];
+            for (var i in items) {
+                var obj = {};
+                var item = items[i];
+                obj.product_id = nlapiSelectValue(item, "product_id");
+                obj.sku = nlapiSelectValue(item, "sku");
+                obj.name = nlapiSelectValue(item, "name");
+                obj.type = nlapiSelectValue(item, "type");
+                obj.category_ids = this.getCategoryIds(item);
+                obj.website_ids = this.getWebsiteIds(item);
+                itemList.push(obj);
+            }
+            return itemList;
+        },
+        validateResponseItemList: function (xml) {
+            Utility.logDebug('Debug', 'validateResponseItemList started');
+            Utility.logDebug('response', nlapiXMLToString(xml));
+            var responseMagento = {};
+            var faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+            var faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+            var items = nlapiSelectNodes(xml, "//storeView/item");
+            if (!Utility.isBlankOrNull(faultCode)) {
+                responseMagento.status = false; // Means There is fault
+                responseMagento.faultCode = faultCode; // Fault Code
+                responseMagento.faultString = faultString; //Fault String
+                nlapiLogExecution('Debug', 'Mageno-ItemList GET Operation Failed', responseMagento.faultString);
+            } else if (!Utility.isBlankOrNull(items)) {
+                responseMagento.status = true;
+                responseMagento.items = this.tranformItemListXMLtoArray(items);
+            } else // Not Attribute ID Found, Nor fault code found
+            {
+                responseMagento.status = false;
+                responseMagento.faultCode = '000';
+                responseMagento.faultString = 'Unexpected Error';
+                nlapiLogExecution('Debug', 'Mageno-ItemList GET Operation Failed', responseMagento.faultString);
+            }
+            return responseMagento;
+        },
+        getItemList: function (obj) {
+            var result = [];
+            var xml = this.getItemListXML(obj, ConnectorConstants.CurrentStore.sessionID);
+            var responseMagento = this.validateResponseItemList(this.soapRequestToServer(xml));
+            if (!responseMagento.status) {
+                result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
+            } else {
+                if (!!responseMagento.items) {
+                    result = responseMagento.items;
+                }
+            }
+            return result;
+        },
+        getItemsById: function (criteriaObj) {
+            var itemListData = {};
+            var items = [];
+            var complexFilters = [];
+            complexFilters.push({
+                key: criteriaObj.identifierType,
+                value: {
+                    key: "in",
+                    value: [
+                        criteriaObj.identifierValue
+                    ]
+                }
+            });
+            itemListData.filters = null;
+            itemListData.complexFilters = complexFilters;
+            var itemsList = this.getItemList(itemListData);
+            if (itemsList instanceof Array && itemsList.length > 0) {
+                items = itemsList;
+            }
+            return items;
+        },
+        getItems: function (itemListData) {
+            var items = [];
+            var complexFilters = [];
+            complexFilters.push({key: "updated_at", value: {key: "gt", value: [itemListData.previousDate]}});
+            /*complexFilters.push({
+                key: "sku",
+                value: {
+                    key: "in",
+                    value: [
+                        "Pmtk006",
+                        "acj005ZEE",
+                        "Pmtk006xs",
+                        "Pmtk006s"
+                    ]
+                }
+            });*/
+            itemListData.filters = null;
+            itemListData.complexFilters = complexFilters;
+            var itemsList = this.getItemList(itemListData);
+            if (itemsList instanceof Array && itemsList.length > 0) {
+                items = itemsList;
+            }
+            return items;
+        },
+        getAttributeIdForNetSuite: function (attributeId) {
+            Utility.logDebug("getAttributeIdForNetSuite - START", JSON.stringify(arguments));
+            var nsAttributeId;
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            var netSuiteItemAttributeInternalId = extSysMatrixFldMap.netSuiteItemOptionField;
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
+            var netSuiteItemAttribute = ItemConfigRecordHandler.findNetSuiteItemAttribute(ConnectorConstants.CurrentStore.systemId, netSuiteItemAttributeInternalId);
+            nsAttributeId = netSuiteItemAttribute.nsItemAttributeId;
+            Utility.logDebug("netSuiteItemAttribute", JSON.stringify(netSuiteItemAttribute));
+            Utility.logDebug("getAttributeIdForNetSuite - END", JSON.stringify(nsAttributeId));
+            return nsAttributeId;
+        },
+        getAttributeValuesForNetSuiteChildItem: function (attributeId, externaSystemAttributeValue) {
+            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - START", JSON.stringify(arguments));
+            var value;
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
+            value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue);
+            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - END", JSON.stringify(value));
+            return value;
+        },
+        getAttributeValuesForNetSuiteParentItem: function (attributeId, externaSystemAttributeValues) {
+            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - START", JSON.stringify(arguments));
+            var values = [];
+            var externalSystemItemAttributeInternalId;
+            var extSysMatrixFldMapInternalId;
+            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
+            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
+            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
+            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
+            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
+            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
+            for (var i in externaSystemAttributeValues) {
+                var externaSystemAttributeValue = externaSystemAttributeValues[i];
+                var value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue.id);
+                Utility.logDebug("value", JSON.stringify(value));
+                values.push(value);
+            }
+            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - END", JSON.stringify(values));
+            return values;
+        },
+        /**
+         *
+         * @param configurableAttributes
+         * @returns {Array} = [{attributeId: "",attributeValues: []}]
+         */
+        transformAttributesForNetSuiteChildItem: function (configurableAttributes) {
+            var attributes = [];
+            for (var attributeId in configurableAttributes) {
+                var attributeValue = configurableAttributes[attributeId];
+                var nsAttributeId = this.getAttributeIdForNetSuite(attributeId);
+                var nsAttributeValue = this.getAttributeValuesForNetSuiteChildItem(attributeId, attributeValue);
+                attributes.push({
+                    attributeId: nsAttributeId,
+                    attributeValues: nsAttributeValue
+                });
+            }
+            return attributes;
+        },
+        transformAttributesForNetSuiteParentItem: function (configurableAttributes) {
+            Utility.logDebug("transformAttributesForNetSuiteParentItem - START", JSON.stringify(arguments));
+            var attributes = [];
+            for (var i in configurableAttributes) {
+                var configurableAttribute = configurableAttributes[i];
+                var nsAttributeId = this.getAttributeIdForNetSuite(configurableAttribute.attributeCode);
+                var nsAttributeValues = this.getAttributeValuesForNetSuiteParentItem(configurableAttribute.attributeCode, configurableAttribute.options);
+                attributes.push({
+                    attributeId: nsAttributeId,
+                    attributeValues: nsAttributeValues
+                });
+            }
+            Utility.logDebug("transformAttributesForNetSuiteParentItem - END", JSON.stringify(attributes));
+            return attributes;
+        },
+        transformSimpleItemForNetSuite: function (product) {
+            Utility.logDebug("transformSimpleItemForNetSuite - START", JSON.stringify(arguments));
+            var result = {};
+            result.parent = null;
+            result.id = product.entityId;
+            result.itemId = product.sku;
+            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
+            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
+            result.displayName = product.name;
+            result.matrixType = "";
+            result.matrixParentId = "";
+            result.matrixAttributes = this.transformAttributesForNetSuiteChildItem(product.configurableAttributes);
+            if (product.hasParent) {
+                result.parent = this.transformConfigurableItemForNetSuite(product.parent);
+                result.matrixType = "CHILD";
+            }
+            Utility.logDebug("transformSimpleItemForNetSuite - END", JSON.stringify(result));
+            return result;
+        },
+        transformConfigurableItemForNetSuite: function (product) {
+            Utility.logDebug("transformConfigurableItemForNetSuite - START", JSON.stringify(arguments));
+            var result = {};
+            result.id = product.entityId;
+            result.itemId = product.sku;
+            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
+            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
+            result.displayName = product.name;
+            result.matrixType = "PARENT";
+            result.matrixParentId = "";
+            result.matrixAttributes = this.transformAttributesForNetSuiteParentItem(product.configurableAttributes);
+            Utility.logDebug("transformConfigurableItemForNetSuite - END", JSON.stringify(result));
+            return result;
+        },
+        tranformItemForNetSuite: function (product) {
+            Utility.logDebug("tranformItemForNetSuite - START", JSON.stringify(arguments));
+            var result = {};
+            var type = product.type;
+            if (type === "simple") {
+                result = this.transformSimpleItemForNetSuite(product);
+            } else if (type === "configurable") {
+                result = this.transformConfigurableItemForNetSuite(product);
+            }
+            Utility.logDebug("tranformItemForNetSuite - END", JSON.stringify(result));
+            return result;
+        },
+        /**
+         * Getting item information from Magento using custom call
+         * @param store
+         * @param record
+         */
+        getItemInfo: function (store, record) {
+            var item = null;
+            if (!!store.entitySyncInfo.common && !!store.entitySyncInfo.common.customRestApiUrl) {
+                Utility.logDebug('Inside MagentoRestApiWrapper', 'getItemInfo call');
+                var mgRestAPiWrapper = new MagentoRestApiWrapper();
+                var responseMagentoItemInfo = mgRestAPiWrapper.getItemInfo(record.type, record.product_id, "id", store);
+                Utility.logDebug('responseMagentoItemInfo from MagentoRestApiWrapper', JSON.stringify(responseMagentoItemInfo));
+                item = this.tranformItemForNetSuite(responseMagentoItemInfo.product);
+            }
+            return item;
         }
     };
 })();

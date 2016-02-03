@@ -103,6 +103,9 @@ var ConnectorDashboardApi = (function () {
                 case 'selectiveItemExportScript':
                     return this.selectiveItemExportScript(request, response);
                     break;
+                case 'selectiveItemImportScript':
+                    return this.selectiveItemImportScript(request, response);
+                    break;
                 case 'getItemExportScriptDeploymentInstances':
                     return this.getItemExportScriptDeploymentInstances(request, response);
                     break;
@@ -401,6 +404,30 @@ var ConnectorDashboardApi = (function () {
             params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierValue] = itemId;
             return this.executeScheduledScript(
                 'customscript_item_export_sch',
+                'customdeploy_item_export_sch_dash',
+                params);
+        },
+
+        selectiveItemImportScript:function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var itemId = request.getParameter('record_id');
+            var itemIdentifier = request.getParameter('record_id');
+            var params = {};
+
+            /*var data = {};
+             data[RecordsToSync.FieldName.RecordId] = itemId;
+             data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+             data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+             data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+             data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
+             data[RecordsToSync.FieldName.ExternalSystem] = storeId;
+             RecordsToSync.upsert(data);*/
+
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportStoreId] = storeId;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierType] = itemIdentifier;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierValue] = itemId;
+            return this.executeScheduledScript(
+                'customscript_item_import_sch',
                 'customdeploy_item_export_sch_dash',
                 params);
         },
@@ -816,6 +843,32 @@ var ConnectorDashboardApi = (function () {
                             });
                             break;
 
+                        case 'IMPORT_ITEM_FROM_EXTERNAL_SYSTEM':
+                            menu.push({
+                                key: 'synchronize-importitems',
+                                menuOrder: 2,
+                                group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
+                                icon: 'icon-list',
+                                title: 'Items Import',
+                                url: "/itemsimport",
+                                templateUrl: "/f3-dash/templates/actions-execute-item-import-sync-script.html",
+                                controller: 'ExecuteItemImportScriptController',
+                                controllerAs: 'viewModel'
+                            });
+                            menu.push({
+                                key: 'selective-importitems',
+                                menuOrder: 19,
+                                group: '',
+                                groupIcon: 'icon-refresh',
+                                icon: 'icon-list',
+                                title: 'Selective Items Import',
+                                url: "/selective-itemsimport",
+                                templateUrl: "/f3-dash/templates/actions-selective-import-item.html",
+                                controller: 'SelectiveImportItemController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
                         //Todo: Enable this specific item export later
                         /*case 'EXPORT_ITEM_TO_EXTERNAL_SYSTEM':
                          menu.push({

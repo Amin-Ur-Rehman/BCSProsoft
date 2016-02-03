@@ -31,8 +31,9 @@ var ItemImportManager = (function () {
                     return null;
                 }
 
-                var identifierType = ctx.getSetting('SCRIPT', this.ScriptParams.IdentifierType);
-                var identifierValue = ctx.getSetting('SCRIPT', this.ScriptParams.IdentifierType);
+                var identifierType = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierType);
+                var identifierValue = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierValue);
+                var selectedStoreId = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportStoreId);
                 //nlapiLogExecution('DEBUG', 'lastId: ' + lastId, '');
 
                 //initialize constants
@@ -45,7 +46,7 @@ var ItemImportManager = (function () {
                 var externalSystemArr = this.extractExternalSystems(externalSystemConfig);
 
                 if (externalSystemArr.length <= 0) {
-                    Utility.logDebug('Customer Import Script', 'Store(s) is/are not active');
+                    Utility.logDebug('Item Import Script', 'Store(s) is/are not active');
                     return null;
                 }
 
@@ -64,8 +65,12 @@ var ItemImportManager = (function () {
                         ConnectorConstants.CurrentWrapper.initialize(store);
 
                         Utility.logDebug('debug', 'Step-2');
+                        var criteriaObj = {};
+                        criteriaObj.identifierType = identifierType;
+                        criteriaObj.identifierValue = identifierValue;
+                        criteriaObj.selectedStoreId = selectedStoreId;
 
-                        var records = this.getRecords(store);
+                        var records = this.getRecords(store, criteriaObj);
                         Utility.logDebug('fetched items count', !!records ? records.length : '0');
 
                         if (!!records && records.length > 0) {
@@ -161,8 +166,8 @@ var ItemImportManager = (function () {
          * Gets record from DAO
          * @returns {*}
          */
-        getRecords: function (store) {
-            var records = ItemImportLibrary.getItems(store);
+        getRecords: function (store, criteriaObj) {
+            var records = ItemImportLibrary.getItems(store, criteriaObj);
 
             return records;
         },
@@ -210,7 +215,7 @@ var ItemImportManager = (function () {
                 for (var i = 0; i < records.length; i++) {
                     try {
                         var record = records[i];
-                        Utility.logDebug('Record # ' + i+1, JSON.stringify(record));
+                        Utility.logDebug('Record # ' + i + 1, JSON.stringify(record));
                         ItemImportLibrary.processItem(store, record);
 
                         if (this.rescheduleIfNeeded(context, null)) {
