@@ -255,6 +255,7 @@ var MagentoRestApiWrapper = (function (_super) {
         result.price = product.price;
         result.tierPrices = this.getTierPrices(product.tier_price);
         result.configurableAttributes = [];
+        result.serverObject = product;
         result.hasParent = false;
         result.parent = {};
         if (!Utility.isBlankOrNull(product.parent)) {
@@ -271,6 +272,7 @@ var MagentoRestApiWrapper = (function (_super) {
             result.parent.price = product.parent.price;
             result.parent.usedProductAttributeIds = product.parent.used_product_attribute_ids;
             result.parent.configurableAttributes = this.getConfigAttrParent(product.parent.configurable_attributes_as_array);
+            result.parent.serverObject = product.parent;
         }
         if (result.hasParent) {
             result.configurableAttributes = this.getConfigAttrChild(result.parent.configurableAttributes, product);

@@ -36,7 +36,7 @@ MagentoXmlWrapper = (function () {
             case ItemExportLibrary.configData.ItemTypes.InventoryItem:
                 type = itemObject.isMatrix
                     ? (itemObject.isMatrixParentItem ?
-                        MagentoItemTypes.ConfigurableProduct : MagentoItemTypes.SimpleProduct)
+                    MagentoItemTypes.ConfigurableProduct : MagentoItemTypes.SimpleProduct)
                     : MagentoItemTypes.SimpleProduct;
                 break;
         }
@@ -2598,16 +2598,16 @@ MagentoXmlWrapper = (function () {
                 itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
             }
 
-            if(itemObject.isInactive === 'T') {
+            if (itemObject.isInactive === 'T') {
                 itemObject.magentoStatus = store.entitySyncInfo.item.status.disabled;
             } else {
                 itemObject.magentoStatus = store.entitySyncInfo.item.status.enabled;
             }
 
-            if(itemObject.isOnline === 'T') {
+            if (itemObject.isOnline === 'T') {
                 itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.visible;
-                if(itemObject.isMatrixChildItem){
-                    if(!!store.entitySyncInfo.item.showMatrixChildIndependently && store.entitySyncInfo.item.showMatrixChildIndependently == 'true') {
+                if (itemObject.isMatrixChildItem) {
+                    if (!!store.entitySyncInfo.item.showMatrixChildIndependently && store.entitySyncInfo.item.showMatrixChildIndependently == 'true') {
                         itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.visible;
                     } else {
                         itemObject.magentoVisibility = store.entitySyncInfo.item.visibility.notVisible;
@@ -2619,10 +2619,10 @@ MagentoXmlWrapper = (function () {
 
             itemObject.additionalAttributes = [];
             itemObject.configurableProductAttributes = [];
-            if(!!itemObject.matrixParentAttributes && itemObject.matrixParentAttributes.length > 0) {
+            if (!!itemObject.matrixParentAttributes && itemObject.matrixParentAttributes.length > 0) {
                 for (var i = 0; i < itemObject.matrixParentAttributes.length; i++) {
                     var matrixParentAttr = itemObject.matrixParentAttributes[i];
-                    if(matrixParentAttr.netSuiteItemOptionUseForVariantProduct === 'F') {
+                    if (matrixParentAttr.netSuiteItemOptionUseForVariantProduct === 'F') {
                         itemObject.additionalAttributes.push({
                             key: matrixParentAttr.itemAttributeCode,
                             value: matrixParentAttr.itemAttributeValues
@@ -2636,7 +2636,7 @@ MagentoXmlWrapper = (function () {
                 }
             }
 
-            if(!!itemObject.matrixChildAttributes && itemObject.matrixChildAttributes.length > 0) {
+            if (!!itemObject.matrixChildAttributes && itemObject.matrixChildAttributes.length > 0) {
                 for (var i = 0; i < itemObject.matrixChildAttributes.length; i++) {
                     var matrixChildAttr = itemObject.matrixChildAttributes[i];
                     itemObject.additionalAttributes.push({
@@ -2646,7 +2646,7 @@ MagentoXmlWrapper = (function () {
                 }
             }
 
-            if(!!itemObject.nonMatrixProductAttributes && itemObject.nonMatrixProductAttributes.length > 0) {
+            if (!!itemObject.nonMatrixProductAttributes && itemObject.nonMatrixProductAttributes.length > 0) {
                 for (var i = 0; i < itemObject.nonMatrixProductAttributes.length; i++) {
                     var nonMatrixAttr = itemObject.nonMatrixProductAttributes[i];
                     itemObject.additionalAttributes.push({
@@ -2671,16 +2671,16 @@ MagentoXmlWrapper = (function () {
          * @param itemObject
          */
 
-        exportInventoryItem: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        exportInventoryItem: function (store, itemInternalId, itemType, itemObject, createOnly) {
             var responseBody = null;
             try {
                 var id = itemObject.currentExternalSystemId;
                 var createRecord = true;
-                if(!!id) {
+                if (!!id) {
                     createRecord = false;
                 }
                 var parsedResponse = null;
-                if(createRecord) {
+                if (createRecord) {
                     // if id not exist then create record
                     var createProductXml = this.getCreateProductXml(store, itemInternalId, itemType, itemObject, createOnly);
                     var responseXml = MagentoWrapper.soapRequestToServer(createProductXml);
@@ -2691,17 +2691,17 @@ MagentoXmlWrapper = (function () {
                     var responseXml = MagentoWrapper.soapRequestToServer(updateProductXml);
                     parsedResponse = ConnectorConstants.CurrentWrapper.validateAndTransformProductUpdationResponse(responseXml);
                 }
-                Utility.logDebug('status  #  productId', parsedResponse.status+ '  #  ' +parsedResponse.productId);
+                Utility.logDebug('status  #  productId', parsedResponse.status + '  #  ' + parsedResponse.productId);
 
                 // If this item is a parent item of a matrix item
-                if(itemObject.isMatrixParentItem && createRecord) {
+                if (itemObject.isMatrixParentItem && createRecord) {
                     //Assign configurable attributes to configurable product
-                    if(parsedResponse.status) {
+                    if (parsedResponse.status) {
                         var productId = parsedResponse.productId;
                         var mgRestAPiWrapper = new MagentoRestApiWrapper();
                         //Utility.logDebug('itemObject.additionalAttributes', JSON.stringify(itemObject.additionalAttributes));
                         //Utility.logDebug('itemObject.configurableProductAttributes', (!itemObject.configurableProductAttributes ? 'null' : JSON.stringify(itemObject.configurableProductAttributes)));
-                        if(!!itemObject.configurableProductAttributes && itemObject.configurableProductAttributes.length > 0) {
+                        if (!!itemObject.configurableProductAttributes && itemObject.configurableProductAttributes.length > 0) {
                             var responseMagentoAssignAttr = mgRestAPiWrapper.assignAttributesToConfigurableProduct(productId, itemObject.configurableProductAttributes, store);
                             Utility.logDebug('responseMagentoAssignAttr from MagentoRestApiWrapper', JSON.stringify(responseMagentoAssignAttr));
                         }
@@ -2712,10 +2712,10 @@ MagentoXmlWrapper = (function () {
 
                 // If this item is a child item of a matrix item
                 var parentCreationResponse = null;
-                if(itemObject.isMatrixChildItem && createRecord) {
-                    if(parsedResponse.status) {
+                if (itemObject.isMatrixChildItem && createRecord) {
+                    if (parsedResponse.status) {
                         // check if parent already exist and associate it with that parent
-                        if(!!itemObject.MatrixParent && !!itemObject.MatrixParent.currentExternalSystemId) {
+                        if (!!itemObject.MatrixParent && !!itemObject.MatrixParent.currentExternalSystemId) {
                             Utility.logDebug('Association Status', 'Parent Product already exported, Creating association....');
                             var parentMatrixExternalSystemId = itemObject.MatrixParent.currentExternalSystemId;
                             var simpleProductId = parsedResponse.productId;
@@ -2726,7 +2726,7 @@ MagentoXmlWrapper = (function () {
                             parentCreationResponse = this.exportInventoryItem(store
                                 , itemObject.MatrixParent.internalId, itemObject.MatrixParent.itemType
                                 , itemObject.MatrixParent, createOnly);
-                            if(parentCreationResponse.status) {
+                            if (parentCreationResponse.status) {
                                 Utility.logDebug('Association Status 2', 'Now Creating association with exported parent....');
                                 var parentMatrixExternalSystemId = parentCreationResponse.data.externalSystemItemId;
                                 var simpleProductId = parsedResponse.productId;
@@ -2738,13 +2738,13 @@ MagentoXmlWrapper = (function () {
                     }
                 }
 
-                if(!!store.entitySyncInfo.item.exportProductImages
+                if (!!store.entitySyncInfo.item.exportProductImages
                     && store.entitySyncInfo.item.exportProductImages == 'true'
                     && !!itemObject.image.fileId) {
                     this.exportProductImage(store, itemInternalId, itemType, itemObject, createOnly, createRecord ? parsedResponse.productId : id);
                 }
 
-                if(parsedResponse.status) {
+                if (parsedResponse.status) {
                     parsedResponse.sku = parsedResponse.itemId;
                     responseBody = this.parseItemSuccessResponse(parsedResponse, parentCreationResponse);
                 } else {
@@ -2770,11 +2770,11 @@ MagentoXmlWrapper = (function () {
             var responseBody = null;
             try {
                 var createRecord = true;
-                if(!!itemObject.currentExternalSystemId) {
+                if (!!itemObject.currentExternalSystemId) {
                     createRecord = false;
                 }
 
-                if(createRecord) {
+                if (createRecord) {
                     responseBody = this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
                 } else {
                     responseBody = this.UpdateProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
@@ -2795,7 +2795,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @param magentoProductId
          */
-        addProductImage: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+        addProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             //Utility.logDebug('adding product image', 'Start');
             var parsedResponse = null;
             var createImageXml = this.getCreateImageXml(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
@@ -2815,7 +2815,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @param magentoProductId
          */
-        getCreateImageXml: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+        getCreateImageXml: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             var xml;
             xml = this.OrderRequestXMLHeader;
             xml += this.ImageUploadXml;
@@ -2825,10 +2825,10 @@ MagentoXmlWrapper = (function () {
             xml = xml.replace('[MIME]', itemObject.image.mime);
             xml = xml.replace('[POSITION]', itemObject.image.position);
             /*if (itemObject.image.types === 'image' || itemObject.image.types === 'small_image') {
-                xml = xml.replace('[TYPE]', 'NULL');
-            } else {
-                xml = xml.replace('[TYPE]', itemObject.image.types);
-            }*/
+             xml = xml.replace('[TYPE]', 'NULL');
+             } else {
+             xml = xml.replace('[TYPE]', itemObject.image.types);
+             }*/
             xml = xml.replace('[TYPE]', 'image</item><item>small_image</item><item>thumbnail');
 
             xml = xml.replace('[LABEL]', itemObject.image.fullName);
@@ -2851,7 +2851,7 @@ MagentoXmlWrapper = (function () {
          * @param magentoProductId
          * @constructor
          */
-        UpdateProductImage: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+        UpdateProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             var parsedResponse = null;
             var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
             Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
@@ -2872,7 +2872,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @param magentoProductId
          */
-        getMagentoProductImagesList: function(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+        getMagentoProductImagesList: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             var xmlRequest = this.ImageListXml;
             xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
             xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
@@ -2904,7 +2904,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @param magentoProductId
          */
-        removeImageFromMagento: function(store, magentoProductId, magentoImageFile){
+        removeImageFromMagento: function (store, magentoProductId, magentoImageFile) {
             var xmlRequest = this.ImageRemoveXml;
             xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
             xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
@@ -2931,8 +2931,8 @@ MagentoXmlWrapper = (function () {
          * @param simpleProductId
          * @param store
          */
-        associateToConfigurableProduct: function(configProductId, simpleProductId, store) {
-            Utility.logDebug('configProductId # simpleProductId', configProductId+ '   #   ' + simpleProductId)
+        associateToConfigurableProduct: function (configProductId, simpleProductId, store) {
+            Utility.logDebug('configProductId # simpleProductId', configProductId + '   #   ' + simpleProductId)
             var mgRestAPiWrapper = new MagentoRestApiWrapper();
             var responseMagentoAssignAttr = mgRestAPiWrapper.associateProductToConfigurableProduct(configProductId, simpleProductId, store);
             Utility.logDebug('responseMagentoAssignAttr from MagentoRestApiWrapper', JSON.stringify(responseMagentoAssignAttr));
@@ -3040,12 +3040,11 @@ MagentoXmlWrapper = (function () {
         },
 
 
-
         /**
          * Parse item export success response
          * @param serverResponse
          */
-        parseItemSuccessResponse: function(serverResponse, parentServerResponse) {
+        parseItemSuccessResponse: function (serverResponse, parentServerResponse) {
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = 'Product exported successfully';
@@ -3054,7 +3053,7 @@ MagentoXmlWrapper = (function () {
                 sku: serverResponse.sku || ''
             };
 
-            if(!!parentServerResponse) {
+            if (!!parentServerResponse) {
                 responseBody.data.parent = {
                     externalSystemItemId: parentServerResponse.data.externalSystemItemId || '',
                     sku: parentServerResponse.data.sku || ''
@@ -3068,9 +3067,9 @@ MagentoXmlWrapper = (function () {
          * Parse item export failure response
          * @param serverResponse
          */
-         parseItemFailureResponse: function(serverResponse, exp) {
+        parseItemFailureResponse: function (serverResponse, exp) {
             var errMsg = '';
-            if(!!serverResponse) {
+            if (!!serverResponse) {
                 errMsg = 'faultCode: ' + serverResponse.faultCode + '   #   faultString: ' + serverResponse.faultString;
             } else {
                 errMsg = exp.toString();
@@ -3092,7 +3091,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @returns {*}
          */
-        getCreateProductXml: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        getCreateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
             var xml;
 
             xml = this.OrderRequestXMLHeader;
@@ -3137,7 +3136,7 @@ MagentoXmlWrapper = (function () {
 
             if (itemObject.isMatrixParentItem) {
                 xml = xml + '<has_options xsi:type="xsd:string">0</has_options>';
-                xml = xml + '<options_container xsi:type="xsd:string">'+store.entitySyncInfo.item.optionsContainer+'</options_container>';
+                xml = xml + '<options_container xsi:type="xsd:string">' + store.entitySyncInfo.item.optionsContainer + '</options_container>';
             }
 
             xml = xml + '<stock_data xsi:type="urn:catalogInventoryStockItemUpdateEntity" xs:type="type:catalogInventoryStockItemUpdateEntity">';
@@ -3147,7 +3146,7 @@ MagentoXmlWrapper = (function () {
             xml = xml + '<use_config_manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.useConfigManageStock + '</use_config_manage_stock>';
             xml = xml + '</stock_data>';
 
-            if(itemObject.additionalAttributes.length > 0) {
+            if (itemObject.additionalAttributes.length > 0) {
                 //*
                 // set additional attributes: start
                 xml = xml + '<additional_attributes xsi:type="urn:catalogProductAdditionalAttributesEntity">';
@@ -3186,7 +3185,7 @@ MagentoXmlWrapper = (function () {
          * @param createOnly
          * @returns {*}
          */
-        getUpdateProductXml: function(store, itemInternalId, itemType, itemObject, createOnly) {
+        getUpdateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
 
             var xml = '';
             xml = this.OrderRequestXMLHeader;
@@ -3232,7 +3231,7 @@ MagentoXmlWrapper = (function () {
 
             if (itemObject.isMatrixParentItem) {
                 xml = xml + '<has_options xsi:type="xsd:string">0</has_options>';
-                xml = xml + '<options_container xsi:type="xsd:string">'+store.entitySyncInfo.item.optionsContainer+'</options_container>';
+                xml = xml + '<options_container xsi:type="xsd:string">' + store.entitySyncInfo.item.optionsContainer + '</options_container>';
             }
 
             xml = xml + '<stock_data xsi:type="urn:catalogInventoryStockItemUpdateEntity" xs:type="type:catalogInventoryStockItemUpdateEntity">';
@@ -3242,7 +3241,7 @@ MagentoXmlWrapper = (function () {
             xml = xml + '<use_config_manage_stock xsi:type="xsd:int" xs:type="type:int">' + store.entitySyncInfo.item.useConfigManageStock + '</use_config_manage_stock>';
             xml = xml + '</stock_data>';
 
-            if(itemObject.additionalAttributes.length > 0) {
+            if (itemObject.additionalAttributes.length > 0) {
                 //*
                 // set additional attributes: start
                 xml = xml + '<additional_attributes xsi:type="urn:catalogProductAdditionalAttributesEntity">';
@@ -3269,22 +3268,12 @@ MagentoXmlWrapper = (function () {
             return xml;
 
         },
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        /**
+         * Get Customer List XML
+         * @param obj
+         * @param sessionID
+         * @returns {string}
+         */
         getCustomerListXML: function (obj, sessionID) {
             var customerXML = "";
 
@@ -3320,6 +3309,11 @@ MagentoXmlWrapper = (function () {
             return customerXML;
         },
 
+        /**
+         * Get Customer Lists
+         * @param obj
+         * @returns {object[]}
+         */
         getCustomerList: function (obj) {
             var result = [];
             var xml = this.getCustomerListXML(obj, ConnectorConstants.CurrentStore.sessionID);
@@ -3334,7 +3328,12 @@ MagentoXmlWrapper = (function () {
             return result;
         },
 
-        getCustomer:function(customerObj){
+        /**
+         * Get Customer w.r.t. email id
+         * @param customerObj
+         * @returns {object | null}
+         */
+        getCustomer: function (customerObj) {
             var customer = null;
             var email = customerObj.email;
 
@@ -3350,10 +3349,20 @@ MagentoXmlWrapper = (function () {
 
             return customer;
         },
-        getDiscount:function(salesOrderObj){
+        /**
+         * Get Discount for creating order in NetSuite
+         * @param salesOrderObj
+         * @returns {string|string|*}
+         */
+        getDiscount: function (salesOrderObj) {
             return salesOrderObj.order.discount_amount;
         },
-        // get previous date w.r.t. Magento for making filter in XML
+        /**
+         * Get previous date w.r.t. Magento for making filter in XML
+         * @param ageOfItemToImportInDays
+         * @param format
+         * @returns {string|*}
+         */
         getPreviousDayDate: function (ageOfItemToImportInDays, format) {
             var currentDate = new Date();
             var soUpdateDate;
@@ -3457,6 +3466,11 @@ MagentoXmlWrapper = (function () {
             xml += this.XmlFooter;
             return xml;
         },
+        /**
+         * Get Category Ids from a node from Items List XML
+         * @param xml
+         * @returns {Array}
+         */
         getCategoryIds: function (xml) {
             var websiteIds = [];
             var items = nlapiSelectNodes(xml, "website_ids");
@@ -3468,6 +3482,11 @@ MagentoXmlWrapper = (function () {
             }
             return websiteIds;
         },
+        /**
+         * Get Website Ids from a node from Items List XML
+         * @param xml
+         * @returns {Array}
+         */
         getWebsiteIds: function (xml) {
             var categoryIds = [];
             var items = nlapiSelectNodes(xml, "category_ids");
@@ -3479,6 +3498,11 @@ MagentoXmlWrapper = (function () {
             }
             return categoryIds;
         },
+        /**
+         * Trasform Items List XML into array of objects
+         * @param items
+         * @returns {object[]}
+         */
         tranformItemListXMLtoArray: function (items) {
             var itemList = [];
             for (var i in items) {
@@ -3494,6 +3518,11 @@ MagentoXmlWrapper = (function () {
             }
             return itemList;
         },
+        /**
+         * validate list of items
+         * @param xml
+         * @returns {object}
+         */
         validateResponseItemList: function (xml) {
             Utility.logDebug('Debug', 'validateResponseItemList started');
             Utility.logDebug('response', nlapiXMLToString(xml));
@@ -3518,6 +3547,11 @@ MagentoXmlWrapper = (function () {
             }
             return responseMagento;
         },
+        /**
+         * Get list of items
+         * @param obj
+         * @returns {Array}
+         */
         getItemList: function (obj) {
             var result = [];
             var xml = this.getItemListXML(obj, ConnectorConstants.CurrentStore.sessionID);
@@ -3531,6 +3565,11 @@ MagentoXmlWrapper = (function () {
             }
             return result;
         },
+        /**
+         * Get Item List with respect to product id and identifier type
+         * @param criteriaObj
+         * @returns {Array}
+         */
         getItemsById: function (criteriaObj) {
             var itemListData = {};
             var items = [];
@@ -3552,22 +3591,27 @@ MagentoXmlWrapper = (function () {
             }
             return items;
         },
+        /**
+         * Get Item List with respect to date filter
+         * @param itemListData
+         * @returns {Array}
+         */
         getItems: function (itemListData) {
             var items = [];
             var complexFilters = [];
             complexFilters.push({key: "updated_at", value: {key: "gt", value: [itemListData.previousDate]}});
             /*complexFilters.push({
-                key: "sku",
-                value: {
-                    key: "in",
-                    value: [
-                        "Pmtk006",
-                        "acj005ZEE",
-                        "Pmtk006xs",
-                        "Pmtk006s"
-                    ]
-                }
-            });*/
+             key: "sku",
+             value: {
+             key: "in",
+             value: [
+             //"Pmtk006",
+             //"acj005ZEE",
+             ///"Pmtk006xs",
+             //"Pmtk006s"
+             ]
+             }
+             });*/
             itemListData.filters = null;
             itemListData.complexFilters = complexFilters;
             var itemsList = this.getItemList(itemListData);
@@ -3576,132 +3620,19 @@ MagentoXmlWrapper = (function () {
             }
             return items;
         },
-        getAttributeIdForNetSuite: function (attributeId) {
-            Utility.logDebug("getAttributeIdForNetSuite - START", JSON.stringify(arguments));
-            var nsAttributeId;
-            var externalSystemItemAttributeInternalId;
-            var extSysMatrixFldMapInternalId;
-            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
-            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
-            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
-            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
-            var netSuiteItemAttributeInternalId = extSysMatrixFldMap.netSuiteItemOptionField;
-            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
-            var netSuiteItemAttribute = ItemConfigRecordHandler.findNetSuiteItemAttribute(ConnectorConstants.CurrentStore.systemId, netSuiteItemAttributeInternalId);
-            nsAttributeId = netSuiteItemAttribute.nsItemAttributeId;
-            Utility.logDebug("netSuiteItemAttribute", JSON.stringify(netSuiteItemAttribute));
-            Utility.logDebug("getAttributeIdForNetSuite - END", JSON.stringify(nsAttributeId));
-            return nsAttributeId;
-        },
-        getAttributeValuesForNetSuiteChildItem: function (attributeId, externaSystemAttributeValue) {
-            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - START", JSON.stringify(arguments));
-            var value;
-            var externalSystemItemAttributeInternalId;
-            var extSysMatrixFldMapInternalId;
-            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
-            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
-            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
-            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
-            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
-            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
-            value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue);
-            Utility.logDebug("getAttributeValuesForNetSuiteChildItem - END", JSON.stringify(value));
-            return value;
-        },
-        getAttributeValuesForNetSuiteParentItem: function (attributeId, externaSystemAttributeValues) {
-            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - START", JSON.stringify(arguments));
-            var values = [];
-            var externalSystemItemAttributeInternalId;
-            var extSysMatrixFldMapInternalId;
-            var externalSystemItemAttribute = ItemConfigRecordHandler.findExternalSystemItemAttribute(ConnectorConstants.CurrentStore.systemId, attributeId);
-            externalSystemItemAttributeInternalId = externalSystemItemAttribute.id;
-            Utility.logDebug("externalSystemItemAttribute", JSON.stringify(externalSystemItemAttribute));
-            var extSysMatrixFldMap = ItemConfigRecordHandler.findExtSysMatrixFldMapByExtSysItemAttrInternalId(ConnectorConstants.CurrentStore.systemId, externalSystemItemAttributeInternalId);
-            extSysMatrixFldMapInternalId = extSysMatrixFldMap.id;
-            Utility.logDebug("extSysMatrixFldMap", JSON.stringify(extSysMatrixFldMap));
-            for (var i in externaSystemAttributeValues) {
-                var externaSystemAttributeValue = externaSystemAttributeValues[i];
-                var value = ItemConfigRecordHandler.findNetSuiteMatrixFieldValue(ConnectorConstants.CurrentStore.systemId, extSysMatrixFldMapInternalId, externaSystemAttributeValue.id);
-                Utility.logDebug("value", JSON.stringify(value));
-                values.push(value);
-            }
-            Utility.logDebug("getAttributeValuesForNetSuiteParentItem - END", JSON.stringify(values));
-            return values;
-        },
         /**
-         *
-         * @param configurableAttributes
-         * @returns {Array} = [{attributeId: "",attributeValues: []}]
+         * Transform Magento Item object into our acceptable object format
+         * @param product
+         * @returns {object}
          */
-        transformAttributesForNetSuiteChildItem: function (configurableAttributes) {
-            var attributes = [];
-            for (var attributeId in configurableAttributes) {
-                var attributeValue = configurableAttributes[attributeId];
-                var nsAttributeId = this.getAttributeIdForNetSuite(attributeId);
-                var nsAttributeValue = this.getAttributeValuesForNetSuiteChildItem(attributeId, attributeValue);
-                attributes.push({
-                    attributeId: nsAttributeId,
-                    attributeValues: nsAttributeValue
-                });
-            }
-            return attributes;
-        },
-        transformAttributesForNetSuiteParentItem: function (configurableAttributes) {
-            Utility.logDebug("transformAttributesForNetSuiteParentItem - START", JSON.stringify(arguments));
-            var attributes = [];
-            for (var i in configurableAttributes) {
-                var configurableAttribute = configurableAttributes[i];
-                var nsAttributeId = this.getAttributeIdForNetSuite(configurableAttribute.attributeCode);
-                var nsAttributeValues = this.getAttributeValuesForNetSuiteParentItem(configurableAttribute.attributeCode, configurableAttribute.options);
-                attributes.push({
-                    attributeId: nsAttributeId,
-                    attributeValues: nsAttributeValues
-                });
-            }
-            Utility.logDebug("transformAttributesForNetSuiteParentItem - END", JSON.stringify(attributes));
-            return attributes;
-        },
-        transformSimpleItemForNetSuite: function (product) {
-            Utility.logDebug("transformSimpleItemForNetSuite - START", JSON.stringify(arguments));
-            var result = {};
-            result.parent = null;
-            result.id = product.entityId;
-            result.itemId = product.sku;
-            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
-            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
-            result.displayName = product.name;
-            result.matrixType = "";
-            result.matrixParentId = "";
-            result.matrixAttributes = this.transformAttributesForNetSuiteChildItem(product.configurableAttributes);
-            if (product.hasParent) {
-                result.parent = this.transformConfigurableItemForNetSuite(product.parent);
-                result.matrixType = "CHILD";
-            }
-            Utility.logDebug("transformSimpleItemForNetSuite - END", JSON.stringify(result));
-            return result;
-        },
-        transformConfigurableItemForNetSuite: function (product) {
-            Utility.logDebug("transformConfigurableItemForNetSuite - START", JSON.stringify(arguments));
-            var result = {};
-            result.id = product.entityId;
-            result.itemId = product.sku;
-            result.attributeSet = ItemConfigRecordHandler.getNetSuiteAttributeSetId(ConnectorConstants.CurrentStore.systemId, product.attributeSetId);
-            result.categories = ItemConfigRecordHandler.getNetSuiteCategoryIds(ConnectorConstants.CurrentStore.systemId, product.categoryIds);
-            result.displayName = product.name;
-            result.matrixType = "PARENT";
-            result.matrixParentId = "";
-            result.matrixAttributes = this.transformAttributesForNetSuiteParentItem(product.configurableAttributes);
-            Utility.logDebug("transformConfigurableItemForNetSuite - END", JSON.stringify(result));
-            return result;
-        },
         tranformItemForNetSuite: function (product) {
             Utility.logDebug("tranformItemForNetSuite - START", JSON.stringify(arguments));
             var result = {};
             var type = product.type;
             if (type === "simple") {
-                result = this.transformSimpleItemForNetSuite(product);
+                result = ItemImportLibrary.transformSimpleItemForNetSuite(product);
             } else if (type === "configurable") {
-                result = this.transformConfigurableItemForNetSuite(product);
+                result = ItemImportLibrary.transformConfigurableItemForNetSuite(product);
             }
             Utility.logDebug("tranformItemForNetSuite - END", JSON.stringify(result));
             return result;

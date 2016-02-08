@@ -100,6 +100,9 @@ var ConnectorDashboardApi = (function () {
                 case 'executeItemExportScript':
                     return this.executeItemExportScript(request, response);
                     break;
+                case 'executeItemImportScript':
+                    return this.executeItemImportScript(request, response);
+                    break;
                 case 'selectiveItemExportScript':
                     return this.selectiveItemExportScript(request, response);
                     break;
@@ -108,6 +111,9 @@ var ConnectorDashboardApi = (function () {
                     break;
                 case 'getItemExportScriptDeploymentInstances':
                     return this.getItemExportScriptDeploymentInstances(request, response);
+                    break;
+                case 'getItemImportScriptDeploymentInstances':
+                    return this.getItemImportScriptDeploymentInstances(request, response);
                     break;
                 case 'executeCashRefundSyncScript':
                     return this.executeCashRefundSyncScript(request, response);
@@ -384,6 +390,13 @@ var ConnectorDashboardApi = (function () {
                 null
             );
         },
+        executeItemImportScript: function (request, response) {
+            return this.executeScheduledScript(
+                'customscript_item_import_sch',
+                'customdeploy_item_import_sch_dash',
+                null
+            );
+        },
 
         selectiveItemExportScript: function (request, response) {
             var storeId = request.getParameter('store_id');
@@ -411,7 +424,7 @@ var ConnectorDashboardApi = (function () {
         selectiveItemImportScript:function (request, response) {
             var storeId = request.getParameter('store_id');
             var itemId = request.getParameter('record_id');
-            var itemIdentifier = request.getParameter('record_id');
+            var itemIdentifier = request.getParameter('item_identifier');
             var params = {};
 
             /*var data = {};
@@ -423,12 +436,12 @@ var ConnectorDashboardApi = (function () {
              data[RecordsToSync.FieldName.ExternalSystem] = storeId;
              RecordsToSync.upsert(data);*/
 
-            params[ConnectorConstants.ScriptParameters.SelectiveItemExportStoreId] = storeId;
-            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierType] = itemIdentifier;
-            params[ConnectorConstants.ScriptParameters.SelectiveItemExportIdentifierValue] = itemId;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemImportStoreId] = storeId;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierType] = itemIdentifier;
+            params[ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierValue] = itemId;
             return this.executeScheduledScript(
                 'customscript_item_import_sch',
-                'customdeploy_item_export_sch_dash',
+                'customdeploy_item_import_sch_dash',
                 params);
         },
 
@@ -558,6 +571,12 @@ var ConnectorDashboardApi = (function () {
             return this.getScriptDeploymentInstances(
                 'customscript_item_export_sch',
                 'customdeploy_item_export_sch_dash'
+            );
+        },
+        getItemImportScriptDeploymentInstances: function (request, response) {
+            return this.getScriptDeploymentInstances(
+                'customscript_item_import_sch',
+                'customdeploy_item_import_sch_dash'
             );
         },
         getCashRefundSyncScriptDeploymentInstances: function (request, response) {

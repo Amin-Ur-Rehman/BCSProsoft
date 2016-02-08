@@ -34,7 +34,9 @@ var ItemImportManager = (function () {
                 var identifierType = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierType);
                 var identifierValue = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportIdentifierValue);
                 var selectedStoreId = ctx.getSetting('SCRIPT', ConnectorConstants.ScriptParameters.SelectiveItemImportStoreId);
-                //nlapiLogExecution('DEBUG', 'lastId: ' + lastId, '');
+                Utility.logDebug("identifierType", identifierType);
+                Utility.logDebug("identifierValue", identifierValue);
+                Utility.logDebug("selectedStoreId", selectedStoreId);
 
                 //initialize constants
                 ConnectorConstants.initialize();

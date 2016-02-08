@@ -33,7 +33,8 @@ ConnectorConstants = (function () {
             ExternalSystemItemAttributes: null,
             NetSuiteItemOptions: null,
             ExternalSystemMatrixFieldMap: null,
-            ExternalSystemMatrixFieldValues: null
+            ExternalSystemMatrixFieldValues: null,
+            ExtSysAttrSetAssociations: null
         },
         FeatureVerification: null,
         /**
@@ -96,7 +97,9 @@ ConnectorConstants = (function () {
                 ItemId: 'itemid',
                 AllowOpenAmount: 'custitem_f3mg_price_allow_open_amount',
                 OpenAmountMinValue: 'custitem_f3mg_price_open_amount_min',
-                OpenAmountMaxValue: 'custitem_f3mg_price_open_amount_max'
+                OpenAmountMaxValue: 'custitem_f3mg_price_open_amount_max',
+                ExternalSystemAttrSet:"custitem_f3_ext_sys_item_attribute_set",
+                ExternalSystemItemCategory:"custitem_f3_ext_sys_item_category"
             },
             FieldTypes: {
                 Select: '1'
@@ -272,6 +275,7 @@ ConnectorConstants = (function () {
             this.ItemConfigRecords.NetSuiteItemOptions = ItemConfigRecordHandler.getAllNetSuiteItemOptionsList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
+            this.ItemConfigRecords.ExtSysAttrSetAssociations = ItemConfigRecordHandler.getAllExtSysAttrSetAssociationsList();
         },
         initializeDummyItem: function () {
             this.DummyItem.Id = ConnectorCommon.getDummyItemId(this.DummyItem.ItemId);

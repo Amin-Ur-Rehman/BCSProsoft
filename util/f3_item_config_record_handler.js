@@ -189,7 +189,7 @@ var ItemConfigRecordHandler = (function () {
                     var nsItemAttributeType = result.getValue("custrecord_f3_item_att_ns_type") || "";
                     var nsItemAttributeCustomListId = result.getValue("custrecord_f3_item_att_ns_cust_lst_id") || "";
                     var nsItemAttributeCustomListName = result.getValue("custrecord_f3_item_att_ns_cust_lst_name") || "";
-                    var nsItemAttributeUseForVariantProduct = result.getValue("custrecord_f3_item_att_ns_use_for_var") || "";
+                    var nsItemAttributeUseForVariantProduct = result.getValue("custrecord_f3_item_att_ns_use_for_var") || "F";
                     var nsItemAttributeUseAsCustomOption = result.getValue("custrecord_f3_item_att_ns_use_cust_opt") || "";
                     var nsItemAttributeDetails = result.getValue("custrecord_f3_item_att_ns_details") || "";
 
@@ -315,6 +315,55 @@ var ItemConfigRecordHandler = (function () {
             return list;
         },
         /**
+         * Get Complete List of ExtSysAttrSetAssociations
+         * @returns {[] | object[]}
+         */
+        getAllExtSysAttrSetAssociationsList: function () {
+            var list = [];
+
+            // if ExtSysAttrSetAssociations are already fecthed the return extisng ones
+            if (ConnectorConstants.ItemConfigRecords.ExtSysAttrSetAssociations instanceof Array) {
+                return ConnectorConstants.ItemConfigRecords.ExtSysAttrSetAssociations;
+            }
+
+            var columns = [];
+            //columns.push(new nlobjSearchColumn("name", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_set_ass_ext_sys", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_set_ass_att_set", null, null));
+            columns.push(new nlobjSearchColumn("custrecord_f3_ext_sys_set_ass_item_attr", null, null));
+            columns.push(new nlobjSearchColumn("internalid", null, null).setSort(false));
+
+            var results = Utility.getRecords("customrecord_f3_ext_sys_item_att_set_ass", null, null, columns, null);
+
+            if (!!results && results.length > 0) {
+                for (var i in results) {
+                    var result = results[i];
+                    var id = result.getId() || "";
+                    //var name = result.getValue("name") || "";
+                    var externalSystemId = result.getValue("custrecord_f3_ext_sys_set_ass_ext_sys") || "";
+                    var externalSystemText = result.getText("custrecord_f3_ext_sys_set_ass_ext_sys") || "";
+                    var attributeSetId = result.getValue("custrecord_f3_ext_sys_set_ass_att_set") || "";
+                    var attributeSetText = result.getText("custrecord_f3_ext_sys_set_ass_att_set") || "";
+                    var itemAttributeId = result.getValue("custrecord_f3_ext_sys_set_ass_item_attr") || "";
+                    var itemAttributeText = result.getText("custrecord_f3_ext_sys_set_ass_item_attr") || "";
+
+                    list.push({
+                        id: id,
+                        //name: name,
+                        externalSystemId: externalSystemId,
+                        externalSystemText: externalSystemText,
+                        extSysAttributeSetId: attributeSetId,
+                        extSysAttributeSetText: attributeSetText,
+                        extSysItemAttributeId: itemAttributeId,
+                        extSysItemAttributeText: itemAttributeText
+                    });
+                }
+            }
+
+            return list;
+        },
+
+        /**
          * This method is used to fetch attribute information depending on passing parameters
          * @param currentStoreId
          * @param externalSystemAttributeId
@@ -439,8 +488,15 @@ var ItemConfigRecordHandler = (function () {
             return null;
         },
 
+        /**
+         * This method is used to find the Attribute Set of NetSuite w.r.t External System Attribute Set Id and
+         * current store
+         * @param currentStoreId
+         * @param extSysAttrSetId
+         * @returns {null | string}
+         */
         getNetSuiteAttributeSetId: function (currentStoreId, extSysAttrSetId) {
-            debugger;
+            //debugger;
             var externalSystemItemAttributeSets = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
             if (externalSystemItemAttributeSets instanceof Array) {
                 for (var i in externalSystemItemAttributeSets) {
@@ -453,8 +509,14 @@ var ItemConfigRecordHandler = (function () {
             }
             return null;
         },
-
-        getNetSuiteCategoryId: function (currentStoreId, extSysCategoryId){
+        /**
+         * This method is used to find the Category Id of NetSuite w.r.t External System Category Id and
+         * current store
+         * @param currentStoreId
+         * @param extSysCategoryId
+         * @returns {null | string}
+         */
+        getNetSuiteCategoryId: function (currentStoreId, extSysCategoryId) {
             var externalSystemItemCategories = ConnectorConstants.ItemConfigRecords.ExternalSystemItemCategory;
             if (externalSystemItemCategories instanceof Array) {
                 for (var i in externalSystemItemCategories) {
@@ -467,6 +529,13 @@ var ItemConfigRecordHandler = (function () {
             }
             return null;
         },
+        /**
+         * This method is used to find the Category Ids of NetSuite w.r.t External System Category Ids and
+         * current store
+         * @param currentStoreId
+         * @param extSysCategoryIds
+         * @returns {Array}
+         */
         getNetSuiteCategoryIds: function (currentStoreId, extSysCategoryIds) {
             var nsSysCategoryIds = [];
             if (extSysCategoryIds instanceof Array) {
@@ -480,6 +549,67 @@ var ItemConfigRecordHandler = (function () {
             }
 
             return nsSysCategoryIds;
+        },
+        /**
+         * This method is used to find the Custom Attributes Field Id & its Values of External System
+         * from custom record w.r.t. current store
+         * @param currentStoreId
+         * @param product
+         * @param result
+         */
+        getCustomAttributesWrtSet: function (currentStoreId, product, result) {
+            // find all attributes by set which are non-variants
+            var externalSystemItemAttributes = [];
+            var externalSystemItemAttributesList = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributes;
+
+            if (externalSystemItemAttributesList instanceof Array) {
+                for (var i in externalSystemItemAttributesList) {
+                    var externalSystemItemAttributeInfo = externalSystemItemAttributesList[i];
+                    if (externalSystemItemAttributeInfo.externalSystemId.toString() === currentStoreId.toString()) {
+                        if (externalSystemItemAttributeInfo !== null) {
+                            var itemAttrUseForVariantProduct = externalSystemItemAttributeInfo.itemAttributeUseForVariantProduct === "T";
+                            if (!itemAttrUseForVariantProduct) {
+                                externalSystemItemAttributes.push(externalSystemItemAttributeInfo);
+                            }
+                        }
+                    }
+                }
+            }
+
+            var customExtSysItemAttrs = [];
+
+            var serverObject = product.serverObject;
+            debugger;
+            for (var j in externalSystemItemAttributes) {
+                var externalSystemItemAttribute = externalSystemItemAttributes[j];
+                var itemAttributeCode = externalSystemItemAttribute.itemAttributeCode;
+                var itemAttributeType = externalSystemItemAttribute.itemAttributeType;
+
+                if (serverObject.hasOwnProperty(itemAttributeCode)) {
+                    var attributeValue = serverObject[itemAttributeCode];
+                    var nsAttributeId = ItemImportLibrary.getAttributeIdForNetSuite(itemAttributeCode);
+                    var nsAttributeValue = this.getAttributeValueByType(itemAttributeCode, attributeValue, itemAttributeType);
+                    customExtSysItemAttrs.push({
+                        attributeId: nsAttributeId,
+                        attributeValues: nsAttributeValue
+                    });
+                }
+            }
+
+            delete product.serverObject;
+
+            return customExtSysItemAttrs;
+        },
+
+        getAttributeValueByType: function (itemAttributeCode, attributeValue, itemAttributeType) {
+            var newAttributeValue;
+            if (itemAttributeType === ConnectorConstants.Item.FieldTypes.Select) {
+                newAttributeValue = ItemImportLibrary.getAttributeValuesForNetSuiteChildItem(itemAttributeCode, attributeValue);
+            } else {
+                newAttributeValue = attributeValue;
+            }
+            // TODO: handle for other field type when necessary & should support for multiselect field
+            return newAttributeValue;
         }
     };
 
