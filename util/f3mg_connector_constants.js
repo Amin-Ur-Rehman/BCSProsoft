@@ -33,7 +33,8 @@ ConnectorConstants = (function () {
             ExternalSystemItemAttributes: null,
             NetSuiteItemOptions: null,
             ExternalSystemMatrixFieldMap: null,
-            ExternalSystemMatrixFieldValues: null
+            ExternalSystemMatrixFieldValues: null,
+            ExtSysAttrSetAssociations: null
         },
         FeatureVerification: null,
         /**
@@ -96,7 +97,9 @@ ConnectorConstants = (function () {
                 ItemId: 'itemid',
                 AllowOpenAmount: 'custitem_f3mg_price_allow_open_amount',
                 OpenAmountMinValue: 'custitem_f3mg_price_open_amount_min',
-                OpenAmountMaxValue: 'custitem_f3mg_price_open_amount_max'
+                OpenAmountMaxValue: 'custitem_f3mg_price_open_amount_max',
+                ExternalSystemAttrSet:"custitem_f3_ext_sys_item_attribute_set",
+                ExternalSystemItemCategory:"custitem_f3_ext_sys_item_category"
             },
             FieldTypes: {
                 Select: '1'
@@ -137,7 +140,11 @@ ConnectorConstants = (function () {
 
             SelectiveItemExportIdentifierType: 'custscript_f3_identifier_type',
             SelectiveItemExportIdentifierValue: 'custscript_f3_identifier_value',
-            SelectiveItemExportStoreId: 'custscript_f3_storeid'
+            SelectiveItemExportStoreId: 'custscript_f3_storeid',
+
+            SelectiveItemImportIdentifierType: 'custscript_f3_identifier_type_imp',
+            SelectiveItemImportIdentifierValue: 'custscript_f3_identifier_value_imp',
+            SelectiveItemImportStoreId: 'custscript_f3_storeid_imp'
         },
         SuiteScripts: {
             Suitelet: {
@@ -224,7 +231,7 @@ ConnectorConstants = (function () {
             this.Client = F3ClientFactory.createClient(nlapiGetContext().getCompany().toString());
             this.FileMimeTypes = this.loadFileMimeTypes();
         },
-        loadFileMimeTypes: function() {
+        loadFileMimeTypes: function () {
             var mimeTypes = {};
             mimeTypes['AUTOCAD'] = 'application/x-autocad';
             mimeTypes['BMPIMAGE'] = 'image/x-xbitmap';
@@ -268,6 +275,7 @@ ConnectorConstants = (function () {
             this.ItemConfigRecords.NetSuiteItemOptions = ItemConfigRecordHandler.getAllNetSuiteItemOptionsList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
+            this.ItemConfigRecords.ExtSysAttrSetAssociations = ItemConfigRecordHandler.getAllExtSysAttrSetAssociationsList();
         },
         initializeDummyItem: function () {
             this.DummyItem.Id = ConnectorCommon.getDummyItemId(this.DummyItem.ItemId);

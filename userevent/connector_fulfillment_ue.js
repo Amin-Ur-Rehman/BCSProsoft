@@ -197,33 +197,45 @@ var FulfillmentExport = (function () {
          */
         userEventAfterSubmit: function (type) {
             try {
-
+                Utility.logDebug("step-01", type);
                 // checking license validation
                 if (!MC_SYNC_CONSTANTS.isValidLicense()) {
                     Utility.logDebug('Validate', 'License has expired');
                     return;
                 }
+                Utility.logDebug("step-02", "");
+                var rec = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId(), null);
+                var magentoShipmentId = rec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId);
+                var shipStatus = rec.getFieldValue("shipstatus");
 
+                Utility.logDebug("step-01.1", JSON.stringify([magentoShipmentId, shipStatus]));
+                if (!Utility.isBlankOrNull(magentoShipmentId)) {
+                    return;
+                }
+                Utility.logDebug("step-03", "");
                 // only executes code when license is valid and type is create
-                if (type.toString() === 'create') {
-
+                if (type.toString() === 'create' || type.toString() === 'edit' ||
+                    type.toString() === 'xedit' || type.toString() === 'ship' || type.toString() === 'pack') {
+                    Utility.logDebug("step-04", "");
                     var orderId = nlapiGetFieldValue('orderid');
                     var recType = ConnectorCommon.getRecordTypeOfTransaction(orderId);
 
                     // if fulfillment is not creating from sales order then terminate
                     if (recType.toString() !== 'salesorder') {
+                        Utility.logDebug("step-04.1", "");
                         return;
                     }
-
+                    Utility.logDebug("step-05", "");
                     var magentoSO = nlapiLoadRecord('salesorder', orderId, null);
                     var salesOrderStore = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
                     var salesOrderMagentoId = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
 
                     // if not sales order is not synced with magento then terminate
                     if (Utility.isBlankOrNull(salesOrderStore) || Utility.isBlankOrNull(salesOrderMagentoId)) {
+                        Utility.logDebug("step-05.1", "");
                         return;
                     }
-
+                    Utility.logDebug("step-06", "");
                     ConnectorConstants.initialize();
                     // getting configuration
                     var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
@@ -232,12 +244,22 @@ var FulfillmentExport = (function () {
                     var store = externalSystemConfig[salesOrderStore];
                     ConnectorConstants.CurrentStore = store;
 
+                    Utility.logDebug("step-06", JSON.stringify(store));
+                    // check if status is defined in config
+                    if ((ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
+                        ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status") &&
+                        Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status) &&
+                        type.toString() !== 'create') || ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+                        Utility.logDebug("step-07", "08");
+                        return;
+                    }
+                    Utility.logDebug("step-09", "");
                     // Check for feature availability
                     if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                         Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                         return;
                     }
-
+                    Utility.logDebug("step-10", "");
                     ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                     ConnectorConstants.CurrentWrapper.initialize(store);
                     sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
@@ -259,14 +281,14 @@ var FulfillmentExport = (function () {
                         });
                         return;
                     }
-
+                    Utility.logDebug("step-11", "");
                     var response = FulfillmentExportHelper.syncFulfillmentMagento(sessionID, magentoSO);
-
+                    Utility.logDebug("step-12", "");
                     if (response) {
-                        Utility.logDebug('setShipmentIdInFulfillment');
+                        Utility.logDebug("step-13", "");
                         FulfillmentExportHelper.setShipmentIdInFulfillment(response.result);
                     }
-
+                    Utility.logDebug("step-14", "");
                 }
             } catch (e) {
                 Utility.logException('startup - afterSubmit', e);

@@ -57,7 +57,7 @@ ExternalSystemConfig = (function () {
          * @returns {Array} Returns an array of objects
          */
         getConfig: function () {
-            var systemConfig = {};
+            var systemConfig = [];
             var res = this.lookup(new nlobjSearchFilter('isinactive',null,'is','F'));
 
 

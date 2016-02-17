@@ -151,7 +151,7 @@ function F3ClientBase() {
         /**
          * Set Discount line in Sales Order line item
          * @param {nlobjRecord} rec
-         * @param {float} discountAmount
+         * @param {object} salesOrderObj
          */
         setDiscountInOrder: function (rec, salesOrderObj) {
             // Discount handling
@@ -387,7 +387,7 @@ function F3ClientBase() {
                         // set custom amount
                         rec.setLineItemValue('item', 'amount', x + 1, products[x].product_options.aw_gc_amounts);
                         if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
-                        rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
+                            rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
                     }
 
                     rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
@@ -413,7 +413,6 @@ function F3ClientBase() {
                     //Added check to avoid error on setting -7 as default tax code
                     if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
                         rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);
-
 
 
                 }
@@ -717,7 +716,7 @@ function F3ClientBase() {
                 infoMsg: ''
             };
             try {
-                var rec = nlapiCreateRecord('lead', null);
+                var rec = nlapiCreateRecord('lead', {recordmode: "dynamic"});
                 //rec.setFieldValue('isperson', 'T');
                 //rec.setFieldValue('subsidiary', '3');// TODO: generalize location
                 //   rec.setFieldValue('salutation', '');
@@ -834,7 +833,7 @@ function F3ClientBase() {
             Utility.logDebug("sessionID", JSON.stringify(sessionID));
             var result = {};
             try {
-                var rec = nlapiLoadRecord('customer', customerId, null);
+                var rec = nlapiLoadRecord('customer', customerId, {recordmode: "dynamic"});
 
                 // mulitple stores handling
 
@@ -883,12 +882,14 @@ function F3ClientBase() {
                 }
 
                 addresses = responseMagento.addresses;
+                Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
 
                 if (!Utility.isBlankOrNull(addresses)) {
                     rec = ConnectorCommon.setAddresses(rec, addresses);
                 }
                 // setting magento addresses from sales order
                 addresses = magentoCustomerObj.addresses;
+                Utility.logDebug("set customer addresses from salesorder", JSON.stringify(addresses));
                 rec = ConnectorCommon.setAddresses(rec, addresses, 'order');
 
                 // zee: get customer address list: end
@@ -1039,6 +1040,285 @@ function F3ClientBase() {
             Utility.logDebug('setting method ', nsShipMethod.join(','));
 
             // settting shipping method: end
+        },
+
+        /**
+         * Create simple inventory item
+         * @param itemObject
+         * @returns {string}
+         */
+        upsertInventoyItemSimple: function (itemObject) {
+            Utility.logDebug("upsertInventoyItemSimple", "");
+            var recordId;
+            // append internal id in the item object if product is found in NetSuite
+            this.appendInternalIdIfItemExist(ConnectorConstants.CurrentStore.systemId, itemObject);
+            recordId = ConnectorConstants.Client.upsertInventoryItem(itemObject);
+            Utility.logDebug("upsertInventoyItemSimple", "recordId: " + recordId);
+
+            return recordId;
+        },
+        /**
+         * Create matrix parent inventory item
+         * @param itemObject
+         * @returns {string}
+         */
+        upsertInventoyItemMatrixParent: function (itemObject) {
+            Utility.logDebug("upsertInventoyItemMatrixParent", "");
+            var recordId;
+            // append internal id in the item object if product is found in NetSuite
+            this.appendInternalIdIfItemExist(ConnectorConstants.CurrentStore.systemId, itemObject);
+            recordId = ConnectorConstants.Client.upsertInventoryItem(itemObject);
+
+            Utility.logDebug("upsertInventoyItemMatrixParent", "recordId: " + recordId);
+            return recordId;
+        },
+
+        /**
+         * Get matrix parent inventory item internal id
+         * @param itemObject
+         * @returns {string}
+         */
+        getInvItemMatrixParentId: function (itemObject) {
+            Utility.logDebug("getInvItemMatrixParentId", "");
+            var itemSearchObj, recordId = null;
+            // check if item is already created
+            itemSearchObj = ItemImportLibrary.getItemIfAlreadySyncedInNS(ConnectorConstants.CurrentStore.systemId, itemObject.id);
+            Utility.logDebug("itemSearchObj", JSON.stringify(itemSearchObj));
+            if (!Utility.isBlankOrNull(itemSearchObj)) {
+                // if product exist simply return the internal id
+                recordId = itemSearchObj.internalId;
+            } else {
+                // if parent item is not exist then create a parent item first
+                recordId = this.upsertInventoyItemMatrixParent(itemObject);
+            }
+            Utility.logDebug("getInvItemMatrixParentId", "recordId: " + recordId);
+            return recordId;
+        },
+        /**
+         * Create matrix child inventory item
+         * @param itemObject
+         * @returns {string}
+         */
+        upsertInventoyItemMatrixChild: function (itemObject) {
+            Utility.logDebug("upsertInventoyItemMatrixChild", "");
+            var recordId;
+            var matrixParentId;
+
+            // getting parent matrix item's internal id
+            matrixParentId = this.getInvItemMatrixParentId(itemObject.parent);
+
+            // if parent item id is not found in any case then throw an error
+            if (Utility.isBlankOrNull(matrixParentId)) {
+                Utility.throwException("RECORD_DOESNOT_EXIST", "Parent Record Id is not found")
+            }
+
+            // adding matrix parent item internal id in child product object
+            itemObject.matrixParentId = matrixParentId;
+            // append internal id in the item object if product is found in NetSuite
+            this.appendInternalIdIfItemExist(ConnectorConstants.CurrentStore.systemId, itemObject);
+            recordId = this.upsertInventoryItem(itemObject);
+
+            Utility.logDebug("upsertInventoyItemMatrixChild", "recordId: " + recordId);
+
+            return recordId;
+        },
+        upsertItemKitParent: function (itemObject) {
+        },
+        upsertItemKitChild: function (itemObject) {
+        },
+        upsertItemGroupParent: function (itemObject) {
+        },
+        upsertItemGroupChild: function (itemObject) {
+        },
+        upsertNonInventoyItemMatrixParent: function (itemObject) {
+        },
+        upsertNonInventoyItemMatrixChild: function (itemObject) {
+        },
+        upsertNonInventoyItemSimple: function (itemObject) {
+        },
+
+        /**
+         * Append internal id and record type in itemObject
+         * @param storeId
+         * @param itemObject
+         */
+        appendInternalIdIfItemExist: function (storeId, itemObject) {
+            Utility.logDebug("appendInternalIdIfItemExist", "1");
+            // check if item is already created
+            var itemSearchObj = ItemImportLibrary.getItemIfAlreadySyncedInNS(ConnectorConstants.CurrentStore.systemId, itemObject.id);
+            Utility.logDebug("itemSearchObj", JSON.stringify(itemSearchObj));
+            if (!Utility.isBlankOrNull(itemSearchObj)) {
+                // update item
+                itemObject.netSuiteRecordType = itemSearchObj.itemType;
+                itemObject.netSuiteInternalId = itemSearchObj.internalId;
+                Utility.logDebug("appendInternalIdIfItemExist", "2");
+            }
+            Utility.logDebug("appendInternalIdIfItemExist", "3");
+        },
+
+        /**
+         * Upsert item in NetSuite
+         * @param itemObject
+         * @returns {string}
+         */
+        upsertItem: function (itemObject) {
+            if (itemObject.itemType === "inventory") {
+                if (itemObject.matrixType === "PARENT") {
+                    return this.upsertInventoyItemMatrixParent(itemObject);
+                }
+                else if (itemObject.matrixType === "CHILD") {
+                    return this.upsertInventoyItemMatrixChild(itemObject);
+                } else {
+                    // assume itemObject.matrixType is empty
+                    return this.upsertInventoyItemSimple(itemObject);
+                }
+            }
+            else if (itemObject.itemType === "noninventory") {
+                if (itemObject.matrixType === "PARENT") {
+                    return this.upsertNonInventoyItemMatrixParent(itemObject);
+                }
+                else if (itemObject.matrixType === "CHILD") {
+                    return this.upsertNonInventoyItemMatrixChild(itemObject);
+                } else {
+                    // assume itemObject.matrixType is empty
+                    return this.upsertNonInventoyItemSimple(itemObject);
+                }
+            }
+            else if (itemObject.itemType === "kit") {
+                // TODO: implement including kitType attribute
+                if (itemObject.kitType === "PARENT") {
+                    return this.upsertItemKitParent(itemObject);
+                }
+                else {
+                    return this.upsertItemKitChild(itemObject);
+                }
+            }
+            else if (itemObject.itemType === "group") {
+                // TODO: implement including groupType attribute
+                if (itemObject.groupType === "PARENT") {
+                    return this.upsertItemGroupParent(itemObject);
+                }
+                else {
+                    return this.upsertItemGroupChild(itemObject);
+                }
+            }
+        },
+        setMatrixItemAttributes: function (itemRec, data) {
+            // define the Item's options
+            for (var i in data.matrixAttributes) {
+                var matrixAttribute = data.matrixAttributes[i];
+
+                var attributeId = matrixAttribute.attributeId;
+                var attributeValues = matrixAttribute.attributeValues;
+                // for setting item option value in child product we need to add a prefix in field id
+                itemRec.setFieldValue((!!data.matrixParentId ? "matrixoption" : "") + attributeId, attributeValues);
+            }
+        },
+
+        setCustomAttributes: function (itemRec, data) {
+            for (var i in data.customAttributes) {
+                var customAttribute = data.customAttributes[i];
+
+                var attributeId = customAttribute.attributeId;
+                var attributeValues = customAttribute.attributeValues;
+                // for setting item option value in child product we need to add a prefix in field id
+                itemRec.setFieldValue(attributeId, attributeValues);
+            }
+        },
+        /**
+         * Get an array of external system store ids
+         * @param itemRec
+         * @returns {Array}
+         */
+        getStoresToSet: function (itemRec) {
+            var newStores = [];
+            var existingStores = itemRec.getFieldValues(ConnectorConstants.Item.Fields.MagentoStores);
+            existingStores = !Utility.isBlankOrNull(existingStores) ? existingStores : [];
+
+            // selecting stores in item record
+            if (existingStores instanceof Array) {
+                if (existingStores.length === 0) {
+                    newStores.push(ConnectorConstants.CurrentStore.systemId);
+                }
+                else if (existingStores.length > 0) {
+                    newStores = newStores.concat(existingStores);
+                    newStores.push(ConnectorConstants.CurrentStore.systemId);
+                }
+                else {
+                    newStores = existingStores;
+                }
+            }
+            return newStores;
+        },
+        /**
+         * Get an array of external system ids
+         * @param itemRec
+         * @param data
+         * @returns {Array}
+         */
+        getExternalSystemIdToSet: function (itemRec, data) {
+            var isCreating = !data.hasOwnProperty("netSuiteInternalId");
+            var newExternalSystemIds = [];
+            var itemIdJSON;
+            var existingExternalSystemIds = itemRec.getFieldValue(ConnectorConstants.Item.Fields.MagentoId);
+            existingExternalSystemIds = !Utility.isBlankOrNull(existingExternalSystemIds) ? JSON.parse(existingExternalSystemIds) : [];
+
+            if (isCreating) {
+                // making a JSON array
+                if (existingExternalSystemIds instanceof Array) {
+                    itemIdJSON = JSON.parse(ConnectorCommon.getMagentoIdForSearching(ConnectorConstants.CurrentStore.systemId, data.id));
+                    if (existingExternalSystemIds.length === 0) {
+                        newExternalSystemIds.push(itemIdJSON);
+                    } else if (existingExternalSystemIds.length > 0) {
+                        newExternalSystemIds = newExternalSystemIds.concat(existingExternalSystemIds);
+                        newExternalSystemIds.push(itemIdJSON);
+                    } else {
+                        newExternalSystemIds = existingExternalSystemIds;
+                    }
+                }
+            } else {
+                newExternalSystemIds = existingExternalSystemIds;
+            }
+
+            return newExternalSystemIds;
+        },
+        /**
+         * Upsert inventory item in NetSuite
+         * @param data
+         * @returns {string}
+         */
+        upsertInventoryItem: function (data) {
+            Utility.logDebug("upsertInventoryItem", JSON.stringify(data));
+            debugger;
+            var isCreating = !data.hasOwnProperty("netSuiteInternalId");
+            // create Matrix Item Parent/Child/Simple
+            var inventoryItem = isCreating ? nlapiCreateRecord('inventoryitem') : nlapiLoadRecord('inventoryitem', data.netSuiteInternalId, {recordmode: "dynamic"});
+
+            inventoryItem.setFieldValue('itemid', data.itemId);
+            inventoryItem.setFieldValue('displayname', data.displayName);
+            inventoryItem.setFieldValue('matrixtype', data.matrixType);
+            inventoryItem.setFieldValue('parent', data.matrixParentId);
+
+            // set matrix item attributes
+            this.setMatrixItemAttributes(inventoryItem, data);
+
+            // set custom attributes
+            this.setCustomAttributes(inventoryItem, data);
+
+            // set categories and attribute set
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.ExternalSystemAttrSet, data.attributeSet);
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.ExternalSystemItemCategory, data.categories);
+
+            var stores = this.getStoresToSet(inventoryItem);
+            var externalSystemIds = this.getExternalSystemIdToSet(inventoryItem, data);
+
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoStores, stores);
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoId, JSON.stringify(externalSystemIds));
+            inventoryItem.setFieldValue(ConnectorConstants.Item.Fields.MagentoSync, "T");
+
+            var id = nlapiSubmitRecord(inventoryItem);
+
+            return id;
         }
 
     };
