@@ -107,10 +107,10 @@ var FulfillmentExportHelper = (function () {
                     var tracking = nlapiGetLineItemValue('package' + upsPackage, 'packagetrackingnumber' + upsPackage, p);
                     if (!Utility.isBlankOrNull(tracking)) {
                         otherInfo = {};
-                        otherInfo.auctionId = nlapiGetLineItemValue('item',ConnectorConstants.Transaction.Columns.MagentoOrderId,p);
-                        otherInfo.itemQty = nlapiGetLineItemValue('item','quantity',p);
+                        otherInfo.auctionId = nlapiGetLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, p);
+                        otherInfo.itemQty = nlapiGetLineItemValue('item', 'quantity', p);
 
-                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId,otherInfo);
+                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId, otherInfo);
                         if (!responseTracking.status) {
                             havingErrorInTrackingNumberExport = true;
                             errorTrackingNumberStr += responseTracking.faultString + ' - ' + responseTracking.faultCode;
@@ -246,13 +246,31 @@ var FulfillmentExport = (function () {
 
                     Utility.logDebug("step-06", JSON.stringify(store));
                     // check if status is defined in config
-                    if ((ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
-                        ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status") &&
-                        Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status) &&
-                        type.toString() !== 'create') || ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
-                        Utility.logDebug("step-07", "08");
-                        return;
+                    /*if ((ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
+                     ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status") &&
+                     Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status) &&
+                     type.toString() !== 'create') || ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+                     Utility.logDebug("step-07", "08");
+                     return;
+                     }*/
+
+                    if (ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
+                        ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status")) {
+                        if (Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status)) {
+                            if (type.toString() !== 'create') {
+                                return;
+                            }
+                        } else {
+                            if (ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+                                return;
+                            }
+                        }
+                    } else {
+                        if (type.toString() !== 'create') {
+                            return;
+                        }
                     }
+
                     Utility.logDebug("step-09", "");
                     // Check for feature availability
                     if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
