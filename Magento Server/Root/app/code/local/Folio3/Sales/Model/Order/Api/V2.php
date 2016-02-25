@@ -1,7 +1,7 @@
 <?php
 
-require_once(Mage::getBaseDir('code') . '/local/Folio3/Common/CustomAttributeEntity.php');
-require_once(Mage::getBaseDir('code') . '/local/Folio3/Common/CustomOrderItemEntity.php');
+require_once Mage::getBaseDir('code') . '/local/Folio3/Common/CustomAttributeEntity.php';
+require_once Mage::getBaseDir('code') . '/local/Folio3/Common/CustomOrderItemEntity.php';
 
 class Folio3_Sales_Model_Order_Api_V2 extends Mage_Sales_Model_Order_Api_V2
 {
@@ -362,7 +362,6 @@ class Folio3_Sales_Model_Order_Api_V2 extends Mage_Sales_Model_Order_Api_V2
         }
 
         $this->quote->getPayment()->importData($paymentInfo);
-
         $this->quote->collectTotals()->save();
     }
 
@@ -410,17 +409,6 @@ class Folio3_Sales_Model_Order_Api_V2 extends Mage_Sales_Model_Order_Api_V2
 
             $order->setBaseShippingTaxAmount($cost);
             $order->setShippingInclTax($cost);
-
-            //adding shipping price to grand total
-
-            /* Mage::log('oldGrandTotal - In Order : ' . ($oldGrandTotal), null, 'create-order.log', true);
-              Mage::log('oldBaseGrandTotal - In Order : ' . ($oldBaseGrandTotal), null, 'create-order.log', true);
-              Mage::log('oldShipAmt - In Order : ' . ($oldShipAmt), null, 'create-order.log', true);
-              Mage::log('oldBaseShipAmt - In Order : ' . ($oldBaseShipAmt), null, 'create-order.log', true);
-              Mage::log('cost - In Order : ' . ($cost), null, 'create-order.log', true);
-
-              Mage::log('setGrandTotal - In Order : ' . ($oldGrandTotal + $cost - $oldShipAmt), null, 'create-order.log', true);
-              Mage::log('setGrandTotal - In Order : ' . ($oldBaseGrandTotal + $cost - $oldBaseShipAmt), null, 'create-order.log', true); */
 
             $order->setGrandTotal($oldGrandTotal + $cost - $oldShipAmt);
             $order->setBaseGrandTotal($oldBaseGrandTotal + $cost - $oldBaseShipAmt);
@@ -537,5 +525,4 @@ class Folio3_Sales_Model_Order_Api_V2 extends Mage_Sales_Model_Order_Api_V2
             Mage::log('setStatusInOrder - Error: ' . $e->getMessage(), null, 'create-order.log', true);
         }
     }
-
 }

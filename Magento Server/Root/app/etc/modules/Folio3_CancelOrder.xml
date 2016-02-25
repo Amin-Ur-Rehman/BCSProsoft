@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Folio3_CancelOrder>
-            <active>true</active>
+            <active>false</active>
             <codePool>local</codePool>
             <version>0.0.1</version>
         </Folio3_CancelOrder>
