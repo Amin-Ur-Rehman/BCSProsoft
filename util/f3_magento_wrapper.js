@@ -60,6 +60,53 @@ MagentoXmlWrapper = (function () {
         OrderRequestXmlFooter: '</soapenv:Body></soapenv:Envelope>',
 
         /**
+         * Request a URL to an external or internal resource.
+         * @restriction NetSuite maintains a white list of CAs that are allowed for https requests. Please see the online documentation for the complete list.
+         * @governance 10 units
+         *
+         * @param {string} url 		A fully qualified URL to an HTTP(s) resource
+         * @param {string, Object} 	[postdata] - string, document, or Object containing POST payload
+         * @param {Object} 			[headers] - Object containing request headers.
+         * @param {function} 		[callback] - available on the Client to support asynchronous requests. function is passed an nlobjServerResponse with the results.
+         * @param {string} 		[httpMethod]
+         * @return {nlobjServerResponse}
+         *
+         * @exception {SSS_UNKNOWN_HOST}
+         * @exception {SSS_INVALID_HOST_CERT}
+         * @exception {SSS_REQUEST_TIME_EXCEEDED}
+         *
+         * @since	2007.0
+         */
+        _nlapiRequestURL: function (url, postdata, headers, callback, httpMethod) {
+            url = url || null;
+            postdata = postdata || null;
+            headers = headers || {};
+            callback = callback || null;
+            httpMethod = httpMethod || null;
+
+            this.setAuthHeaderIfNeeded(headers);
+
+            return nlapiRequestURL(url, postdata, headers, callback, httpMethod);
+        },
+        /**
+         * Adding Authorization header if required to access the website
+         * @param {Object}            [headers] - Object containing request headers.
+         */
+        setAuthHeaderIfNeeded: function (headers) {
+            var auth = ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("authorization") ?
+                ConnectorConstants.CurrentStore.entitySyncInfo.authorization : null;
+
+            if (auth !== null) {
+                var isRequired = auth.isRequired;
+                var username = auth.username;
+                var password = auth.password;
+                if (isRequired && !!username && !!password) {
+                    headers["Authorization"] = "Basic " + nlapiEncrypt(username + ":" + password, "base64");
+                }
+            }
+        },
+
+        /**
          * Gets supported Date Format
          * @returns {string}
          */
@@ -67,7 +114,7 @@ MagentoXmlWrapper = (function () {
             return 'MAGENTO_CUSTOM';
         },
         soapRequestToServer: function (xml) {
-            var res = nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
+            var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
             var body = res.getBody();
             Utility.logDebug('requestbody', xml);
             Utility.logDebug('responsetbody', body);
@@ -76,7 +123,7 @@ MagentoXmlWrapper = (function () {
             return responseXML;
         },
         soapRequestToServerSpecificStore: function (xml, store) {
-            var res = nlapiRequestURL(store.endpoint, xml);
+            var res = this._nlapiRequestURL(store.endpoint, xml);
             var body = res.getBody();
             Utility.logDebug('requestbody', xml);
             Utility.logDebug('responsetbody', body);
@@ -1805,7 +1852,7 @@ MagentoXmlWrapper = (function () {
             dataObj.capture_online = onlineCapturingPaymentMethod.toString();
             var requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
-            var resp = nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, 'POST');
+            var resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('responseBody_w', responseBody);
             responseBody = JSON.parse(responseBody);
@@ -1872,7 +1919,7 @@ MagentoXmlWrapper = (function () {
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
             var magentoCreditMemoCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
             Utility.logDebug('magentoCreditMemoCreationUrl', magentoCreditMemoCreationUrl);
-            var resp = nlapiRequestURL(magentoCreditMemoCreationUrl, requestParam, null, 'POST');
+            var resp = this._nlapiRequestURL(magentoCreditMemoCreationUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('responseBody_w', responseBody);
             responseBody = JSON.parse(responseBody);
@@ -2206,7 +2253,7 @@ MagentoXmlWrapper = (function () {
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
             //Utility.logDebug('requestHeaders', JSON.stringify(requestHeaders));
 
-            var resp = nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
+            var resp = this._nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('export promo code responseBody', responseBody);
             var responseMagento = JSON.parse(responseBody);
@@ -2241,7 +2288,7 @@ MagentoXmlWrapper = (function () {
             };
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
 
-            var resp = nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
+            var resp = this._nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('cancelSalesOrder responseBody', responseBody);
             var resposeObj = JSON.parse(responseBody);
