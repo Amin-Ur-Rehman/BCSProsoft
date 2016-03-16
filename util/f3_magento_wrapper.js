@@ -325,9 +325,9 @@ MagentoXmlWrapper = (function () {
             return xml;
 
         },
-        getCreateFulfillmentXML: function (sessionID, magentoItemIds, magentoSOId) {
+        getCreateFulfillmentXML: function (sessionID, magentoItemIds, magentoSOId, fulfillRec) {
             Utility.logDebug('getCreateFulfillmentXML', 'Enter in getCreateFulfillmentXML() fun');
-            var itemsQuantity = nlapiGetLineItemCount('item');
+            var itemsQuantity = fulfillRec.getLineItemCount('item');
             var shipmentXML;
 
             shipmentXML = this.XmlHeader + '<urn:salesOrderShipmentCreate>';
@@ -336,13 +336,13 @@ MagentoXmlWrapper = (function () {
 
             var lineItems = [];
             for (var line = 1; line <= itemsQuantity; line++) {
-                if (nlapiGetLineItemValue('item', 'itemreceive', line) == 'T') {
+                if (fulfillRec.getLineItemValue('item', 'itemreceive', line) == 'T') {
                     //var itemId = magentoItemIds[nlapiGetLineItemValue('item', 'item', line)];
-                    var itemId = nlapiGetLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
+                    var itemId = fulfillRec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
                     Utility.logDebug('orrrder Item Id', itemId);
-                    var itemQty = nlapiGetLineItemValue('item', 'quantity', line);
-                    if (nlapiGetLineItemValue('item', 'isserialitem', 1) === 'T') {
-                        comment = comment + ',' + nlapiGetLineItemValue('item', 'itemdescription', line) + '=' + nlapiGetLineItemValue('item', 'serialnumbers', line);
+                    var itemQty = fulfillRec.getLineItemValue('item', 'quantity', line);
+                    if (fulfillRec.getLineItemValue('item', 'isserialitem', 1) === 'T') {
+                        comment = comment + ',' + fulfillRec.getLineItemValue('item', 'itemdescription', line) + '=' + fulfillRec.getLineItemValue('item', 'serialnumbers', line);
                     } else {
                         comment = '-';
                     }
@@ -383,6 +383,30 @@ MagentoXmlWrapper = (function () {
             return shipmentXML;
 
         },
+        getCarrier: function (carrier, carrierText) {
+            var _carrier;
+            if (carrier === "ups") {
+                _carrier = "ups";
+            } else {
+                carrierText = !!carrierText ? carrierText.toString().toLowerCase() : "";
+                if (carrierText.indexOf("usps") !== -1) {
+                    _carrier = "usps";
+                }
+                else if (carrierText.indexOf("dhl") !== -1) {
+                    _carrier = "dhl";
+                }
+                else if (carrierText.indexOf("fedex") !== -1) {
+                    _carrier = "fedex";
+                }
+                else if (carrierText.indexOf("dhlint") !== -1) {
+                    _carrier = "dhlint";
+                }
+                else {
+                    _carrier = "custom";
+                }
+            }
+            return _carrier;
+        },
         createTrackingXML: function (id, carrier, carrierText, tracking, sessionID) {
             // Add TrackingNum for shipment - XML
             var tShipmentXML = '';
@@ -391,7 +415,7 @@ MagentoXmlWrapper = (function () {
             tShipmentXML = tShipmentXML + '<sessionId xsi:type="xsd:string">' + sessionID + '</sessionId>';
             tShipmentXML = tShipmentXML + '<shipmentIncrementId xsi:type="xsd:string">' + id + '</shipmentIncrementId>';
 
-            tShipmentXML = tShipmentXML + '<carrier xsi:type="xsd:string">' + 'ups' + '</carrier>';
+            tShipmentXML = tShipmentXML + '<carrier xsi:type="xsd:string">' + this.getCarrier(carrier, carrierText) + '</carrier>';
 
             tShipmentXML = tShipmentXML + '<title xsi:type="xsd:string">' + carrierText + '</title>';
             tShipmentXML = tShipmentXML + '<trackNumber xsi:type="xsd:string">' + tracking + '</trackNumber>';
@@ -1825,8 +1849,8 @@ MagentoXmlWrapper = (function () {
             return response;
         },
 
-        createFulfillment: function (sessionID, magentoItemIds, magentoSOId) {
-            var fulfillmentXML = MagentoWrapper.getCreateFulfillmentXML(sessionID, magentoItemIds, magentoSOId);
+        createFulfillment: function (sessionID, magentoItemIds, magentoSOId, fulfillRec) {
+            var fulfillmentXML = MagentoWrapper.getCreateFulfillmentXML(sessionID, magentoItemIds, magentoSOId, fulfillRec);
 
             Utility.logDebug('MagentoWrapper.getCreateFulfillmentXML', 'EOS ' + fulfillmentXML);
 

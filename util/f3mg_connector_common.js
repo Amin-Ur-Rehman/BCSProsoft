@@ -1158,11 +1158,11 @@ var ConnectorCommon = (function () {
             return type;
         },
         // get array of items exist in fulfillment
-        getFulfillmentItems: function () {
+        getFulfillmentItems: function (fulfillRec) {
             var itemsIdArr = [];
-            var itemsQuantity = nlapiGetLineItemCount('item');
+            var itemsQuantity = fulfillRec.getLineItemCount('item');
             for (var line = 1; line <= itemsQuantity; line++) {
-                var itemId = nlapiGetLineItemValue('item', 'item', line);
+                var itemId = fulfillRec.getLineItemValue('item', 'item', line);
                 if (itemsIdArr.indexOf(itemId) === -1) {
                     itemsIdArr.push(itemId);
                 }
