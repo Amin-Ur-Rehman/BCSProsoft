@@ -615,7 +615,7 @@ MagentoXmlWrapper = (function () {
             billingObj.region = nlapiSelectValue(billing[0], 'region');
             billingObj.region_id = nlapiSelectValue(billing[0], 'region_id');
             billingObj.zip = nlapiSelectValue(billing[0], 'postcode');
-            billingObj.country = nlapiSelectValue(billing[0], 'country_id');
+            billingObj.country_id = nlapiSelectValue(billing[0], 'country_id');
             billingObj.firstname = nlapiSelectValue(billing[0], 'firstname');
             billingObj.lastname = nlapiSelectValue(billing[0], 'lastname');
 
