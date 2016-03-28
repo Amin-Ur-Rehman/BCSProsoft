@@ -24,6 +24,9 @@ F3WrapperFactory = (function () {
                 case 'MAGENTO':
                     client = MagentoWrapper;
                     break;
+                case 'MAGENTO2':
+                    client = new Magento2Wrapper();
+                    break;
                 case 'SHOPIFY':
                     client = ShopifyWrapper;
                     break;
