@@ -166,7 +166,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     Utility.logDebug('stages_w', 'after getting customer');
                     // adding shipping and billing address in customer object getting from sales order
                     customer[0].addresses = ConnectorModels.getAddressesFromOrder(shippingAddress, billingAddress);
-                    //Utility.logDebug('ZEE->customer', JSON.stringify(customer));
+                    Utility.logDebug('ZEE->customer', JSON.stringify([shippingAddress, billingAddress, customer]));
                     var customerNSInternalId = null;
                     var customerSearchObj = {};
                     var customerIndex = 0;

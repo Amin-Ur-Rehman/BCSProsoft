@@ -32,7 +32,7 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.fromDate = fromDate;
             dataObj.statuses = statuses;
             var requestParam = { "apiMethod": "getSalesOrderList", "data": JSON.stringify(dataObj) };
-            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('getSalesOrdersList responseBody', responseBody);
             var responseBodyData = JSON.parse(responseBody);
@@ -58,7 +58,7 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.productId = productId;
             dataObj.identifierType = identifierType;
             var requestParam = { "apiMethod": "getProductInfo", "data": JSON.stringify(dataObj) };
-            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('getItemInfo responseBody', responseBody);
             var responseBodyData = JSON.parse(responseBody);
@@ -114,7 +114,7 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.configurable_product_id = productId;
             dataObj.products_attributes = attributes;
             var requestParam = { "apiMethod": "assignAttributesToConfigurableProduct", "data": JSON.stringify(dataObj) };
-            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('assignAttributesToConfigurableProduct responseBody', responseBody);
             var responseBodyData = JSON.parse(responseBody);
@@ -149,7 +149,7 @@ var MagentoRestApiWrapper = (function (_super) {
                 "apiMethod": "associateProductWithConfigurableProduct",
                 "data": JSON.stringify(dataObj)
             };
-            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('associateProductWithConfigurableProduct responseBody', responseBody);
             var responseBodyData = JSON.parse(responseBody);
@@ -174,7 +174,7 @@ var MagentoRestApiWrapper = (function (_super) {
             var dataObj = {};
             dataObj.store_root_path = storeRootUrl;
             var requestParam = { "apiMethod": "reindexProductsData", "data": JSON.stringify(dataObj) };
-            var resp = nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('reindexProductsData responseBody', responseBody);
             var responseBodyData = JSON.parse(responseBody);

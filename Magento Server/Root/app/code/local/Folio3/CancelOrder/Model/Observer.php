@@ -21,27 +21,23 @@ class Folio3_CancelOrder_Model_Observer
      */
     public function orderStatusChange(Varien_Event_Observer $observer)
     {
-        try {
-            $original_data = $observer->getEvent()->getData('data_object')->getOrigData();
-            $new_data = $observer->getEvent()->getData('data_object')->getData();
-            Mage::log(json_encode($original_data));
-            Mage::log(json_encode($new_data));
-            if (($original_data['state'] != $new_data['state']) && ($new_data['state'] == Mage_Sales_Model_Order::STATE_CANCELED)) {
-                Mage::log("Yes+Cancel", null, 'cancel-order.log', true);
-                 //Close order in NetSuite when order is cancelled in Magento
-                 
-                $this->cancelSalesOrder($new_data['increment_id']);
+        $original_data = $observer->getEvent()->getData('data_object')->getOrigData();
+        $new_data = $observer->getEvent()->getData('data_object')->getData();
+        Mage::log(json_encode($original_data));
+        Mage::log(json_encode($new_data));
+        if (($original_data['state'] !== $new_data['state']) && ($new_data['state'] == Mage_Sales_Model_Order::STATE_CANCELED)) {
+            Mage::log("Yes+Cancel", null, 'cancel-order.log', true);
+            /**
+             * Close order in NetSuite when order is cancelled in Magento
+             */
+            $this->cancelSalesOrder($new_data['increment_id']);
 
-                // to display message after canceling the order
-                // Hint: Observer extends Mage_Adminhtml_Controller_Action class to utilize following methods
-                //$this->_getSession()->addError($this->__('The order(s) is canceled'));
-                //$this->_getSession()->addSuccess($this->__('%s order(s) have been canceled.', $countCancelOrder));
+            // to display message after canceling the order
+            // Hint: Observer extends Mage_Adminhtml_Controller_Action class to utilize following methods
+            //$this->_getSession()->addError($this->__('The order(s) is canceled'));
+            //$this->_getSession()->addSuccess($this->__('%s order(s) have been canceled.', $countCancelOrder));
 
-                //Mage::log(json_encode($new_data), null, 'cancel-order.log', true);
-            }
-        } catch (Exception $e) {
-            Mage::logException($e);
-            Mage::log(json_encode($e), null, 'cancel-order.log', true);
+            //Mage::log(json_encode($new_data), null, 'cancel-order.log', true);
         }
     }
 

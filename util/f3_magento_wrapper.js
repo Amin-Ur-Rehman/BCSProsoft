@@ -60,6 +60,53 @@ MagentoXmlWrapper = (function () {
         OrderRequestXmlFooter: '</soapenv:Body></soapenv:Envelope>',
 
         /**
+         * Request a URL to an external or internal resource.
+         * @restriction NetSuite maintains a white list of CAs that are allowed for https requests. Please see the online documentation for the complete list.
+         * @governance 10 units
+         *
+         * @param {string} url 		A fully qualified URL to an HTTP(s) resource
+         * @param {string, Object} 	[postdata] - string, document, or Object containing POST payload
+         * @param {Object} 			[headers] - Object containing request headers.
+         * @param {function} 		[callback] - available on the Client to support asynchronous requests. function is passed an nlobjServerResponse with the results.
+         * @param {string} 		[httpMethod]
+         * @return {nlobjServerResponse}
+         *
+         * @exception {SSS_UNKNOWN_HOST}
+         * @exception {SSS_INVALID_HOST_CERT}
+         * @exception {SSS_REQUEST_TIME_EXCEEDED}
+         *
+         * @since	2007.0
+         */
+        _nlapiRequestURL: function (url, postdata, headers, callback, httpMethod) {
+            url = url || null;
+            postdata = postdata || null;
+            headers = headers || {};
+            callback = callback || null;
+            httpMethod = httpMethod || null;
+
+            this.setAuthHeaderIfNeeded(headers);
+
+            return nlapiRequestURL(url, postdata, headers, callback, httpMethod);
+        },
+        /**
+         * Adding Authorization header if required to access the website
+         * @param {Object}            [headers] - Object containing request headers.
+         */
+        setAuthHeaderIfNeeded: function (headers) {
+            var auth = ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("authorization") ?
+                ConnectorConstants.CurrentStore.entitySyncInfo.authorization : null;
+
+            if (auth !== null) {
+                var isRequired = auth.isRequired;
+                var username = auth.username;
+                var password = auth.password;
+                if (isRequired && !!username && !!password) {
+                    headers["Authorization"] = "Basic " + nlapiEncrypt(username + ":" + password, "base64");
+                }
+            }
+        },
+
+        /**
          * Gets supported Date Format
          * @returns {string}
          */
@@ -67,7 +114,7 @@ MagentoXmlWrapper = (function () {
             return 'MAGENTO_CUSTOM';
         },
         soapRequestToServer: function (xml) {
-            var res = nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
+            var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
             var body = res.getBody();
             Utility.logDebug('requestbody', xml);
             Utility.logDebug('responsetbody', body);
@@ -76,7 +123,7 @@ MagentoXmlWrapper = (function () {
             return responseXML;
         },
         soapRequestToServerSpecificStore: function (xml, store) {
-            var res = nlapiRequestURL(store.endpoint, xml);
+            var res = this._nlapiRequestURL(store.endpoint, xml);
             var body = res.getBody();
             Utility.logDebug('requestbody', xml);
             Utility.logDebug('responsetbody', body);
@@ -278,9 +325,9 @@ MagentoXmlWrapper = (function () {
             return xml;
 
         },
-        getCreateFulfillmentXML: function (sessionID, magentoItemIds, magentoSOId) {
+        getCreateFulfillmentXML: function (sessionID, magentoItemIds, magentoSOId, fulfillRec) {
             Utility.logDebug('getCreateFulfillmentXML', 'Enter in getCreateFulfillmentXML() fun');
-            var itemsQuantity = nlapiGetLineItemCount('item');
+            var itemsQuantity = fulfillRec.getLineItemCount('item');
             var shipmentXML;
 
             shipmentXML = this.XmlHeader + '<urn:salesOrderShipmentCreate>';
@@ -289,13 +336,13 @@ MagentoXmlWrapper = (function () {
 
             var lineItems = [];
             for (var line = 1; line <= itemsQuantity; line++) {
-                if (nlapiGetLineItemValue('item', 'itemreceive', line) == 'T') {
+                if (fulfillRec.getLineItemValue('item', 'itemreceive', line) == 'T') {
                     //var itemId = magentoItemIds[nlapiGetLineItemValue('item', 'item', line)];
-                    var itemId = nlapiGetLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
+                    var itemId = fulfillRec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
                     Utility.logDebug('orrrder Item Id', itemId);
-                    var itemQty = nlapiGetLineItemValue('item', 'quantity', line);
-                    if (nlapiGetLineItemValue('item', 'isserialitem', 1) === 'T') {
-                        comment = comment + ',' + nlapiGetLineItemValue('item', 'itemdescription', line) + '=' + nlapiGetLineItemValue('item', 'serialnumbers', line);
+                    var itemQty = fulfillRec.getLineItemValue('item', 'quantity', line);
+                    if (fulfillRec.getLineItemValue('item', 'isserialitem', 1) === 'T') {
+                        comment = comment + ',' + fulfillRec.getLineItemValue('item', 'itemdescription', line) + '=' + fulfillRec.getLineItemValue('item', 'serialnumbers', line);
                     } else {
                         comment = '-';
                     }
@@ -336,6 +383,30 @@ MagentoXmlWrapper = (function () {
             return shipmentXML;
 
         },
+        getCarrier: function (carrier, carrierText) {
+            var _carrier;
+            if (carrier === "ups") {
+                _carrier = "ups";
+            } else {
+                carrierText = !!carrierText ? carrierText.toString().toLowerCase() : "";
+                if (carrierText.indexOf("usps") !== -1) {
+                    _carrier = "usps";
+                }
+                else if (carrierText.indexOf("dhl") !== -1) {
+                    _carrier = "dhl";
+                }
+                else if (carrierText.indexOf("fedex") !== -1) {
+                    _carrier = "fedex";
+                }
+                else if (carrierText.indexOf("dhlint") !== -1) {
+                    _carrier = "dhlint";
+                }
+                else {
+                    _carrier = "custom";
+                }
+            }
+            return _carrier;
+        },
         createTrackingXML: function (id, carrier, carrierText, tracking, sessionID) {
             // Add TrackingNum for shipment - XML
             var tShipmentXML = '';
@@ -344,7 +415,7 @@ MagentoXmlWrapper = (function () {
             tShipmentXML = tShipmentXML + '<sessionId xsi:type="xsd:string">' + sessionID + '</sessionId>';
             tShipmentXML = tShipmentXML + '<shipmentIncrementId xsi:type="xsd:string">' + id + '</shipmentIncrementId>';
 
-            tShipmentXML = tShipmentXML + '<carrier xsi:type="xsd:string">' + 'ups' + '</carrier>';
+            tShipmentXML = tShipmentXML + '<carrier xsi:type="xsd:string">' + this.getCarrier(carrier, carrierText) + '</carrier>';
 
             tShipmentXML = tShipmentXML + '<title xsi:type="xsd:string">' + carrierText + '</title>';
             tShipmentXML = tShipmentXML + '<trackNumber xsi:type="xsd:string">' + tracking + '</trackNumber>';
@@ -544,7 +615,7 @@ MagentoXmlWrapper = (function () {
             billingObj.region = nlapiSelectValue(billing[0], 'region');
             billingObj.region_id = nlapiSelectValue(billing[0], 'region_id');
             billingObj.zip = nlapiSelectValue(billing[0], 'postcode');
-            billingObj.country = nlapiSelectValue(billing[0], 'country_id');
+            billingObj.country_id = nlapiSelectValue(billing[0], 'country_id');
             billingObj.firstname = nlapiSelectValue(billing[0], 'firstname');
             billingObj.lastname = nlapiSelectValue(billing[0], 'lastname');
 
@@ -1778,8 +1849,8 @@ MagentoXmlWrapper = (function () {
             return response;
         },
 
-        createFulfillment: function (sessionID, magentoItemIds, magentoSOId) {
-            var fulfillmentXML = MagentoWrapper.getCreateFulfillmentXML(sessionID, magentoItemIds, magentoSOId);
+        createFulfillment: function (sessionID, magentoItemIds, magentoSOId, fulfillRec) {
+            var fulfillmentXML = MagentoWrapper.getCreateFulfillmentXML(sessionID, magentoItemIds, magentoSOId, fulfillRec);
 
             Utility.logDebug('MagentoWrapper.getCreateFulfillmentXML', 'EOS ' + fulfillmentXML);
 
@@ -1805,7 +1876,7 @@ MagentoXmlWrapper = (function () {
             dataObj.capture_online = onlineCapturingPaymentMethod.toString();
             var requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
-            var resp = nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, 'POST');
+            var resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('responseBody_w', responseBody);
             responseBody = JSON.parse(responseBody);
@@ -1872,7 +1943,7 @@ MagentoXmlWrapper = (function () {
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
             var magentoCreditMemoCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
             Utility.logDebug('magentoCreditMemoCreationUrl', magentoCreditMemoCreationUrl);
-            var resp = nlapiRequestURL(magentoCreditMemoCreationUrl, requestParam, null, 'POST');
+            var resp = this._nlapiRequestURL(magentoCreditMemoCreationUrl, requestParam, null, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('responseBody_w', responseBody);
             responseBody = JSON.parse(responseBody);
@@ -2206,7 +2277,7 @@ MagentoXmlWrapper = (function () {
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
             //Utility.logDebug('requestHeaders', JSON.stringify(requestHeaders));
 
-            var resp = nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
+            var resp = this._nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('export promo code responseBody', responseBody);
             var responseMagento = JSON.parse(responseBody);
@@ -2241,7 +2312,7 @@ MagentoXmlWrapper = (function () {
             };
             Utility.logDebug('requestParam', JSON.stringify(requestParam));
 
-            var resp = nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
+            var resp = this._nlapiRequestURL(magentoUrl, requestParam, requestHeaders, 'POST');
             var responseBody = resp.getBody();
             Utility.logDebug('cancelSalesOrder responseBody', responseBody);
             var resposeObj = JSON.parse(responseBody);
