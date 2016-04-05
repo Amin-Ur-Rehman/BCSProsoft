@@ -51,7 +51,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
         result.errorMsg = '';
         result.infoMsg = '';
         order.updateDate = updateDate;
-
+        order.orderStatus = ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.status || [];
 
         // Make Call and Get Data
 
@@ -92,6 +92,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     Utility.logDebug('ConnectorConstants.CurrentStore.systemId', ConnectorConstants.CurrentStore.systemId);
                     var nsId;
                     var isUpdated = false;
+
                     salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
                     Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
 
@@ -138,7 +139,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     var billingAddress = salesOrderDetails.billingAddress;
                     var payment = salesOrderDetails.payment;
                     products = salesOrderDetails.products;
-
+                    
                     Utility.logDebug('products', JSON.stringify(products));
                     netsuiteMagentoProductMap = ConnectorConstants.CurrentWrapper.getNsProductIdsByExtSysIds(products);
 

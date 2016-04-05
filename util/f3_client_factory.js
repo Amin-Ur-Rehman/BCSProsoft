@@ -363,13 +363,8 @@ function F3ClientBase() {
                     rec.setLineItemValue('item', 'quantity', x + 1, products[x].qty_ordered);
 
                     // handling for custom product amount
-                    if (!!products[x].price && !!products[x].price && parseFloat(products[x].price) === parseFloat(products[x].original_price)) {
-                        // set price level 'List Price'
-                        rec.setLineItemValue('item', 'price', x + 1, 1);
-                    } else {
-                        rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
-                        rec.setLineItemValue('item', 'rate', x + 1, products[x].price);
-                    }
+                    rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
+                    rec.setLineItemValue('item', 'rate', x + 1, products[x].price);
 
                     if (products[x].product_type === ConnectorConstants.MagentoProductTypes.GiftCard
                         && !!products[x].product_options) {
@@ -707,6 +702,7 @@ function F3ClientBase() {
          * @return {Object}
          */
         createLeadInNetSuite: function (magentoCustomerObj, sessionID, isGuest) {
+            debugger;
             Utility.logDebug("this.createLeadInNetSuite", "Start");
             Utility.logDebug("magentoCustomerObj", JSON.stringify(magentoCustomerObj));
             Utility.logDebug("sessionID", JSON.stringify(sessionID));
@@ -796,6 +792,8 @@ function F3ClientBase() {
                 rec.setFieldValue('firstname', magentoCustomerObj.firstname);
                 rec.setFieldValue('middlename', magentoCustomerObj.middlename);
                 rec.setFieldValue('lastname', magentoCustomerObj.lastname);//TODO: check
+                rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+
                 //  rec.setFieldValue('salutation','');
 
 
@@ -827,6 +825,7 @@ function F3ClientBase() {
          * @return {Object}
          */
         updateCustomerInNetSuite: function (customerId, magentoCustomerObj, sessionID) {
+            debugger;
             Utility.logDebug("F3BaseV1Client.updateCustomerInNetSuite", "Start");
             Utility.logDebug("customerId", JSON.stringify(customerId));
             Utility.logDebug("magentoCustomerObj", JSON.stringify(magentoCustomerObj));
@@ -846,6 +845,17 @@ function F3ClientBase() {
                 rec.setFieldValue('firstname', magentoCustomerObj.firstname);
                 rec.setFieldValue('middlename', magentoCustomerObj.middlename);
                 rec.setFieldValue('lastname', magentoCustomerObj.lastname);
+                var existingStores = rec.getFieldValues(ConnectorConstants.Entity.Fields.MagentoStore);
+
+                if (existingStores instanceof Array) {
+                    if (existingStores.indexOf(ConnectorConstants.CurrentStore.systemId) === -1) {
+                        existingStores.push(ConnectorConstants.CurrentStore.systemId);
+                    }
+                } else {
+                    existingStores = "";
+                }
+
+                rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoStore, existingStores);
                 //  rec.setFieldValue('salutation','');
 
                 // set if customer is taxable or not
