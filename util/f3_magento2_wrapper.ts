@@ -19,6 +19,73 @@
 // Declaration of Existing Custom Libraries methods
 /// <reference path="../util/CustomMethods.d.ts" />
 
+interface SalesShipmentTrack {
+    carrier_code: string;
+    created_at: string;
+    description: string;
+    entity_id: number;
+    order_id: number;
+    parent_id: number;
+    qty: number;
+    title: string;
+    track_number: string;
+    updated_at: string;
+    weight: number;
+    extension_attributes?: any;
+}
+
+interface SalesShipmentPackages {
+    extensionAttributes?: any;
+}
+
+interface SalesShipmentItems {
+    additional_data: string;
+    description: string;
+    entity_id: number;
+    name: string;
+    order_item_id: number;
+    parent_id: number;
+    price: number;
+    product_id: number;
+    qty: number;
+    row_total: number;
+    sku: string;
+    weight: number;
+    extension_attributes?: any;
+}
+
+interface SalesShipmentComments {
+    comment: string;
+    created_at: string;
+    entity_id: number;
+    is_customer_notified: number;
+    is_visible_on_front: number;
+    parent_id: number;
+    extension_attributes?: any;
+}
+
+interface SalesShipment {
+    billing_address_id: number;
+    created_at: string;
+    customer_id: number;
+    email_sent: number;
+    entity_id: number;
+    increment_id: string;
+    order_id: number;
+    shipment_status: number;
+    shipping_address_id: number;
+    shipping_label: string;
+    store_id: number;
+    total_qty: number;
+    total_weight: number;
+    updated_at: string;
+    extension_attributes?: any;
+    packages: SalesShipmentPackages[];
+    items: SalesShipmentItems[];
+    tracks: SalesShipmentTrack[];
+    comments: SalesShipmentComments[];
+}
+
 /**
  * Interface of Customer Object in Magento2
  */
@@ -36,7 +103,7 @@ interface Customer {
     gender: number;
     store_id: number;
     website_id: number;
-    addresses: Array<CustomerAddress>;
+    addresses: CustomerAddress[];
     disable_auto_group_change: number;
 }
 
@@ -58,7 +125,7 @@ interface  CustomerAddress {
     region: Region;
     region_id: number;
     country_id: string;
-    street: Array<string>;
+    street: string[];
     telephone: string;
     postcode: string;
     city: string;
@@ -72,6 +139,7 @@ interface  CustomerAddress {
  * Interface of Request Data Object Object in Magento2
  */
 interface HttpRequestData {
+    accessToken: string;
     additionalUrl: string;
     method: string;
     headers?: any;
@@ -98,9 +166,10 @@ class Magento2Wrapper {
      * @param id
      * @returns {void|any}
      */
-    public test(id: string) {
+    public test(id: string): any {
         let serverResponse;
         let httpRequestData: HttpRequestData = {
+            accessToken: "",
             additionalUrl: "orders/" + id,
             data: {},
             method: "GET"
@@ -123,7 +192,7 @@ class Magento2Wrapper {
     }
 
     /**
-     * Gets supported Date Format
+     * Get supported Date Format
      * @returns {string}
      */
     public getDateFormat(): string {
@@ -134,9 +203,9 @@ class Magento2Wrapper {
      * Get token from Magento
      * @param userName
      * @param apiKey
-     * @returns {any}
+     * @returns {string}
      */
-    public getSessionIDFromServer(userName, apiKey) {
+    public getSessionIDFromServer(userName, apiKey): string {
         // TODO:  Get the token using 2-ledge authentication
         let sessionID = "DUMMY_SESSION_ID";
 
@@ -156,6 +225,7 @@ class Magento2Wrapper {
      */
     public getSalesOrders(filters: any, sessionId?: string): any {
         let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "orders",
             method: "GET"
         };
@@ -208,6 +278,7 @@ class Magento2Wrapper {
      */
     public getSalesOrderInfo(incrementId: number|string, sessionId?: string): any {
         let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "orders/" + incrementId,
             method: "GET"
         };
@@ -242,8 +313,9 @@ class Magento2Wrapper {
         return serverFinalResponse;
     }
 
-    public getCustomerById(customerId: string|number): any {
+    public getCustomerById(customerId: string|number, sessionId: string): any {
         let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "customers/" + customerId,
             method: "GET"
         };
@@ -288,7 +360,7 @@ class Magento2Wrapper {
         let result: any = {};
         let customerAddresses: any = [];
 
-        let customerResponse = this.getCustomerById(customerId);
+        let customerResponse = this.getCustomerById(customerId, sessionId);
         if (customerResponse.status) {
             result.status = true;
             let customer: Customer = customerResponse.customer;
@@ -482,6 +554,105 @@ class Magento2Wrapper {
         return salesOrderObj.order.discount_amount;
     }
 
+    /**
+     * Create Sales Order Shipment
+     * @param sessionId
+     * @param magentoItemIds
+     * @param magentoSOId
+     * @param fulfillRec
+     * @returns {any}
+     */
+    public createFulfillment(sessionId: string, magentoItemIds: any, magentoSOId: string, fulfillRec: nlobjRecord): any {
+        let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "shipment/",
+            method: "POST",
+            postData: this.getShipmentDataForExport(magentoSOId, fulfillRec)
+        };
+
+        // Make Call and Get Data
+        let serverFinalResponse: any = {};
+
+        try {
+            let serverResponse: any = this.sendRequest(httpRequestData);
+
+            if (this.isNAE(serverResponse)) {
+                let shipment: SalesShipment = this.parseSalesShipmentResponse(serverResponse);
+                serverFinalResponse.result = shipment.entity_id;
+                serverFinalResponse.status = true;
+                serverFinalResponse.faultCode = "";
+                serverFinalResponse.faultString = "";
+            } else {
+                serverFinalResponse.status = false;
+                serverFinalResponse.faultCode = "API_ERROR";
+                serverFinalResponse.faultString = this.getErrorMessage(serverResponse);
+                Utility.logDebug("Error in order response", JSON.stringify(serverResponse));
+            }
+
+            Utility.logDebug("Magento2 Wrapper: serverFinalResponse", JSON.stringify(serverFinalResponse));
+        } catch (e) {
+            serverFinalResponse.status = false;
+            serverFinalResponse.faultCode = "SERVER_ERROR";
+            serverFinalResponse.faultString = e.toString();
+
+            Utility.logException("Magento2 Wrapper: Error during getCreateFulfillmentXML", e);
+        }
+
+        return serverFinalResponse;
+    }
+
+    /**
+     * Add Tracking Information in Sales Order Shipment
+     * @param shipmentIncrementId
+     * @param carrier
+     * @param carrierText
+     * @param trackingNumber
+     * @param sessionId
+     * @param magentoSOId
+     * @param otherInfo
+     * @param fulfillRec
+     * @returns {any}
+     */
+    public createTracking(shipmentIncrementId: string, carrier: string, carrierText: string, trackingNumber: string, sessionId: string,
+                          magentoSOId: string, otherInfo: any, fulfillRec: nlobjRecord) {
+        let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "shipment/track",
+            method: "POST",
+            postData: this.getShipmentTrackDataForExport(shipmentIncrementId, carrier, carrierText, trackingNumber, fulfillRec)
+        };
+
+        // Make Call and Get Data
+        let serverFinalResponse: any = {};
+
+        try {
+            let serverResponse: any = this.sendRequest(httpRequestData);
+
+            if (this.isNAE(serverResponse)) {
+                let shipment: SalesShipmentTrack = this.parseSalesShipmentTrackResponse(serverResponse);
+                serverFinalResponse.result = shipment.entity_id;
+                serverFinalResponse.status = true;
+                serverFinalResponse.faultCode = "";
+                serverFinalResponse.faultString = "";
+            } else {
+                serverFinalResponse.status = false;
+                serverFinalResponse.faultCode = "API_ERROR";
+                serverFinalResponse.faultString = this.getErrorMessage(serverResponse);
+                Utility.logDebug("Error in order response", JSON.stringify(serverResponse));
+            }
+
+            Utility.logDebug("Magento2 Wrapper: serverFinalResponse", JSON.stringify(serverFinalResponse));
+        } catch (e) {
+            serverFinalResponse.status = false;
+            serverFinalResponse.faultCode = "SERVER_ERROR";
+            serverFinalResponse.faultString = e.toString();
+
+            Utility.logException("Magento2 Wrapper: Error during createTracking", e);
+        }
+
+        return serverFinalResponse;
+    }
+
     /************** private methods **************/
 
     /**
@@ -499,7 +670,7 @@ class Magento2Wrapper {
             httpRequestData.headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + this.Password
+                "Authorization": "Bearer " + httpRequestData.accessToken
             };
         }
 
@@ -520,17 +691,41 @@ class Magento2Wrapper {
     }
 
     /**
+     * Check if response has an error
+     * @param serverResponse
+     * @returns {boolean}
+     */
+    private isNAE(serverResponse: any): boolean {
+        let isNotAnError = true;
+        if (!serverResponse) {
+            isNotAnError = false;
+        } else if (serverResponse.hasOwnProperty("message")) {
+            isNotAnError = false;
+        }
+        return isNotAnError;
+    }
+
+    /**
+     * Getting error message from response
+     * @param serverResponse
+     * @returns {string|Uint8Array}
+     */
+    private getErrorMessage(serverResponse: any): string {
+        return serverResponse.hasOwnProperty("message") ? serverResponse.message : "Unexpected Error";
+    }
+
+    /**
      * Parse Sales Order List response
      * @param orders
-     * @returns {Array<any>}
+     * @returns {{increment_id: string, order_id: string}[]}
      */
-    private parseSalesOrderListResponse(orders: any): Array<any> {
-        let ordersList: Array<any> = [];
+    private parseSalesOrderListResponse(orders: any): {increment_id: string, order_id: string}[] {
+        let ordersList: {increment_id: string, order_id: string}[] = [];
 
         for (let i = 0; i < orders.length; i++) {
             let order = {
                 increment_id: orders[i].increment_id,
-                order_id: orders[i].increment_id,
+                order_id: orders[i].increment_id
             };
 
             ordersList.push(order);
@@ -553,7 +748,7 @@ class Magento2Wrapper {
 
         obj.customer.increment_id = order.increment_id;
         obj.customer.order_number = order.increment_id;
-        obj.customer.order_id = order.order_id;
+        obj.customer.order_id = order.entity_id;
         obj.customer.created_at = order.created_at;
         obj.customer.customer_id = order.customer_id;
         obj.customer.firstname = order.customer_firstname;
@@ -654,36 +849,12 @@ class Magento2Wrapper {
     }
 
     /**
-     * Check if response has an error
-     * @param serverResponse
-     * @returns {boolean}
-     */
-    private isNAE(serverResponse: any): boolean {
-        let isNotAnError = true;
-        if (!serverResponse) {
-            isNotAnError = false;
-        } else if (serverResponse.hasOwnProperty("message")) {
-            isNotAnError = false;
-        }
-        return isNotAnError;
-    }
-
-    /**
-     * Getting error message from response
-     * @param serverResponse
-     * @returns {string|Uint8Array}
-     */
-    private getErrorMessage(serverResponse: any): string {
-        return serverResponse.hasOwnProperty("message") ? serverResponse.message : "Unexpected Error";
-    }
-
-    /**
      * Get Customer Information by Id
      * @param serverResponse
      * @returns {any}
      */
     private parseSingleCustomerResponse(serverResponse: Customer): Customer {
-        let customer: any = {};
+        let customer: Customer = {} as Customer;
 
         customer.id = serverResponse.id;
         customer.group_id = serverResponse.group_id;
@@ -739,37 +910,202 @@ class Magento2Wrapper {
 
         return address;
     }
+
+    /**
+     * Get Sales Order Shipment data for creating Shipment in Magento
+     * @param magentoSOId
+     * @param fulfillRec
+     * @returns {any}
+     */
+    private getShipmentDataForExport(magentoSOId: string, fulfillRec: nlobjRecord): any {
+        let shipmentData: any = {};
+        let entity: any = {};
+
+        entity.items = [];
+        // comments and tracks are not working due to Magento bug: https://github.com/magento/devdocs/issues/527
+        entity.comments = [];
+        // orderId is a mandatory field
+        entity.orderId = fulfillRec.getFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber);
+
+        let itemsCount: number = fulfillRec.getLineItemCount("item");
+        let lineItems: Array<{itemId: string , itemQty: string}> = [];
+        let comment = "";
+
+        for (let line = 1; line <= itemsCount; line++) {
+            let itemReceive: boolean = fulfillRec.getLineItemValue("item", "itemreceive", line) === "T";
+
+            if (itemReceive) {
+                let itemId = fulfillRec.getLineItemValue("item", ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
+                let itemQty = fulfillRec.getLineItemValue("item", "quantity", line);
+                let isSerialItem: boolean = fulfillRec.getLineItemValue("item", "isserialitem", 1) === "T";
+                let itemDescription: string = fulfillRec.getLineItemValue("item", "itemdescription", line);
+                let serialNumbers: string = fulfillRec.getLineItemValue("item", "serialnumbers", line);
+
+                comment = isSerialItem ? comment + "," + itemDescription + "=" + serialNumbers : comment = "-";
+
+                lineItems.push({
+                    itemId: itemId,
+                    itemQty: itemQty
+                });
+            }
+        }
+
+        lineItems.forEach(item => {
+            entity.items.push({
+                orderItemId: item.itemId,
+                qty: item.itemQty
+            });
+        });
+
+        // In Magento 1.x version comments were added in the create call.
+        // entity.comments.push({comment: comment});
+
+        shipmentData.entity = entity;
+
+        return shipmentData;
+    }
+
+    private parseSalesShipmentResponse(serverResponse: SalesShipment): SalesShipment {
+        let salesShipment: SalesShipment = {} as SalesShipment;
+
+        salesShipment.billing_address_id = serverResponse.billing_address_id;
+        salesShipment.created_at = serverResponse.created_at;
+        salesShipment.customer_id = serverResponse.customer_id;
+        salesShipment.entity_id = serverResponse.entity_id;
+        salesShipment.increment_id = serverResponse.increment_id;
+        salesShipment.order_id = serverResponse.order_id;
+        salesShipment.packages = serverResponse.packages;
+        salesShipment.shipping_address_id = serverResponse.shipping_address_id;
+        salesShipment.store_id = serverResponse.store_id;
+        salesShipment.total_qty = serverResponse.total_qty;
+        salesShipment.updated_at = serverResponse.updated_at;
+        salesShipment.items = [];
+        salesShipment.tracks = [];
+        salesShipment.comments = [];
+
+        let items = serverResponse.items || [];
+
+        items.forEach(item => {
+            salesShipment.items.push({
+                entity_id: item.entity_id,
+                name: item.name,
+                order_item_id: item.order_item_id,
+                parent_id: item.parent_id,
+                price: item.price,
+                product_id: item.product_id,
+                qty: item.qty,
+                sku: item.sku,
+                weight: item.weight
+            });
+        });
+
+        let tracks = serverResponse.tracks || [];
+
+        tracks.forEach(track => {
+            salesShipment.tracks.push({
+                carrier_code: track.carrier_code,
+                created_at: track.created_at,
+                description: track.description,
+                entity_id: track.entity_id,
+                order_id: track.order_id,
+                parent_id: track.parent_id,
+                qty: track.qty,
+                title: track.title,
+                track_number: track.track_number,
+                updated_at: track.updated_at,
+                weight: track.weight
+            });
+        });
+
+        let comments = serverResponse.comments || [];
+
+        comments.forEach(comment => {
+            salesShipment.comments.push({
+                comment: comment.comment,
+                created_at: comment.created_at,
+                entity_id: comment.entity_id,
+                is_customer_notified: comment.is_customer_notified,
+                is_visible_on_front: comment.is_visible_on_front,
+                parent_id: comment.parent_id
+            });
+        });
+
+        return salesShipment;
+    }
+
+    /**
+     * Get Carrier Code by Shipping Carrier & Method
+     * @param carrier
+     * @param carrierText
+     * @returns {string}
+     */
+    private getCarrier(carrier: string, carrierText: string) {
+        let carrierCode = "custom";
+        if (carrier === "ups") {
+            carrierCode = "ups";
+        } else {
+            carrierText = !!carrierText ? carrierText.toString().toLowerCase() : "";
+
+            let nonupsCarriers = ["usps", "dhl", "fedex", "dhlint"];
+
+            for (let i = 0; i < nonupsCarriers.length; i++) {
+                let nonupsCarrier = nonupsCarriers[i];
+                if (carrierText.indexOf("usps") !== -1) {
+                    carrierCode = nonupsCarrier;
+                    break;
+                }
+            }
+        }
+
+        return carrierCode;
+    }
+
+    /**
+     * Get Sales Order Shipment Track data for adding Rracking Number in Shipment in Magento
+     * @param shipmentIncrementId
+     * @param carrier
+     * @param carrierText
+     * @param trackingNumber
+     * @param fulfillRec
+     * @returns {any}
+     */
+    private getShipmentTrackDataForExport(shipmentIncrementId: string, carrier: string, carrierText: string, trackingNumber: string,
+                                          fulfillRec: nlobjRecord): any {
+        let shipmentData: any = {};
+        let entity: any = {};
+
+        // TODO: verify ids
+        entity.parentId = shipmentIncrementId;
+        entity.orderId = fulfillRec.getFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber);
+        entity.carrierCode = this.getCarrier(carrier, carrierText);
+        entity.title = carrierText;
+        entity.trackNumber = trackingNumber;
+
+        shipmentData.entity = entity;
+
+        return shipmentData;
+    }
+
+    /**
+     *
+     * @param serverResponse
+     * @returns {SalesShipmentTrack}
+     */
+    private parseSalesShipmentTrackResponse(serverResponse: SalesShipmentTrack): SalesShipmentTrack {
+        let salesShipmentTrack = {} as SalesShipmentTrack;
+
+        salesShipmentTrack.carrier_code = serverResponse.carrier_code;
+        salesShipmentTrack.created_at = serverResponse.created_at;
+        salesShipmentTrack.description = serverResponse.description;
+        salesShipmentTrack.entity_id = serverResponse.entity_id;
+        salesShipmentTrack.order_id = serverResponse.order_id;
+        salesShipmentTrack.parent_id = serverResponse.parent_id;
+        salesShipmentTrack.qty = serverResponse.qty;
+        salesShipmentTrack.title = serverResponse.title;
+        salesShipmentTrack.track_number = serverResponse.track_number;
+        salesShipmentTrack.updated_at = serverResponse.updated_at;
+        salesShipmentTrack.weight = serverResponse.weight;
+
+        return salesShipmentTrack;
+    }
 }
-
-
-/********************************************** HELP **********************************************
- *
- * Filters structure in get calls
- *
- {
-     "search_criteria":  {
-     "filter_groups":  [
-         {
-             "filters":  [
-                 {
-                     "field":  "attribute_name",
-                     "value":  [string|int|float],
-                     "condition_type":  [string]; optional
- }
-     more entries
- ]
- }
-     more entries
- ],
-     "current_page":  [int] page number; optional
-     "page_size":  [int] number of items on a page; optional
-     "sort_orders":  [ optional
-         {
-             "field":  "attribute_name",
-             "direction":  [int] -1 or 1
-         }
-         more entries
-     ]
- }
- }
- ********************************************** HELP ***********************************************/

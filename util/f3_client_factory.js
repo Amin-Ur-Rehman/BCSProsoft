@@ -318,7 +318,7 @@ function F3ClientBase() {
             rec.setFieldValue(magentoSyncId, 'T');
             rec.setFieldValue(magentoIdId, order.increment_id.toString());
             rec.setFieldValue('tranid', order.order_number);
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_number);
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
             rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
             //rec.setFieldValue('memo', 'Test Folio3');
 

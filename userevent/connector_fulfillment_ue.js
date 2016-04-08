@@ -111,7 +111,7 @@ var FulfillmentExportHelper = (function () {
                         otherInfo.auctionId = fulfillRec.getLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, p);
                         otherInfo.itemQty = fulfillRec.getLineItemValue('item', 'quantity', p);
 
-                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId, otherInfo);
+                        var responseTracking = ConnectorConstants.CurrentWrapper.createTracking(responseMagento.result, carrier, carrierText, tracking, sessionID, magentoSOId, otherInfo, fulfillRec);
                         if (!responseTracking.status) {
                             havingErrorInTrackingNumberExport = true;
                             errorTrackingNumberStr += responseTracking.faultString + ' - ' + responseTracking.faultCode;

@@ -27,6 +27,7 @@ declare class ConnectorConstants {
     public static CurrentStore: any;
     public static Item: any;
     public static ScrubsList: any;
+    public static Transaction: any;
 
     public static initializeScrubList(): void;
 }

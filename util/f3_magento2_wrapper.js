@@ -33,6 +33,7 @@ var Magento2Wrapper = (function () {
     Magento2Wrapper.prototype.test = function (id) {
         var serverResponse;
         var httpRequestData = {
+            accessToken: "",
             additionalUrl: "orders/" + id,
             data: {},
             method: "GET"
@@ -53,7 +54,7 @@ var Magento2Wrapper = (function () {
         }
     };
     /**
-     * Gets supported Date Format
+     * Get supported Date Format
      * @returns {string}
      */
     Magento2Wrapper.prototype.getDateFormat = function () {
@@ -63,7 +64,7 @@ var Magento2Wrapper = (function () {
      * Get token from Magento
      * @param userName
      * @param apiKey
-     * @returns {any}
+     * @returns {string}
      */
     Magento2Wrapper.prototype.getSessionIDFromServer = function (userName, apiKey) {
         // TODO:  Get the token using 2-ledge authentication
@@ -81,6 +82,7 @@ var Magento2Wrapper = (function () {
      */
     Magento2Wrapper.prototype.getSalesOrders = function (filters, sessionId) {
         var httpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "orders",
             method: "GET"
         };
@@ -125,6 +127,7 @@ var Magento2Wrapper = (function () {
      */
     Magento2Wrapper.prototype.getSalesOrderInfo = function (incrementId, sessionId) {
         var httpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "orders/" + incrementId,
             method: "GET"
         };
@@ -154,8 +157,9 @@ var Magento2Wrapper = (function () {
         }
         return serverFinalResponse;
     };
-    Magento2Wrapper.prototype.getCustomerById = function (customerId) {
+    Magento2Wrapper.prototype.getCustomerById = function (customerId, sessionId) {
         var httpRequestData = {
+            accessToken: sessionId,
             additionalUrl: "customers/" + customerId,
             method: "GET"
         };
@@ -194,7 +198,7 @@ var Magento2Wrapper = (function () {
     Magento2Wrapper.prototype.getCustomerAddress = function (customerId, sessionId) {
         var result = {};
         var customerAddresses = [];
-        var customerResponse = this.getCustomerById(customerId);
+        var customerResponse = this.getCustomerById(customerId, sessionId);
         if (customerResponse.status) {
             result.status = true;
             var customer = customerResponse.customer;
@@ -371,6 +375,94 @@ var Magento2Wrapper = (function () {
     Magento2Wrapper.prototype.getDiscount = function (salesOrderObj) {
         return salesOrderObj.order.discount_amount;
     };
+    /**
+     * Create Sales Order Shipment
+     * @param sessionId
+     * @param magentoItemIds
+     * @param magentoSOId
+     * @param fulfillRec
+     * @returns {any}
+     */
+    Magento2Wrapper.prototype.createFulfillment = function (sessionId, magentoItemIds, magentoSOId, fulfillRec) {
+        var httpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "shipment/",
+            method: "POST",
+            postData: this.getShipmentDataForExport(magentoSOId, fulfillRec)
+        };
+        // Make Call and Get Data
+        var serverFinalResponse = {};
+        try {
+            var serverResponse = this.sendRequest(httpRequestData);
+            if (this.isNAE(serverResponse)) {
+                var shipment = this.parseSalesShipmentResponse(serverResponse);
+                serverFinalResponse.result = shipment.entity_id;
+                serverFinalResponse.status = true;
+                serverFinalResponse.faultCode = "";
+                serverFinalResponse.faultString = "";
+            }
+            else {
+                serverFinalResponse.status = false;
+                serverFinalResponse.faultCode = "API_ERROR";
+                serverFinalResponse.faultString = this.getErrorMessage(serverResponse);
+                Utility.logDebug("Error in order response", JSON.stringify(serverResponse));
+            }
+            Utility.logDebug("Magento2 Wrapper: serverFinalResponse", JSON.stringify(serverFinalResponse));
+        }
+        catch (e) {
+            serverFinalResponse.status = false;
+            serverFinalResponse.faultCode = "SERVER_ERROR";
+            serverFinalResponse.faultString = e.toString();
+            Utility.logException("Magento2 Wrapper: Error during getCreateFulfillmentXML", e);
+        }
+        return serverFinalResponse;
+    };
+    /**
+     * Add Tracking Information in Sales Order Shipment
+     * @param shipmentIncrementId
+     * @param carrier
+     * @param carrierText
+     * @param trackingNumber
+     * @param sessionId
+     * @param magentoSOId
+     * @param otherInfo
+     * @param fulfillRec
+     * @returns {any}
+     */
+    Magento2Wrapper.prototype.createTracking = function (shipmentIncrementId, carrier, carrierText, trackingNumber, sessionId, magentoSOId, otherInfo, fulfillRec) {
+        var httpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "shipment/track",
+            method: "POST",
+            postData: this.getShipmentTrackDataForExport(shipmentIncrementId, carrier, carrierText, trackingNumber, fulfillRec)
+        };
+        // Make Call and Get Data
+        var serverFinalResponse = {};
+        try {
+            var serverResponse = this.sendRequest(httpRequestData);
+            if (this.isNAE(serverResponse)) {
+                var shipment = this.parseSalesShipmentTrackResponse(serverResponse);
+                serverFinalResponse.result = shipment.entity_id;
+                serverFinalResponse.status = true;
+                serverFinalResponse.faultCode = "";
+                serverFinalResponse.faultString = "";
+            }
+            else {
+                serverFinalResponse.status = false;
+                serverFinalResponse.faultCode = "API_ERROR";
+                serverFinalResponse.faultString = this.getErrorMessage(serverResponse);
+                Utility.logDebug("Error in order response", JSON.stringify(serverResponse));
+            }
+            Utility.logDebug("Magento2 Wrapper: serverFinalResponse", JSON.stringify(serverFinalResponse));
+        }
+        catch (e) {
+            serverFinalResponse.status = false;
+            serverFinalResponse.faultCode = "SERVER_ERROR";
+            serverFinalResponse.faultString = e.toString();
+            Utility.logException("Magento2 Wrapper: Error during createTracking", e);
+        }
+        return serverFinalResponse;
+    };
     /************** private methods **************/
     /**
      * This method is used to send the request to Magento2 from NetSuite and entertains every Rest API call
@@ -385,7 +477,7 @@ var Magento2Wrapper = (function () {
             httpRequestData.headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + this.Password
+                "Authorization": "Bearer " + httpRequestData.accessToken
             };
         }
         Utility.logDebug("httpRequestData = ", JSON.stringify(httpRequestData));
@@ -402,16 +494,39 @@ var Magento2Wrapper = (function () {
         return JSON.parse(body);
     };
     /**
+     * Check if response has an error
+     * @param serverResponse
+     * @returns {boolean}
+     */
+    Magento2Wrapper.prototype.isNAE = function (serverResponse) {
+        var isNotAnError = true;
+        if (!serverResponse) {
+            isNotAnError = false;
+        }
+        else if (serverResponse.hasOwnProperty("message")) {
+            isNotAnError = false;
+        }
+        return isNotAnError;
+    };
+    /**
+     * Getting error message from response
+     * @param serverResponse
+     * @returns {string|Uint8Array}
+     */
+    Magento2Wrapper.prototype.getErrorMessage = function (serverResponse) {
+        return serverResponse.hasOwnProperty("message") ? serverResponse.message : "Unexpected Error";
+    };
+    /**
      * Parse Sales Order List response
      * @param orders
-     * @returns {Array<any>}
+     * @returns {{increment_id: string, order_id: string}[]}
      */
     Magento2Wrapper.prototype.parseSalesOrderListResponse = function (orders) {
         var ordersList = [];
         for (var i = 0; i < orders.length; i++) {
             var order = {
                 increment_id: orders[i].increment_id,
-                order_id: orders[i].increment_id,
+                order_id: orders[i].increment_id
             };
             ordersList.push(order);
         }
@@ -428,7 +543,7 @@ var Magento2Wrapper = (function () {
         obj.customer = {};
         obj.customer.increment_id = order.increment_id;
         obj.customer.order_number = order.increment_id;
-        obj.customer.order_id = order.order_id;
+        obj.customer.order_id = order.entity_id;
         obj.customer.created_at = order.created_at;
         obj.customer.customer_id = order.customer_id;
         obj.customer.firstname = order.customer_firstname;
@@ -516,29 +631,6 @@ var Magento2Wrapper = (function () {
         return obj;
     };
     /**
-     * Check if response has an error
-     * @param serverResponse
-     * @returns {boolean}
-     */
-    Magento2Wrapper.prototype.isNAE = function (serverResponse) {
-        var isNotAnError = true;
-        if (!serverResponse) {
-            isNotAnError = false;
-        }
-        else if (serverResponse.hasOwnProperty("message")) {
-            isNotAnError = false;
-        }
-        return isNotAnError;
-    };
-    /**
-     * Getting error message from response
-     * @param serverResponse
-     * @returns {string|Uint8Array}
-     */
-    Magento2Wrapper.prototype.getErrorMessage = function (serverResponse) {
-        return serverResponse.hasOwnProperty("message") ? serverResponse.message : "Unexpected Error";
-    };
-    /**
      * Get Customer Information by Id
      * @param serverResponse
      * @returns {any}
@@ -589,37 +681,173 @@ var Magento2Wrapper = (function () {
         address.default_billing = serverAddress.hasOwnProperty("default_billing") ? serverAddress.default_billing : false;
         return address;
     };
+    /**
+     * Get Sales Order Shipment data for creating Shipment in Magento
+     * @param magentoSOId
+     * @param fulfillRec
+     * @returns {any}
+     */
+    Magento2Wrapper.prototype.getShipmentDataForExport = function (magentoSOId, fulfillRec) {
+        var shipmentData = {};
+        var entity = {};
+        entity.items = [];
+        // comments and tracks are not working due to Magento bug: https://github.com/magento/devdocs/issues/527
+        entity.comments = [];
+        // orderId is a mandatory field
+        entity.orderId = fulfillRec.getFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber);
+        var itemsCount = fulfillRec.getLineItemCount("item");
+        var lineItems = [];
+        var comment = "";
+        for (var line = 1; line <= itemsCount; line++) {
+            var itemReceive = fulfillRec.getLineItemValue("item", "itemreceive", line) === "T";
+            if (itemReceive) {
+                var itemId = fulfillRec.getLineItemValue("item", ConnectorConstants.Transaction.Columns.MagentoOrderId, line);
+                var itemQty = fulfillRec.getLineItemValue("item", "quantity", line);
+                var isSerialItem = fulfillRec.getLineItemValue("item", "isserialitem", 1) === "T";
+                var itemDescription = fulfillRec.getLineItemValue("item", "itemdescription", line);
+                var serialNumbers = fulfillRec.getLineItemValue("item", "serialnumbers", line);
+                comment = isSerialItem ? comment + "," + itemDescription + "=" + serialNumbers : comment = "-";
+                lineItems.push({
+                    itemId: itemId,
+                    itemQty: itemQty
+                });
+            }
+        }
+        lineItems.forEach(function (item) {
+            entity.items.push({
+                orderItemId: item.itemId,
+                qty: item.itemQty
+            });
+        });
+        // In Magento 1.x version comments were added in the create call.
+        // entity.comments.push({comment: comment});
+        shipmentData.entity = entity;
+        return shipmentData;
+    };
+    Magento2Wrapper.prototype.parseSalesShipmentResponse = function (serverResponse) {
+        var salesShipment = {};
+        salesShipment.billing_address_id = serverResponse.billing_address_id;
+        salesShipment.created_at = serverResponse.created_at;
+        salesShipment.customer_id = serverResponse.customer_id;
+        salesShipment.entity_id = serverResponse.entity_id;
+        salesShipment.increment_id = serverResponse.increment_id;
+        salesShipment.order_id = serverResponse.order_id;
+        salesShipment.packages = serverResponse.packages;
+        salesShipment.shipping_address_id = serverResponse.shipping_address_id;
+        salesShipment.store_id = serverResponse.store_id;
+        salesShipment.total_qty = serverResponse.total_qty;
+        salesShipment.updated_at = serverResponse.updated_at;
+        salesShipment.items = [];
+        salesShipment.tracks = [];
+        salesShipment.comments = [];
+        var items = serverResponse.items || [];
+        items.forEach(function (item) {
+            salesShipment.items.push({
+                entity_id: item.entity_id,
+                name: item.name,
+                order_item_id: item.order_item_id,
+                parent_id: item.parent_id,
+                price: item.price,
+                product_id: item.product_id,
+                qty: item.qty,
+                sku: item.sku,
+                weight: item.weight
+            });
+        });
+        var tracks = serverResponse.tracks || [];
+        tracks.forEach(function (track) {
+            salesShipment.tracks.push({
+                carrier_code: track.carrier_code,
+                created_at: track.created_at,
+                description: track.description,
+                entity_id: track.entity_id,
+                order_id: track.order_id,
+                parent_id: track.parent_id,
+                qty: track.qty,
+                title: track.title,
+                track_number: track.track_number,
+                updated_at: track.updated_at,
+                weight: track.weight
+            });
+        });
+        var comments = serverResponse.comments || [];
+        comments.forEach(function (comment) {
+            salesShipment.comments.push({
+                comment: comment.comment,
+                created_at: comment.created_at,
+                entity_id: comment.entity_id,
+                is_customer_notified: comment.is_customer_notified,
+                is_visible_on_front: comment.is_visible_on_front,
+                parent_id: comment.parent_id
+            });
+        });
+        return salesShipment;
+    };
+    /**
+     * Get Carrier Code by Shipping Carrier & Method
+     * @param carrier
+     * @param carrierText
+     * @returns {string}
+     */
+    Magento2Wrapper.prototype.getCarrier = function (carrier, carrierText) {
+        var carrierCode = "custom";
+        if (carrier === "ups") {
+            carrierCode = "ups";
+        }
+        else {
+            carrierText = !!carrierText ? carrierText.toString().toLowerCase() : "";
+            var nonupsCarriers = ["usps", "dhl", "fedex", "dhlint"];
+            for (var i = 0; i < nonupsCarriers.length; i++) {
+                var nonupsCarrier = nonupsCarriers[i];
+                if (carrierText.indexOf("usps") !== -1) {
+                    carrierCode = nonupsCarrier;
+                    break;
+                }
+            }
+        }
+        return carrierCode;
+    };
+    /**
+     * Get Sales Order Shipment Track data for adding Rracking Number in Shipment in Magento
+     * @param shipmentIncrementId
+     * @param carrier
+     * @param carrierText
+     * @param trackingNumber
+     * @param fulfillRec
+     * @returns {any}
+     */
+    Magento2Wrapper.prototype.getShipmentTrackDataForExport = function (shipmentIncrementId, carrier, carrierText, trackingNumber, fulfillRec) {
+        var shipmentData = {};
+        var entity = {};
+        // TODO: verify ids
+        entity.parentId = shipmentIncrementId;
+        entity.orderId = fulfillRec.getFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber);
+        entity.carrierCode = this.getCarrier(carrier, carrierText);
+        entity.title = carrierText;
+        entity.trackNumber = trackingNumber;
+        shipmentData.entity = entity;
+        return shipmentData;
+    };
+    /**
+     *
+     * @param serverResponse
+     * @returns {SalesShipmentTrack}
+     */
+    Magento2Wrapper.prototype.parseSalesShipmentTrackResponse = function (serverResponse) {
+        var salesShipmentTrack = {};
+        salesShipmentTrack.carrier_code = serverResponse.carrier_code;
+        salesShipmentTrack.created_at = serverResponse.created_at;
+        salesShipmentTrack.description = serverResponse.description;
+        salesShipmentTrack.entity_id = serverResponse.entity_id;
+        salesShipmentTrack.order_id = serverResponse.order_id;
+        salesShipmentTrack.parent_id = serverResponse.parent_id;
+        salesShipmentTrack.qty = serverResponse.qty;
+        salesShipmentTrack.title = serverResponse.title;
+        salesShipmentTrack.track_number = serverResponse.track_number;
+        salesShipmentTrack.updated_at = serverResponse.updated_at;
+        salesShipmentTrack.weight = serverResponse.weight;
+        return salesShipmentTrack;
+    };
     return Magento2Wrapper;
 }());
-/********************************************** HELP **********************************************
- *
- * Filters structure in get calls
- *
- {
-     "search_criteria":  {
-     "filter_groups":  [
-         {
-             "filters":  [
-                 {
-                     "field":  "attribute_name",
-                     "value":  [string|int|float],
-                     "condition_type":  [string]; optional
- }
-     more entries
- ]
- }
-     more entries
- ],
-     "current_page":  [int] page number; optional
-     "page_size":  [int] number of items on a page; optional
-     "sort_orders":  [ optional
-         {
-             "field":  "attribute_name",
-             "direction":  [int] -1 or 1
-         }
-         more entries
-     ]
- }
- }
- ********************************************** HELP ***********************************************/
 //# sourceMappingURL=f3_magento2_wrapper.js.map
