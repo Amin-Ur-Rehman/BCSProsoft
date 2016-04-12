@@ -98,13 +98,14 @@ ConnectorModels = (function () {
             address.country_id = shippingAddress.country_id;
             address.firstname = shippingAddress.firstname;
             address.lastname = shippingAddress.lastname;
-            address.postcode = shippingAddress.zip;
+            address.postcode = shippingAddress.postcode;
             address.region = shippingAddress.region;
             address.region_id = shippingAddress.region_id;
             address.street = shippingAddress.street;
-            address.telephone = shippingAddress.phone;
+            address.telephone = shippingAddress.telephone;
             address.is_default_billing = false;
             address.is_default_shipping = true;
+            address.company = shippingAddress.company;
 
             result[result.length] = address;
 
@@ -115,13 +116,14 @@ ConnectorModels = (function () {
             address.country_id = billingAddress.country_id;
             address.firstname = billingAddress.firstname;
             address.lastname = billingAddress.lastname;
-            address.postcode = billingAddress.zip;
+            address.postcode = billingAddress.postcode;
             address.region = billingAddress.region;
             address.region_id = billingAddress.region_id;
             address.street = billingAddress.street;
-            address.telephone = billingAddress.phone;
+            address.telephone = billingAddress.telephone;
             address.is_default_billing = true;
             address.is_default_shipping = false;
+            address.company = billingAddress.company;
 
             result[result.length] = address;
 

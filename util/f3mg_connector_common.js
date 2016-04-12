@@ -1401,16 +1401,24 @@ var ConnectorCommon = (function () {
                     if (isShipping === 'T') {
                         line = rec.findLineItemValue("addressbook", "defaultshipping", "T");
                         if (line > 0) {
-                            rec.setLineItemValue('addressbook', 'defaultshipping', line, "F");
+                            rec.selectLineItem("addressbook", line);
+                            rec.setCurrentLineItemValue('addressbook', 'defaultshipping', "F");
+                            rec.commitLineItem("addressbook");
                         }
-                        rec.setLineItemValue('addressbook', 'defaultshipping', t, isShipping);
+                        rec.selectLineItem("addressbook", t);
+                        rec.setCurrentLineItemValue('addressbook', 'defaultshipping', isShipping);
+                        rec.commitLineItem("addressbook");
                     }
                     if (isBilling === 'T') {
                         line = rec.findLineItemValue("addressbook", "defaultbilling", "T");
                         if (line > 0) {
-                            rec.setLineItemValue('addressbook', 'defaultbilling', line, "F");
+                            rec.selectLineItem("addressbook", line);
+                            rec.setCurrentLineItemValue('addressbook', 'defaultbilling', "F");
+                            rec.commitLineItem("addressbook");
                         }
-                        rec.setLineItemValue('addressbook', 'defaultbilling', t, isBilling);
+                        rec.selectLineItem("addressbook", t);
+                        rec.setCurrentLineItemValue('addressbook', 'defaultbilling', isBilling);
+                        rec.commitLineItem("addressbook");
                     }
                     Utility.logDebug('addressExists', "MATCHED");
                     return true;

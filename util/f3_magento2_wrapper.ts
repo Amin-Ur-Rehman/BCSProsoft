@@ -39,8 +39,8 @@ interface SalesShipmentPackages {
 }
 
 interface SalesShipmentItems {
-    additional_data: string;
-    description: string;
+    additional_data?: string;
+    description?: string;
     entity_id: number;
     name: string;
     order_item_id: number;
@@ -48,7 +48,7 @@ interface SalesShipmentItems {
     price: number;
     product_id: number;
     qty: number;
-    row_total: number;
+    row_total?: number;
     sku: string;
     weight: number;
     extension_attributes?: any;
@@ -653,6 +653,33 @@ class Magento2Wrapper {
         return serverFinalResponse;
     }
 
+    /**
+     * Create invoice in magento
+     * @param sessionId
+     * @param netsuiteInvoiceObj
+     * @param store
+     * @returns {string}
+     */
+    public createInvoice(sessionId: string, netsuiteInvoiceObj: any, store: any): any {
+        let magentoInvoiceCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
+        Utility.logDebug("magentoInvoiceCreationUrl_w", magentoInvoiceCreationUrl);
+
+        let dataObj = {
+            "increment_id": "",
+            "capture_online": ""
+        };
+        dataObj.increment_id = netsuiteInvoiceObj.otherSystemSOId;
+        let onlineCapturingPaymentMethod = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
+        dataObj.capture_online = onlineCapturingPaymentMethod.toString();
+        let requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
+        Utility.logDebug("requestParam", JSON.stringify(requestParam));
+        let resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, "POST");
+        let responseBody = resp.getBody();
+        Utility.logDebug("responseBody_w", responseBody);
+        responseBody = JSON.parse(responseBody);
+        return responseBody;
+    }
+
     /************** private methods **************/
 
     /**
@@ -1107,5 +1134,48 @@ class Magento2Wrapper {
         salesShipmentTrack.weight = serverResponse.weight;
 
         return salesShipmentTrack;
+    }
+
+    /**
+     * Check either payment of this Invoice should capture online or not
+     * @param netsuiteInvoiceObj
+     * @param store
+     * @returns {boolean}
+     */
+    private checkPaymentCapturingMode(netsuiteInvoiceObj: any, store: any): boolean {
+        let salesOrderId = netsuiteInvoiceObj.netsuiteSOId;
+        let isSOFromOtherSystem = netsuiteInvoiceObj.isSOFromOtherSystem;
+        let sOPaymentMethod = netsuiteInvoiceObj.sOPaymentMethod;
+        let isOnlineMethod = this.isOnlineCapturingPaymentMethod(sOPaymentMethod, store);
+        if (!!isSOFromOtherSystem && isSOFromOtherSystem == 'T' && isOnlineMethod) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Check either payment method capturing is online supported or not??
+     * @param sOPaymentMethodId
+     * @param store
+     * @returns {boolean}
+     */
+    private isOnlineCapturingPaymentMethod(sOPaymentMethodId: string, store: any): boolean {
+        let onlineSupported = false;
+        switch (sOPaymentMethodId) {
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Discover:
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.MasterCard:
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Visa:
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.AmericanExpress:
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.PayPal:
+            case store.entitySyncInfo.salesorder.netsuitePaymentTypes.EFT:
+                onlineSupported = true;
+                break;
+            default :
+                onlineSupported = false;
+                break;
+        }
+
+        return onlineSupported;
     }
 }

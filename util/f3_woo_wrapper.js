@@ -61,7 +61,7 @@ WooWrapper = (function () {
             localOrder.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.email = serverOrder.customer.email;
             localOrder.firstname = serverOrder.customer.first_name;
-            localOrder.middlename = ' ';
+            localOrder.middlename = '';
             localOrder.lastname = serverOrder.customer.last_name;
             localOrder.group_id = serverOrder.customer.customer_group_id;
             localOrder.prefix = '';
@@ -76,7 +76,7 @@ WooWrapper = (function () {
             localOrder.customer.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.customer.email = serverOrder.customer.email;
             localOrder.customer.firstname = serverOrder.customer.first_name;
-            localOrder.customer.middlename = ' ';
+            localOrder.customer.middlename = '';
             localOrder.customer.lastname = serverOrder.customer.last_name;
             localOrder.customer.group_id = serverOrder.customer.customer_group_id;
             localOrder.customer.prefix = '';
@@ -89,7 +89,10 @@ WooWrapper = (function () {
 
             localOrder.customer.discount_amount = serverOrder.total_discount.toString();
         }
+        // quick hack, woo returns state code, double mapping defined for code that's why it breaks
+        ConnectorConstants.initializeScrubList();
 
+        var address1, address2, region;
         if (serverOrder.shipping_address) {
             localOrder.shippingAddress.address_id = 0;
             localOrder.shippingAddress.city = serverOrder.shipping_address.city;
@@ -97,13 +100,17 @@ WooWrapper = (function () {
             localOrder.shippingAddress.firstname = serverOrder.shipping_address.first_name;
             localOrder.shippingAddress.lastname = serverOrder.shipping_address.last_name;
             localOrder.shippingAddress.postcode = serverOrder.shipping_address.postcode;
-            localOrder.shippingAddress.region = serverOrder.shipping_address.state;
-            localOrder.shippingAddress.region_id = serverOrder.shipping_address.state;
-            localOrder.shippingAddress.street = serverOrder.shipping_address.address_1 + ' ' + serverOrder.shipping_address.address_2;
+            region = FC_ScrubHandler.findValue("", "State", serverOrder.shipping_address.state);
+            localOrder.shippingAddress.region = region;
+            localOrder.shippingAddress.region_id = region;
+            address1 = !!serverOrder.shipping_address.address_1 ? serverOrder.shipping_address.address_1 : "";
+            address2 = !!serverOrder.shipping_address.address_2 ? serverOrder.shipping_address.address_2 : "";
+            localOrder.shippingAddress.street = (address1 + " " + address2).trim();
             localOrder.shippingAddress.telephone = "";
             // TODO: handle flag conditionally
             localOrder.shippingAddress.is_default_billing = false;
             localOrder.shippingAddress.is_default_shipping = true;
+            localOrder.shippingAddress.company = serverOrder.shipping_address.company || "";
         }
 
         if (serverOrder.billing_address) {
@@ -113,12 +120,16 @@ WooWrapper = (function () {
             localOrder.billingAddress.firstname = serverOrder.billing_address.first_name;
             localOrder.billingAddress.lastname = serverOrder.billing_address.last_name;
             localOrder.billingAddress.postcode = serverOrder.billing_address.postcode;
-            localOrder.billingAddress.region = serverOrder.billing_address.state;
-            localOrder.billingAddress.region_id = serverOrder.billing_address.state;
-            localOrder.billingAddress.street = serverOrder.billing_address.address_1 + ' ' + serverOrder.billing_address.address_2;
-            localOrder.billingAddress.telephone = serverOrder.billing_address.phone;
+            region = FC_ScrubHandler.findValue("", "State", serverOrder.billing_address.state);
+            localOrder.billingAddress.region = region;
+            localOrder.billingAddress.region_id = region;
+            address1 = !!serverOrder.billing_address.address_1 ? serverOrder.billing_address.address_1 : "";
+            address2 = !!serverOrder.billing_address.address_2 ? serverOrder.billing_address.address_2 : "";
+            localOrder.billingAddress.street = (address1 + " " + address2).trim();
+            localOrder.billingAddress.telephone = serverOrder.billing_address.phone || "";
             localOrder.billingAddress.is_default_billing = true;
             localOrder.billingAddress.is_default_shipping = false;
+            localOrder.billingAddress.company = serverOrder.shipping_address.company || "";
         }
 
         if (serverOrder.line_items && serverOrder.line_items.length > 0) {
@@ -274,8 +285,11 @@ WooWrapper = (function () {
         localAddress.firstname = serverAddress.first_name;
         localAddress.lastname = serverAddress.last_name;
         localAddress.postcode = serverAddress.zip;
-        localAddress.region = serverAddress.province;
-        localAddress.region_id = serverAddress.province;
+        // quick hack, woo returns state code, double mapping defined for code that's why it breaks
+        ConnectorConstants.initializeScrubList();
+        var region = FC_ScrubHandler.findValue("", "State", serverAddress.province);
+        localAddress.region = region;
+        localAddress.region_id = region;
         localAddress.street = serverAddress.address1;
         localAddress.telephone = serverAddress.phone;
 
