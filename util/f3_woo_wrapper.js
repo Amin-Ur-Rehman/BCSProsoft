@@ -44,6 +44,7 @@ WooWrapper = (function () {
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.order_number.toString();
         localOrder.customer.order_number = "UC-" + serverOrder.order_number.toString();
+        localOrder.customer.order_id = "UC-" + serverOrder.order_number.toString();
         localOrder.customer.updatedAt = serverOrder.updated_at;
         localOrder.customer.total = serverOrder.total;
         localOrder.customer.subtotal = serverOrder.subtotal;

@@ -258,16 +258,23 @@ var FulfillmentExport = (function () {
                     if (ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
                         ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status")) {
                         if (Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status)) {
+                            Utility.logDebug("step-07", "01");
                             if (type.toString() !== 'create') {
+                                Utility.logDebug("step-07", "02");
                                 return;
                             }
+                            Utility.logDebug("step-07", "03");
                         } else {
+                            Utility.logDebug("step-08", "01");
                             if (ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+                                Utility.logDebug("step-08", "02");
                                 return;
                             }
                         }
                     } else {
+                        Utility.logDebug("step-081", "01");
                         if (type.toString() !== 'create') {
+                            Utility.logDebug("step-081", "02");
                             return;
                         }
                     }
