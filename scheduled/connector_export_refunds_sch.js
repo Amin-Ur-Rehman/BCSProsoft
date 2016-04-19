@@ -162,6 +162,7 @@ var RefundExportHelper = (function () {
             creditMemoDataObject.items = [];
             var lineDiscount = 0;
             var adjustmentRefundItem = store.entitySyncInfo.cashrefund.adjustmentRefundItem;
+            var taxItem = store.entitySyncInfo.salesorder.TaxItem;
             Utility.logDebug('adjustmentRefundItem', adjustmentRefundItem);
             var adjustmentRefundAmount = 0;
             var cashSaleItemsArray = [];
@@ -178,7 +179,13 @@ var RefundExportHelper = (function () {
                     }
                 }
                 else {
+                    // adding tax amount to refund if custom tax line is added - assumption is only one tax line will
+                    // be found
+                    if (itemId === taxItem) {
+                        creditMemoDataObject.taxAmount = parseFloat(amount);
+                    } else {
                     adjustmentRefundAmount += parseFloat(amount);
+                    }
                 }
             }
             if (adjustmentRefundAmount > 0) {
@@ -445,6 +452,7 @@ var RefundExportHelper = (function () {
                     cashRefundDataObject.refundToStoreCreditAmount = '';// store id optional field know itself
                     cashRefundDataObject.paymentMethod = cashRefundRecord.getFieldValue('paymentmethod');
                     cashRefundDataObject.isSOFromOtherSystem = cashRefundRecord.getFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem);
+                    cashRefundDataObject.taxAmtRefund = cashRefundRecord.getFieldValue("taxtotal");
                     cashRefundDataObject.nsObj = cashRefundRecord;
 
                     this.appendItemsInDataObject(cashRefundRecord, cashRefundDataObject, store);
@@ -744,7 +752,7 @@ var ExportCustomerRefunds = (function () {
                         var sessionID = '';
                         Utility.logDebug('debug', 'Step-2');
 
-                        var records = RefundExportHelper.getRecords(store);
+                        records = RefundExportHelper.getRecords(store);
 
                         if (records !== null && records.length > 0) {
                             Utility.logDebug('fetched refunds count', records.length);
