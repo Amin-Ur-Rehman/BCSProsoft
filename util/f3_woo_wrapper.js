@@ -680,6 +680,8 @@ WooWrapper = (function () {
      * @param cashRefundObj
      */
     function calculateAmountToRefund(cashRefundObj) {
+        delete cashRefundObj.nsObj;
+        Utility.logDebug('calculateAmountToRefund', JSON.stringify(cashRefundObj));
         var totalAmountToRefund = 0;
         if (!!cashRefundObj.items && cashRefundObj.items.length > 0) {
             for (var i = 0; i < cashRefundObj.items.length; i++) {
@@ -693,6 +695,21 @@ WooWrapper = (function () {
         if (!!cashRefundObj.shippingCost) {
             totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
         }
+
+        if (cashRefundObj.hasOwnProperty("taxAmount")) {
+            var taxAmount = cashRefundObj.taxAmount;
+            if (taxAmount > 0) {
+                totalAmountToRefund += parseFloat(taxAmount);
+            }
+        }
+
+        if (cashRefundObj.hasOwnProperty("taxAmtRefund")) {
+            var taxAmtRefund = cashRefundObj.taxAmtRefund;
+            if (taxAmtRefund > 0) {
+                totalAmountToRefund += parseFloat(taxAmtRefund);
+            }
+        }
+
         return totalAmountToRefund;
     }
 
@@ -1805,69 +1822,74 @@ WooWrapper = (function () {
             return obj;
         },
 
-        getNsProductIdsByExtSysIds: function (magentoIds, enviornment) {
+        getNsProductIdsByExtSysIds: function (magentoIds, searchType) {
             var cols = [];
             var filterExpression = "";
             var resultArray = [];
             var result = {};
-            var magentoIdId;
-
-            if (enviornment === 'production') {
-                magentoIdId = 'custitem_magentoid';
-            } else {
-                //magentoIdId = 'custitem_magento_sku';
-                magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
-            }
+            var recs, x;
 
             result.errorMsg = '';
 
             try {
-                /*filterExpression = "[[";
-                 for (var x = 0; x < magentoIds.length; x++) {
-                 // multiple store handling
-                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
-                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
-                 if ((x + 1) < magentoIds.length) {
-                 filterExpression = filterExpression + ",'or' ,";
-                 }
-                 }
-                 filterExpression = filterExpression + ']';
-                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
-                 Utility.logDebug(' filterExpression', filterExpression);
-                 filterExpression = eval(filterExpression);
-                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
-                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
 
-                filterExpression = "[[";
-                for (var x = 0; x < magentoIds.length; x++) {
-                    // multiple store handling
-                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
-                    if ((x + 1) < magentoIds.length) {
-                        filterExpression = filterExpression + ",'or' ,";
+                if (searchType === "BY_MAP") {
+                    filterExpression = "[[";
+                    for (x = 0; x < magentoIds.length; x++) {
+                        // multiple store handling
+                        var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearching(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                        filterExpression = filterExpression + "['" + ConnectorConstants.Item.Fields.MagentoId + "','contains','" + magentoIdForSearching + "']";
+                        if ((x + 1) < magentoIds.length) {
+                            filterExpression = filterExpression + ",'or' ,";
+                        }
                     }
+                    filterExpression = filterExpression + ']';
+                    filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                    Utility.logDebug(' filterExpression', filterExpression);
+                    filterExpression = eval(filterExpression);
+                    cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                    recs = nlapiSearchRecord('item', null, filterExpression, cols);
                 }
-                filterExpression = filterExpression + ']';
-                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
-                Utility.logDebug(' filterExpression', filterExpression);
-                filterExpression = eval(filterExpression);
-                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
-                cols.push(new nlobjSearchColumn('itemid', null, null));
-                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+                else {
+                    filterExpression = "[[";
+                    for (x = 0; x < magentoIds.length; x++) {
+                        // multiple store handling
+                        filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                        if ((x + 1) < magentoIds.length) {
+                            filterExpression = filterExpression + ",'or' ,";
+                        }
+                    }
+                    filterExpression = filterExpression + ']';
+                    filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                    Utility.logDebug(' filterExpression', filterExpression);
+                    filterExpression = eval(filterExpression);
+                    cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                    cols.push(new nlobjSearchColumn('itemid', null, null));
+                    recs = nlapiSearchRecord('item', null, filterExpression, cols);
+                }
 
                 if (recs && recs.length > 0) {
                     for (var i = 0; i < recs.length; i++) {
                         var obj = {};
                         obj.internalId = recs[i].getId();
 
-                        var itemid = recs[i].getValue('itemid');
-                        if (!Utility.isBlankOrNull(itemid)) {
-                            var itemidArr = itemid.split(':');
-                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        var itemid;
+                        if (searchType === "BY_MAP") {
+                            var extSysJsonStr = recs[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                            itemid = ConnectorCommon.getMagentoIdFromObjArray(extSysJsonStr, ConnectorConstants.CurrentStore.systemId);
+                        } else {
+                            itemid = recs[i].getValue('itemid');
+                            if (!Utility.isBlankOrNull(itemid)) {
+                                var itemidArr = itemid.split(':');
+                                itemid = (itemidArr[itemidArr.length - 1]).trim();
+                            }
                         }
+
                         obj.magentoID = itemid;
                         resultArray[resultArray.length] = obj;
                     }
                 }
+
                 result.data = resultArray;
             } catch (ex) {
                 Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);

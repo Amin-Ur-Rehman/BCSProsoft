@@ -24,6 +24,9 @@ F3ClientFactory = (function () {
                 case "925507":
                     client = new F3FmwShopifyClient();
                     break;
+                case "938277":
+                    client = new F3KablaWooClient();
+                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -1377,6 +1380,40 @@ function F3FmwShopifyClient() {
         rec.setFieldValue("paypalauthid", "");
         rec.setFieldValue("paypaltranid", "");
         rec.setFieldValue("paypalstatus", "");
+
+        Utility.logDebug("F3BaseV1Client.setPayment", "End");
+    };
+
+    return currentClient;
+}
+
+
+function F3KablaWooClient() {
+    var currentClient = new F3ClientBase();
+
+    /**
+     * Set Payment Information in Sales Order
+     * @param rec
+     * @param payment
+     * @param netsuitePaymentTypes
+     * @param magentoCCSupportedPaymentTypes
+     */
+    currentClient.setPayment = function (rec, payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
+        Utility.logDebug("F3BaseV1Client.setPayment", "Start");
+        var paymentInfo = ConnectorConstants.CurrentWrapper.getPaymentInfo(payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes);
+
+        Utility.logDebug("External Payment", JSON.stringify(payment));
+        Utility.logDebug("paymentInfo", JSON.stringify(paymentInfo));
+
+        /*rec.setFieldValue("paymentmethod", paymentInfo.paymentmethod);
+         rec.setFieldValue("pnrefnum", paymentInfo.pnrefnum);
+         rec.setFieldValue("ccapproved", paymentInfo.ccapproved);
+         rec.setFieldValue("paypalauthid", paymentInfo.paypalauthid);*/
+
+        rec.setFieldValue("paymentmethod", "");
+        rec.setFieldValue("pnrefnum", "");
+        rec.setFieldValue("ccapproved", "");
+        rec.setFieldValue("paypalauthid", "");
 
         Utility.logDebug("F3BaseV1Client.setPayment", "End");
     };
