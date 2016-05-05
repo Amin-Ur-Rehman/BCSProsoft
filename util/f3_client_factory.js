@@ -848,7 +848,13 @@ function F3ClientBase() {
                 rec.setFieldValue('firstname', magentoCustomerObj.firstname);
                 rec.setFieldValue('middlename', magentoCustomerObj.middlename);
                 rec.setFieldValue('lastname', magentoCustomerObj.lastname);
-                var existingStores = rec.getFieldValues(ConnectorConstants.Entity.Fields.MagentoStore);
+                var _existingStores = rec.getFieldValues(ConnectorConstants.Entity.Fields.MagentoStore) || [];
+
+                // getFieldValues returns readonly array
+                var existingStores = [];
+                for (var i in _existingStores) {
+                    existingStores.push(_existingStores[i]);
+                }
 
                 if (existingStores instanceof Array) {
                     if (existingStores.indexOf(ConnectorConstants.CurrentStore.systemId) === -1) {
