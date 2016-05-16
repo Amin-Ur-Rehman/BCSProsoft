@@ -1,0 +1,79 @@
+
+<h2 class="view-heading">Export Categories</h2>
+
+
+<!--<br />-->
+<div>
+    <a ng-click="viewModel.execute();" class="btn btn-success btn-lg">Start Categories Export</a>
+</div>
+
+<br />
+
+<div class="alert alert-info" ng-if="!!viewModel.successMessage">
+
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close" ng-click="viewModel.hideAlert()">
+        <span aria-hidden="true">&times;</span>
+    </button>
+
+    <div ng-if="viewModel.executionStatus == 'QUEUED'">
+        The script has been queued for execution.
+    </div>
+
+    <div ng-if="viewModel.executionStatus == 'INQUEUE'">
+        <!--The script you requested is already in a queue and waiting to be run. This script cannot be requested
+        again until it finishes processing. If the script is INQUEUE,
+        you must try again later if you want to run the script.-->
+        The script you requested is already in a queue and waiting to be run.
+    </div>
+
+    <div ng-if="viewModel.executionStatus == 'INPROGRESS'">
+        The scheduled script is currently running.
+    </div>
+
+    <div ng-if="viewModel.executionStatus == 'SCHEDULED'">
+        The script's deployment status is set to scheduled and will be picked up and put into the execution queue.
+    </div>
+
+</div>
+
+<div class="alert alert-danger" ng-if="!!viewModel.errorMessage">
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close" ng-click="viewModel.hideAlert()">
+        <span aria-hidden="true">&times;</span>
+    </button>
+
+    An error has occurred. Please try again.
+</div>
+
+
+
+<div ng-show="viewModel.hasRecords">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <i class="icon-list padright_10"></i>Recent Synchronization History &nbsp; &nbsp;
+            <a ng-click="viewModel.loadGrid()" href="javascript:;">
+                <!--<i class="fa fa-refresh"></i>-->
+                <i class="sidebar-icon icon-refresh f20" ng-class="{'fa-spin': viewModel.loading }"></i>
+            </a>
+        </div>
+        <!--<h3 class="sub_hd">
+            Recent Synchronization History
+
+            &nbsp; &nbsp;
+            <a ng-click="viewModel.loadGrid()" href="javascript:;">
+                <!-<i class="fa fa-refresh"></i>->
+                <i class="sidebar-icon icon-refresh"></i>
+            </a>
+        </h3>-->
+        <div class="panel-body">
+            <div class=table-responsive>
+                <table id="jqGrid"></table>
+                <!--<div id="jqGrid" style="width: 100%; height: 550px;"></div>-->
+                <div id="jqGridPager"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-hide="viewModel.hasRecords" class="alert alert-info">
+    no records found.
+</div>
