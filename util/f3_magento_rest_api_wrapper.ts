@@ -19,84 +19,56 @@ class MagentoRestApiWrapper extends MagentoWrapper {
      * @param statuses
      * @param store
      */
-    public getSalesOrdersList(fromDate:string, statuses:Array<string>, store:any) {
-        var result:any = {};
+    public getSalesOrdersList(fromDate: string, statuses: Array<string>, store: any) {
+        let result: any = {};
         try {
-            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
 
-            var dataObj:any = {};
+            let dataObj: any = {};
             dataObj.fromDate = fromDate;
             dataObj.statuses = statuses;
-            var requestParam = {"apiMethod": "getSalesOrderList", "data": JSON.stringify(dataObj)};
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody:string = resp.getBody();
-            Utility.logDebug('getSalesOrdersList responseBody', responseBody);
+            let requestParam = {"apiMethod": "getSalesOrderList", "data": JSON.stringify(dataObj)};
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("getSalesOrdersList responseBody", responseBody);
 
-            var responseBodyData:any = JSON.parse(responseBody);
+            let responseBodyData: any = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
                 result.orders = this.getSalesOrderParsedData(responseBodyData.data.orders);
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
     }
 
-    public getItemInfo(productType:string, productId:string, identifierType:string, store:any) {
-        var result:any = {};
+    public getItemInfo(productType: string, productId: string, identifierType: string, store: any) {
+        let result: any = {};
         try {
-            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
-            var dataObj:any = {};
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
+            let dataObj: any = {};
             dataObj.productType = productType;
             dataObj.productId = productId;
             dataObj.identifierType = identifierType;
-            var requestParam = {"apiMethod": "getProductInfo", "data": JSON.stringify(dataObj)};
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody:string = resp.getBody();
-            Utility.logDebug('getItemInfo responseBody', responseBody);
+            let requestParam = {"apiMethod": "getProductInfo", "data": JSON.stringify(dataObj)};
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("getItemInfo responseBody", responseBody);
 
-            var responseBodyData:any = JSON.parse(responseBody);
+            let responseBodyData: any = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
                 result.product = this.getItemInfoParsedData(responseBodyData.data.product);
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
-    }
-
-    /**
-     * Error message response
-     * @param result
-     * @param errorMessage
-     */
-    private setErrorResponse(result:any, errorMessage:string) {
-        result.status = false;
-        result.faultCode = 'ERROR';
-        result.faultString = errorMessage;
-    }
-
-    /**
-     * Get Sales order parsed data
-     * @param soList
-     */
-    private getSalesOrderParsedData(soList:any) {
-        var soDataList:Array<any> = [];
-        for (var i = 0; i < soList.length; i++) {
-            var incrementalId:string = soList[i];
-            var obj:any = {};
-            obj.increment_id = incrementalId;
-            soDataList.push(obj);
-        }
-        return soDataList;
     }
 
     /**
@@ -106,28 +78,27 @@ class MagentoRestApiWrapper extends MagentoWrapper {
      * @param store
      * @returns {any}
      */
-    public assignAttributesToConfigurableProduct(productId:string, attributes:Array<any>, store:any) {
-        var result:any = {};
+    public assignAttributesToConfigurableProduct(productId: string, attributes: Array<any>, store: any) {
+        let result: any = {};
         try {
-            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
 
-            var dataObj:any = {};
+            let dataObj: any = {};
             dataObj.configurable_product_id = productId;
             dataObj.products_attributes = attributes;
-            var requestParam = {"apiMethod": "assignAttributesToConfigurableProduct", "data": JSON.stringify(dataObj)};
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody:string = resp.getBody();
-            Utility.logDebug('assignAttributesToConfigurableProduct responseBody', responseBody);
+            let requestParam = {"apiMethod": "assignAttributesToConfigurableProduct", "data": JSON.stringify(dataObj)};
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("assignAttributesToConfigurableProduct responseBody", responseBody);
 
-            var responseBodyData:any = JSON.parse(responseBody);
+            let responseBodyData: any = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
                 result.attributeAssignmentId = responseBodyData.data.assignment_id;
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
@@ -140,119 +111,144 @@ class MagentoRestApiWrapper extends MagentoWrapper {
      * @param store
      * @returns {any}
      */
-    public associateProductToConfigurableProduct(configProductId:string, simpleProductId:string, store:any) {
-        var result:any = {};
+    public associateProductToConfigurableProduct(configProductId: string, simpleProductId: string, store: any) {
+        let result: any = {};
         try {
-            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
 
-            var dataObj:any = {};
+            let dataObj: any = {};
             dataObj.configurable_product_id = configProductId;
             dataObj.simple_product_id = simpleProductId;
-            var requestParam = {
+            let requestParam = {
                 "apiMethod": "associateProductWithConfigurableProduct",
                 "data": JSON.stringify(dataObj)
             };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody:string = resp.getBody();
-            Utility.logDebug('associateProductWithConfigurableProduct responseBody', responseBody);
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("associateProductWithConfigurableProduct responseBody", responseBody);
 
-            var responseBodyData:any = JSON.parse(responseBody);
+            let responseBodyData: any = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
                 result.productAssociationId = responseBodyData.data.association_id;
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
     }
 
-    public reIndexProductsData(store:any) {
-        var result:any = {};
+    public reIndexProductsData(store: any) {
+        let result: any = {};
         try {
-            var customRestApiUrl:string = store.entitySyncInfo.common.customRestApiUrl;
-            var storeRootUrl:string = store.entitySyncInfo.item.storeRootPath;
-            var dataObj:any = {};
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
+            let storeRootUrl: string = store.entitySyncInfo.item.storeRootPath;
+            let dataObj: any = {};
             dataObj.store_root_path = storeRootUrl;
-            var requestParam = {"apiMethod": "reindexProductsData", "data": JSON.stringify(dataObj)};
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
-            var responseBody:string = resp.getBody();
-            Utility.logDebug('reindexProductsData responseBody', responseBody);
+            let requestParam = {"apiMethod": "reindexProductsData", "data": JSON.stringify(dataObj)};
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("reindexProductsData responseBody", responseBody);
 
-            var responseBodyData:any = JSON.parse(responseBody);
+            let responseBodyData: any = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
             } else {
                 this.setErrorResponse(result, responseBodyData.message);
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
     }
 
-    private getTierPrices(tierPrices:Array<any>) {
-        var result:Array<any> = [];
+    /**
+     * Error message response
+     * @param result
+     * @param errorMessage
+     */
+    private setErrorResponse(result: any, errorMessage: string) {
+        result.status = false;
+        result.faultCode = "ERROR";
+        result.faultString = errorMessage;
+    }
 
-        for (var i in tierPrices) {
-            var tierPrice = tierPrices[i];
-            result.push({
-                priceQty: tierPrice.price_qty,
-                price: tierPrice.price,
-            });
+    /**
+     * Get Sales order parsed data
+     * @param soList
+     */
+    private getSalesOrderParsedData(soList: any) {
+        let soDataList: Array<any> = [];
+        for (let i = 0; i < soList.length; i++) {
+            let incrementalId: string = soList[i];
+            let obj: any = {};
+            obj.increment_id = incrementalId;
+            soDataList.push(obj);
         }
+        return soDataList;
+    }
+
+    private getTierPrices(tierPrices: Array<any>) {
+        let result: Array<any> = [];
+
+        tierPrices.forEach(tierPrice => {
+            result.push({
+                price: tierPrice.price,
+                priceQty: tierPrice.price_qty,
+            });
+        });
+
         return result;
     }
 
-    private getConfigAttrParent(configurableAttributesAsArray:any) {
-        var result:any = [];
+    private getConfigAttrParent(configurableAttributesAsArray: Array<any>) {
+        let result: any = [];
         if (configurableAttributesAsArray instanceof Array) {
-            for (var i in configurableAttributesAsArray) {
-                var configurableAttribute = configurableAttributesAsArray[i];
-                var options = [];
-                var values = configurableAttribute.values;
+            configurableAttributesAsArray.forEach(configurableAttribute => {
+                let options = [];
+                let values: Array<any> = configurableAttribute.values;
                 if (values instanceof Array) {
-                    for (var v in values) {
-                        var value = values[v];
+                    values.forEach(value => {
                         options.push({
-                            label: value.label,
                             id: value.value_index,
+                            label: value.label,
                             pricingValue: value.pricing_value,
                         });
-                    }
+                    });
                 }
 
                 result.push({
-                    attributeId: configurableAttribute.attribute_id,
                     attributeCode: configurableAttribute.attribute_code,
+                    attributeId: configurableAttribute.attribute_id,
                     frontendLabel: configurableAttribute.frontend_label,
-                    storeLabel: configurableAttribute.store_label,
-                    options: options
+                    options: options,
+                    storeLabel: configurableAttribute.store_label
                 });
-            }
+
+            });
         }
+
         return result;
     }
 
-    private getConfigAttrChild(configurableAttributesAsArray:any, product:any) {
-        var result:any = [];
-        var configurableAttributes = configurableAttributesAsArray;
+    private getConfigAttrChild(configurableAttributesAsArray: any, product: any) {
+        let result: any = [];
+
+        let configurableAttributes: Array<any> = configurableAttributesAsArray;
         if (configurableAttributes instanceof Array) {
-            for (var i in configurableAttributes) {
-                var configurableAttribute = configurableAttributes[i];
-                var attributeCode = configurableAttribute.attributeCode;
+            configurableAttributes.forEach(configurableAttribute => {
+                let attributeCode = configurableAttribute.attributeCode;
                 result[attributeCode] = product[attributeCode];
-            }
+            });
         }
+
         return result;
     }
 
-    private getItemInfoParsedData(product:any):any {
-        var result:any = {};
+    private getItemInfoParsedData(product: any): any {
+        let result: any = {};
 
         result.type = product.type_id;
         result.attributeSetId = product.attribute_set_id;

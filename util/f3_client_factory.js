@@ -24,6 +24,9 @@ F3ClientFactory = (function () {
                 case "925507":
                     client = new F3FmwShopifyClient();
                     break;
+                case "938277":
+                    client = new F3KablaWooClient();
+                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -318,7 +321,7 @@ function F3ClientBase() {
             rec.setFieldValue(magentoSyncId, 'T');
             rec.setFieldValue(magentoIdId, order.increment_id.toString());
             rec.setFieldValue('tranid', order.order_number);
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_number);
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
             rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
             //rec.setFieldValue('memo', 'Test Folio3');
 
@@ -363,13 +366,8 @@ function F3ClientBase() {
                     rec.setLineItemValue('item', 'quantity', x + 1, products[x].qty_ordered);
 
                     // handling for custom product amount
-                    if (!!products[x].price && !!products[x].price && parseFloat(products[x].price) === parseFloat(products[x].original_price)) {
-                        // set price level 'List Price'
-                        rec.setLineItemValue('item', 'price', x + 1, 1);
-                    } else {
-                        rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
-                        rec.setLineItemValue('item', 'rate', x + 1, products[x].price);
-                    }
+                    rec.setLineItemValue('item', 'price', x + 1, customPriceLevel);
+                    rec.setLineItemValue('item', 'rate', x + 1, products[x].price);
 
                     if (products[x].product_type === ConnectorConstants.MagentoProductTypes.GiftCard
                         && !!products[x].product_options) {
@@ -707,6 +705,7 @@ function F3ClientBase() {
          * @return {Object}
          */
         createLeadInNetSuite: function (magentoCustomerObj, sessionID, isGuest) {
+            debugger;
             Utility.logDebug("this.createLeadInNetSuite", "Start");
             Utility.logDebug("magentoCustomerObj", JSON.stringify(magentoCustomerObj));
             Utility.logDebug("sessionID", JSON.stringify(sessionID));
@@ -796,6 +795,8 @@ function F3ClientBase() {
                 rec.setFieldValue('firstname', magentoCustomerObj.firstname);
                 rec.setFieldValue('middlename', magentoCustomerObj.middlename);
                 rec.setFieldValue('lastname', magentoCustomerObj.lastname);//TODO: check
+                rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+
                 //  rec.setFieldValue('salutation','');
 
 
@@ -827,6 +828,7 @@ function F3ClientBase() {
          * @return {Object}
          */
         updateCustomerInNetSuite: function (customerId, magentoCustomerObj, sessionID) {
+            debugger;
             Utility.logDebug("F3BaseV1Client.updateCustomerInNetSuite", "Start");
             Utility.logDebug("customerId", JSON.stringify(customerId));
             Utility.logDebug("magentoCustomerObj", JSON.stringify(magentoCustomerObj));
@@ -846,6 +848,23 @@ function F3ClientBase() {
                 rec.setFieldValue('firstname', magentoCustomerObj.firstname);
                 rec.setFieldValue('middlename', magentoCustomerObj.middlename);
                 rec.setFieldValue('lastname', magentoCustomerObj.lastname);
+                var _existingStores = rec.getFieldValues(ConnectorConstants.Entity.Fields.MagentoStore) || [];
+
+                // getFieldValues returns readonly array
+                var existingStores = [];
+                for (var i in _existingStores) {
+                    existingStores.push(_existingStores[i]);
+                }
+
+                if (existingStores instanceof Array) {
+                    if (existingStores.indexOf(ConnectorConstants.CurrentStore.systemId) === -1) {
+                        existingStores.push(ConnectorConstants.CurrentStore.systemId);
+                    }
+                } else {
+                    existingStores = "";
+                }
+
+                rec.setFieldValue(ConnectorConstants.Entity.Fields.MagentoStore, existingStores);
                 //  rec.setFieldValue('salutation','');
 
                 // set if customer is taxable or not
@@ -1367,6 +1386,40 @@ function F3FmwShopifyClient() {
         rec.setFieldValue("paypalauthid", "");
         rec.setFieldValue("paypaltranid", "");
         rec.setFieldValue("paypalstatus", "");
+
+        Utility.logDebug("F3BaseV1Client.setPayment", "End");
+    };
+
+    return currentClient;
+}
+
+
+function F3KablaWooClient() {
+    var currentClient = new F3ClientBase();
+
+    /**
+     * Set Payment Information in Sales Order
+     * @param rec
+     * @param payment
+     * @param netsuitePaymentTypes
+     * @param magentoCCSupportedPaymentTypes
+     */
+    currentClient.setPayment = function (rec, payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes) {
+        Utility.logDebug("F3BaseV1Client.setPayment", "Start");
+        var paymentInfo = ConnectorConstants.CurrentWrapper.getPaymentInfo(payment, netsuitePaymentTypes, magentoCCSupportedPaymentTypes);
+
+        Utility.logDebug("External Payment", JSON.stringify(payment));
+        Utility.logDebug("paymentInfo", JSON.stringify(paymentInfo));
+
+        /*rec.setFieldValue("paymentmethod", paymentInfo.paymentmethod);
+         rec.setFieldValue("pnrefnum", paymentInfo.pnrefnum);
+         rec.setFieldValue("ccapproved", paymentInfo.ccapproved);
+         rec.setFieldValue("paypalauthid", paymentInfo.paypalauthid);*/
+
+        rec.setFieldValue("paymentmethod", "");
+        rec.setFieldValue("pnrefnum", "");
+        rec.setFieldValue("ccapproved", "");
+        rec.setFieldValue("paypalauthid", "");
 
         Utility.logDebug("F3BaseV1Client.setPayment", "End");
     };

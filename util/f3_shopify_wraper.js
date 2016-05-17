@@ -901,6 +901,9 @@ ShopifyWrapper = (function () {
         if (nlapiGetLineItemCount('packagefedex') > 0) {
             packageCarrier = 'fedex';
         }
+        if (nlapiGetLineItemCount('packageusps') > 0) {
+            packageCarrier = 'usps';
+        }
         // get tracking numbers if exist
         totalPackages = nlapiGetLineItemCount('package' + packageCarrier);
         for (var p = 1; p <= totalPackages; p++) {
@@ -1679,6 +1682,8 @@ ShopifyWrapper = (function () {
                 case store.entitySyncInfo.salesorder.netsuitePaymentTypes.MasterCard:
                 case store.entitySyncInfo.salesorder.netsuitePaymentTypes.Visa:
                 case store.entitySyncInfo.salesorder.netsuitePaymentTypes.AmericanExpress:
+                case "7":
+                case 7:
                     onlineSupported = true;
                     break;
                 default :
@@ -1774,6 +1779,8 @@ ShopifyWrapper = (function () {
          * @param cashRefundObj
          */
         calculateAmountToRefund: function (cashRefundObj) {
+            delete cashRefundObj.nsObj;
+            Utility.logDebug('calculateAmountToRefund', JSON.stringify(cashRefundObj));
             var totalAmountToRefund = 0;
             if (!!cashRefundObj.items && cashRefundObj.items.length > 0) {
                 for (var i = 0; i < cashRefundObj.items.length; i++) {
@@ -1786,6 +1793,18 @@ ShopifyWrapper = (function () {
             }
             if (!!cashRefundObj.shippingCost) {
                 totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
+            }
+            if (cashRefundObj.hasOwnProperty("taxAmount")) {
+                var taxAmount = cashRefundObj.taxAmount;
+                if (taxAmount > 0) {
+                    totalAmountToRefund += parseFloat(taxAmount);
+                }
+            }
+            if (cashRefundObj.hasOwnProperty("taxAmtRefund")) {
+                var taxAmtRefund = cashRefundObj.taxAmtRefund;
+                if (taxAmtRefund > 0) {
+                    totalAmountToRefund += parseFloat(taxAmtRefund);
+                }
             }
             return totalAmountToRefund;
         },
