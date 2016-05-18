@@ -32,9 +32,9 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.fromDate = fromDate;
             dataObj.statuses = statuses;
             var requestParam = { "apiMethod": "getSalesOrderList", "data": JSON.stringify(dataObj) };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
             var responseBody = resp.getBody();
-            Utility.logDebug('getSalesOrdersList responseBody', responseBody);
+            Utility.logDebug("getSalesOrdersList responseBody", responseBody);
             var responseBodyData = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
@@ -58,9 +58,9 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.productId = productId;
             dataObj.identifierType = identifierType;
             var requestParam = { "apiMethod": "getProductInfo", "data": JSON.stringify(dataObj) };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
             var responseBody = resp.getBody();
-            Utility.logDebug('getItemInfo responseBody', responseBody);
+            Utility.logDebug("getItemInfo responseBody", responseBody);
             var responseBodyData = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
@@ -74,30 +74,6 @@ var MagentoRestApiWrapper = (function (_super) {
             this.setErrorResponse(result, ex.toString());
         }
         return result;
-    };
-    /**
-     * Error message response
-     * @param result
-     * @param errorMessage
-     */
-    MagentoRestApiWrapper.prototype.setErrorResponse = function (result, errorMessage) {
-        result.status = false;
-        result.faultCode = 'ERROR';
-        result.faultString = errorMessage;
-    };
-    /**
-     * Get Sales order parsed data
-     * @param soList
-     */
-    MagentoRestApiWrapper.prototype.getSalesOrderParsedData = function (soList) {
-        var soDataList = [];
-        for (var i = 0; i < soList.length; i++) {
-            var incrementalId = soList[i];
-            var obj = {};
-            obj.increment_id = incrementalId;
-            soDataList.push(obj);
-        }
-        return soDataList;
     };
     /**
      * Assign attributes to a configurable product
@@ -114,9 +90,9 @@ var MagentoRestApiWrapper = (function (_super) {
             dataObj.configurable_product_id = productId;
             dataObj.products_attributes = attributes;
             var requestParam = { "apiMethod": "assignAttributesToConfigurableProduct", "data": JSON.stringify(dataObj) };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
             var responseBody = resp.getBody();
-            Utility.logDebug('assignAttributesToConfigurableProduct responseBody', responseBody);
+            Utility.logDebug("assignAttributesToConfigurableProduct responseBody", responseBody);
             var responseBodyData = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
@@ -149,9 +125,9 @@ var MagentoRestApiWrapper = (function (_super) {
                 "apiMethod": "associateProductWithConfigurableProduct",
                 "data": JSON.stringify(dataObj)
             };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
             var responseBody = resp.getBody();
-            Utility.logDebug('associateProductWithConfigurableProduct responseBody', responseBody);
+            Utility.logDebug("associateProductWithConfigurableProduct responseBody", responseBody);
             var responseBodyData = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
@@ -174,9 +150,9 @@ var MagentoRestApiWrapper = (function (_super) {
             var dataObj = {};
             dataObj.store_root_path = storeRootUrl;
             var requestParam = { "apiMethod": "reindexProductsData", "data": JSON.stringify(dataObj) };
-            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, 'POST');
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
             var responseBody = resp.getBody();
-            Utility.logDebug('reindexProductsData responseBody', responseBody);
+            Utility.logDebug("reindexProductsData responseBody", responseBody);
             var responseBodyData = JSON.parse(responseBody);
             if (!!responseBodyData.status) {
                 result.status = true;
@@ -190,42 +166,63 @@ var MagentoRestApiWrapper = (function (_super) {
         }
         return result;
     };
+    /**
+     * Error message response
+     * @param result
+     * @param errorMessage
+     */
+    MagentoRestApiWrapper.prototype.setErrorResponse = function (result, errorMessage) {
+        result.status = false;
+        result.faultCode = "ERROR";
+        result.faultString = errorMessage;
+    };
+    /**
+     * Get Sales order parsed data
+     * @param soList
+     */
+    MagentoRestApiWrapper.prototype.getSalesOrderParsedData = function (soList) {
+        var soDataList = [];
+        for (var i = 0; i < soList.length; i++) {
+            var incrementalId = soList[i];
+            var obj = {};
+            obj.increment_id = incrementalId;
+            soDataList.push(obj);
+        }
+        return soDataList;
+    };
     MagentoRestApiWrapper.prototype.getTierPrices = function (tierPrices) {
         var result = [];
-        for (var i in tierPrices) {
-            var tierPrice = tierPrices[i];
+        tierPrices.forEach(function (tierPrice) {
             result.push({
+                price: tierPrice.price,
                 priceQty: tierPrice.price_qty,
-                price: tierPrice.price
             });
-        }
+        });
         return result;
     };
     MagentoRestApiWrapper.prototype.getConfigAttrParent = function (configurableAttributesAsArray) {
         var result = [];
         if (configurableAttributesAsArray instanceof Array) {
-            for (var i in configurableAttributesAsArray) {
-                var configurableAttribute = configurableAttributesAsArray[i];
+            configurableAttributesAsArray.forEach(function (configurableAttribute) {
                 var options = [];
                 var values = configurableAttribute.values;
                 if (values instanceof Array) {
-                    for (var v in values) {
-                        var value = values[v];
+                    values.forEach(function (value) {
                         options.push({
-                            label: value.label,
                             id: value.value_index,
-                            pricingValue: value.pricing_value
+                            label: value.label,
+                            pricingValue: value.pricing_value,
                         });
-                    }
+                    });
                 }
                 result.push({
-                    attributeId: configurableAttribute.attribute_id,
                     attributeCode: configurableAttribute.attribute_code,
+                    attributeId: configurableAttribute.attribute_id,
                     frontendLabel: configurableAttribute.frontend_label,
-                    storeLabel: configurableAttribute.store_label,
-                    options: options
+                    options: options,
+                    storeLabel: configurableAttribute.store_label
                 });
-            }
+            });
         }
         return result;
     };
@@ -233,11 +230,10 @@ var MagentoRestApiWrapper = (function (_super) {
         var result = [];
         var configurableAttributes = configurableAttributesAsArray;
         if (configurableAttributes instanceof Array) {
-            for (var i in configurableAttributes) {
-                var configurableAttribute = configurableAttributes[i];
+            configurableAttributes.forEach(function (configurableAttribute) {
                 var attributeCode = configurableAttribute.attributeCode;
                 result[attributeCode] = product[attributeCode];
-            }
+            });
         }
         return result;
     };
@@ -283,5 +279,5 @@ var MagentoRestApiWrapper = (function (_super) {
         return result;
     };
     return MagentoRestApiWrapper;
-})(MagentoWrapper);
+}(MagentoWrapper));
 //# sourceMappingURL=f3_magento_rest_api_wrapper.js.map

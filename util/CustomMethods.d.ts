@@ -3,9 +3,9 @@
  */
 
 declare class Utility {
-    static logDebug(title:string, description:string):void;
+    public static logDebug(title: string, description: string): void;
 
-    static logException(title:string, exception:any):void;
+    public static logException(title: string, exception: any): void;
 
     static logEmergency(title:string, description:string):void;
     
@@ -13,11 +13,11 @@ declare class Utility {
      * Check if value exist or not
      * @param str
      */
-    static isBlankOrNull(str:string):boolean;
+    public static isBlankOrNull(str: string): boolean;
 }
 
 declare class MagentoWrapper {
-
+    public static _nlapiRequestURL(url: any, postdata?: any, headers?: any, callback?: any, httpMethod?: any): any;
 }
 
 declare class ExternalSystemWrapper {
@@ -28,21 +28,33 @@ declare class ExternalSystemWrapper {
     public updateCategory(internalCategory:Category, magentoParentCategoryId, magentoCategoryId):any;
     public deleteCategory(id);
 }
-declare class ConnectorModels {
-    static salesOrderModel():void;
 
-    static productModel():void;
+declare class ConnectorModels {
+    public static salesOrderModel(): void;
+
+    public static productModel(): void;
 }
+
 declare class ConnectorConstants {
-    static CurrentStore:any;
+    public static CurrentStore: any;
+    public static Item: any;
+    public static ScrubsList: any;
+    public static Transaction: any;
+
+    public static initializeScrubList(): void;
     static initialize();
     static loadItemConfigRecords();
     static ExternalSystemConfig:Array<any>;
     static CurrentWrapper:ExternalSystemWrapper;
 }
+
 declare class ConnectorCommon {
     static createLogRec (recordId, requestData, recordType):any;
     static initiateEmailNotificationConfig():any;
+}
+
+declare class FC_ScrubHandler {
+    public static findValue(system: any, type: any, key: any): any;
 }
 
 declare interface BaseRecord {
@@ -105,7 +117,11 @@ declare interface Store {
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
+/**
+ * Interface of Request Data Object Object in Magento2
+ */
 interface HttpRequestData {
+    accessToken?: string;
     additionalUrl: string;
     method: HttpMethod;
     headers?: any;
@@ -116,5 +132,3 @@ interface HttpRequestData {
 interface KeyValue<T> {
     [s:string]: T;
 }
-
-type NetSuiteSOAPAction = "get";

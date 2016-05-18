@@ -44,6 +44,7 @@ WooWrapper = (function () {
         localOrder.customer = {};
         localOrder.customer.increment_id = serverOrder.order_number.toString();
         localOrder.customer.order_number = "UC-" + serverOrder.order_number.toString();
+        localOrder.customer.order_id = "UC-" + serverOrder.order_number.toString();
         localOrder.customer.updatedAt = serverOrder.updated_at;
         localOrder.customer.total = serverOrder.total;
         localOrder.customer.subtotal = serverOrder.subtotal;
@@ -61,7 +62,7 @@ WooWrapper = (function () {
             localOrder.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.email = serverOrder.customer.email;
             localOrder.firstname = serverOrder.customer.first_name;
-            localOrder.middlename = ' ';
+            localOrder.middlename = '';
             localOrder.lastname = serverOrder.customer.last_name;
             localOrder.group_id = serverOrder.customer.customer_group_id;
             localOrder.prefix = '';
@@ -76,7 +77,7 @@ WooWrapper = (function () {
             localOrder.customer.customer_id = serverOrder.customer.id == 0 ? "" : serverOrder.customer.id.toString();
             localOrder.customer.email = serverOrder.customer.email;
             localOrder.customer.firstname = serverOrder.customer.first_name;
-            localOrder.customer.middlename = ' ';
+            localOrder.customer.middlename = '';
             localOrder.customer.lastname = serverOrder.customer.last_name;
             localOrder.customer.group_id = serverOrder.customer.customer_group_id;
             localOrder.customer.prefix = '';
@@ -89,7 +90,10 @@ WooWrapper = (function () {
 
             localOrder.customer.discount_amount = serverOrder.total_discount.toString();
         }
+        // quick hack, woo returns state code, double mapping defined for code that's why it breaks
+        ConnectorConstants.initializeScrubList();
 
+        var address1, address2, region;
         if (serverOrder.shipping_address) {
             localOrder.shippingAddress.address_id = 0;
             localOrder.shippingAddress.city = serverOrder.shipping_address.city;
@@ -97,13 +101,17 @@ WooWrapper = (function () {
             localOrder.shippingAddress.firstname = serverOrder.shipping_address.first_name;
             localOrder.shippingAddress.lastname = serverOrder.shipping_address.last_name;
             localOrder.shippingAddress.postcode = serverOrder.shipping_address.postcode;
-            localOrder.shippingAddress.region = serverOrder.shipping_address.state;
-            localOrder.shippingAddress.region_id = serverOrder.shipping_address.state;
-            localOrder.shippingAddress.street = serverOrder.shipping_address.address_1 + ' ' + serverOrder.shipping_address.address_2;
+            region = FC_ScrubHandler.findValue("", "State", serverOrder.shipping_address.state);
+            localOrder.shippingAddress.region = region;
+            localOrder.shippingAddress.region_id = region;
+            address1 = !!serverOrder.shipping_address.address_1 ? serverOrder.shipping_address.address_1 : "";
+            address2 = !!serverOrder.shipping_address.address_2 ? serverOrder.shipping_address.address_2 : "";
+            localOrder.shippingAddress.street = (address1 + " " + address2).trim();
             localOrder.shippingAddress.telephone = "";
             // TODO: handle flag conditionally
             localOrder.shippingAddress.is_default_billing = false;
             localOrder.shippingAddress.is_default_shipping = true;
+            localOrder.shippingAddress.company = serverOrder.shipping_address.company || "";
         }
 
         if (serverOrder.billing_address) {
@@ -113,12 +121,16 @@ WooWrapper = (function () {
             localOrder.billingAddress.firstname = serverOrder.billing_address.first_name;
             localOrder.billingAddress.lastname = serverOrder.billing_address.last_name;
             localOrder.billingAddress.postcode = serverOrder.billing_address.postcode;
-            localOrder.billingAddress.region = serverOrder.billing_address.state;
-            localOrder.billingAddress.region_id = serverOrder.billing_address.state;
-            localOrder.billingAddress.street = serverOrder.billing_address.address_1 + ' ' + serverOrder.billing_address.address_2;
-            localOrder.billingAddress.telephone = serverOrder.billing_address.phone;
+            region = FC_ScrubHandler.findValue("", "State", serverOrder.billing_address.state);
+            localOrder.billingAddress.region = region;
+            localOrder.billingAddress.region_id = region;
+            address1 = !!serverOrder.billing_address.address_1 ? serverOrder.billing_address.address_1 : "";
+            address2 = !!serverOrder.billing_address.address_2 ? serverOrder.billing_address.address_2 : "";
+            localOrder.billingAddress.street = (address1 + " " + address2).trim();
+            localOrder.billingAddress.telephone = serverOrder.billing_address.phone || "";
             localOrder.billingAddress.is_default_billing = true;
             localOrder.billingAddress.is_default_shipping = false;
+            localOrder.billingAddress.company = serverOrder.shipping_address.company || "";
         }
 
         if (serverOrder.line_items && serverOrder.line_items.length > 0) {
@@ -274,8 +286,11 @@ WooWrapper = (function () {
         localAddress.firstname = serverAddress.first_name;
         localAddress.lastname = serverAddress.last_name;
         localAddress.postcode = serverAddress.zip;
-        localAddress.region = serverAddress.province;
-        localAddress.region_id = serverAddress.province;
+        // quick hack, woo returns state code, double mapping defined for code that's why it breaks
+        ConnectorConstants.initializeScrubList();
+        var region = FC_ScrubHandler.findValue("", "State", serverAddress.province);
+        localAddress.region = region;
+        localAddress.region_id = region;
         localAddress.street = serverAddress.address1;
         localAddress.telephone = serverAddress.phone;
 
@@ -665,6 +680,8 @@ WooWrapper = (function () {
      * @param cashRefundObj
      */
     function calculateAmountToRefund(cashRefundObj) {
+        delete cashRefundObj.nsObj;
+        Utility.logDebug('calculateAmountToRefund', JSON.stringify(cashRefundObj));
         var totalAmountToRefund = 0;
         if (!!cashRefundObj.items && cashRefundObj.items.length > 0) {
             for (var i = 0; i < cashRefundObj.items.length; i++) {
@@ -678,6 +695,21 @@ WooWrapper = (function () {
         if (!!cashRefundObj.shippingCost) {
             totalAmountToRefund += parseFloat(cashRefundObj.shippingCost);
         }
+
+        if (cashRefundObj.hasOwnProperty("taxAmount")) {
+            var taxAmount = cashRefundObj.taxAmount;
+            if (taxAmount > 0) {
+                totalAmountToRefund += parseFloat(taxAmount);
+            }
+        }
+
+        if (cashRefundObj.hasOwnProperty("taxAmtRefund")) {
+            var taxAmtRefund = cashRefundObj.taxAmtRefund;
+            if (taxAmtRefund > 0) {
+                totalAmountToRefund += parseFloat(taxAmtRefund);
+            }
+        }
+
         return totalAmountToRefund;
     }
 
@@ -1790,69 +1822,74 @@ WooWrapper = (function () {
             return obj;
         },
 
-        getNsProductIdsByExtSysIds: function (magentoIds, enviornment) {
+        getNsProductIdsByExtSysIds: function (magentoIds, searchType) {
             var cols = [];
             var filterExpression = "";
             var resultArray = [];
             var result = {};
-            var magentoIdId;
-
-            if (enviornment === 'production') {
-                magentoIdId = 'custitem_magentoid';
-            } else {
-                //magentoIdId = 'custitem_magento_sku';
-                magentoIdId = ConnectorConstants.Item.Fields.MagentoId;
-            }
+            var recs, x;
 
             result.errorMsg = '';
 
             try {
-                /*filterExpression = "[[";
-                 for (var x = 0; x < magentoIds.length; x++) {
-                 // multiple store handling
-                 var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearhing(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
-                 filterExpression = filterExpression + "['" + magentoIdId + "','contains','" + magentoIdForSearching + "']";
-                 if ((x + 1) < magentoIds.length) {
-                 filterExpression = filterExpression + ",'or' ,";
-                 }
-                 }
-                 filterExpression = filterExpression + ']';
-                 filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart"]]';
-                 Utility.logDebug(' filterExpression', filterExpression);
-                 filterExpression = eval(filterExpression);
-                 cols.push(new nlobjSearchColumn(magentoIdId, null, null));
-                 var recs = nlapiSearchRecord('item', null, filterExpression, cols);*/
 
-                filterExpression = "[[";
-                for (var x = 0; x < magentoIds.length; x++) {
-                    // multiple store handling
-                    filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
-                    if ((x + 1) < magentoIds.length) {
-                        filterExpression = filterExpression + ",'or' ,";
+                if (searchType === "BY_MAP") {
+                    filterExpression = "[[";
+                    for (x = 0; x < magentoIds.length; x++) {
+                        // multiple store handling
+                        var magentoIdForSearching = ConnectorCommon.getMagentoIdForSearching(ConnectorConstants.CurrentStore.systemId, magentoIds[x].product_id);
+                        filterExpression = filterExpression + "['" + ConnectorConstants.Item.Fields.MagentoId + "','contains','" + magentoIdForSearching + "']";
+                        if ((x + 1) < magentoIds.length) {
+                            filterExpression = filterExpression + ",'or' ,";
+                        }
                     }
+                    filterExpression = filterExpression + ']';
+                    filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                    Utility.logDebug(' filterExpression', filterExpression);
+                    filterExpression = eval(filterExpression);
+                    cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                    recs = nlapiSearchRecord('item', null, filterExpression, cols);
                 }
-                filterExpression = filterExpression + ']';
-                filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
-                Utility.logDebug(' filterExpression', filterExpression);
-                filterExpression = eval(filterExpression);
-                cols.push(new nlobjSearchColumn(magentoIdId, null, null));
-                cols.push(new nlobjSearchColumn('itemid', null, null));
-                var recs = nlapiSearchRecord('item', null, filterExpression, cols);
+                else {
+                    filterExpression = "[[";
+                    for (x = 0; x < magentoIds.length; x++) {
+                        // multiple store handling
+                        filterExpression = filterExpression + "['itemid','is','" + magentoIds[x].product_id + "']";
+                        if ((x + 1) < magentoIds.length) {
+                            filterExpression = filterExpression + ",'or' ,";
+                        }
+                    }
+                    filterExpression = filterExpression + ']';
+                    filterExpression += ',"AND",["type", "anyof", "InvtPart", "NonInvtPart", "GiftCert"]]';
+                    Utility.logDebug(' filterExpression', filterExpression);
+                    filterExpression = eval(filterExpression);
+                    cols.push(new nlobjSearchColumn(ConnectorConstants.Item.Fields.MagentoId, null, null));
+                    cols.push(new nlobjSearchColumn('itemid', null, null));
+                    recs = nlapiSearchRecord('item', null, filterExpression, cols);
+                }
 
                 if (recs && recs.length > 0) {
                     for (var i = 0; i < recs.length; i++) {
                         var obj = {};
                         obj.internalId = recs[i].getId();
 
-                        var itemid = recs[i].getValue('itemid');
-                        if (!Utility.isBlankOrNull(itemid)) {
-                            var itemidArr = itemid.split(':');
-                            itemid = (itemidArr[itemidArr.length - 1]).trim();
+                        var itemid;
+                        if (searchType === "BY_MAP") {
+                            var extSysJsonStr = recs[i].getValue(ConnectorConstants.Item.Fields.MagentoId);
+                            itemid = ConnectorCommon.getMagentoIdFromObjArray(extSysJsonStr, ConnectorConstants.CurrentStore.systemId);
+                        } else {
+                            itemid = recs[i].getValue('itemid');
+                            if (!Utility.isBlankOrNull(itemid)) {
+                                var itemidArr = itemid.split(':');
+                                itemid = (itemidArr[itemidArr.length - 1]).trim();
+                            }
                         }
+
                         obj.magentoID = itemid;
                         resultArray[resultArray.length] = obj;
                     }
                 }
+
                 result.data = resultArray;
             } catch (ex) {
                 Utility.logException('Error in getNetsuiteProductIdByMagentoId', ex);

@@ -25,7 +25,7 @@ var FeatureVerification = (function () {
         return isAllowed;
     };
     return FeatureVerification;
-})();
+}());
 var Features = (function () {
     function Features() {
     }
@@ -54,5 +54,5 @@ var Features = (function () {
     Features.EXPORT_PRICE_LEVEL_TO_EXTERNAL_SYSTEM = "EXPORT_PRICE_LEVEL_TO_EXTERNAL_SYSTEM";
     Features.EXPORT_PAYMENT_TERMS_TO_EXTERNAL_SYSTEM = "EXPORT_PAYMENT_TERMS_TO_EXTERNAL_SYSTEM";
     return Features;
-})();
+}());
 //# sourceMappingURL=f3_feature_verification.js.map

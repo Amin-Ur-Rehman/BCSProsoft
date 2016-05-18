@@ -8,6 +8,8 @@
 // Declaration of Existing Custom Libraries methods
 /// <reference path="../util/CustomMethods.d.ts" />
 
+type NetSuiteSOAPAction = "get";
+
 /**
  * Wrapper class for NetSuite SOAP API
  */
