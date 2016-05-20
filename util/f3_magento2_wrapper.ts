@@ -19,121 +19,8 @@
 // Declaration of Existing Custom Libraries methods
 /// <reference path="../util/CustomMethods.d.ts" />
 
-interface SalesShipmentTrack {
-    carrier_code: string;
-    created_at: string;
-    description: string;
-    entity_id: number;
-    order_id: number;
-    parent_id: number;
-    qty: number;
-    title: string;
-    track_number: string;
-    updated_at: string;
-    weight: number;
-    extension_attributes?: any;
-}
-
-interface SalesShipmentPackages {
-    extensionAttributes?: any;
-}
-
-interface SalesShipmentItems {
-    additional_data?: string;
-    description?: string;
-    entity_id: number;
-    name: string;
-    order_item_id: number;
-    parent_id: number;
-    price: number;
-    product_id: number;
-    qty: number;
-    row_total?: number;
-    sku: string;
-    weight: number;
-    extension_attributes?: any;
-}
-
-interface SalesShipmentComments {
-    comment: string;
-    created_at: string;
-    entity_id: number;
-    is_customer_notified: number;
-    is_visible_on_front: number;
-    parent_id: number;
-    extension_attributes?: any;
-}
-
-interface SalesShipment {
-    billing_address_id: number;
-    created_at: string;
-    customer_id: number;
-    email_sent: number;
-    entity_id: number;
-    increment_id: string;
-    order_id: number;
-    shipment_status: number;
-    shipping_address_id: number;
-    shipping_label: string;
-    store_id: number;
-    total_qty: number;
-    total_weight: number;
-    updated_at: string;
-    extension_attributes?: any;
-    packages: SalesShipmentPackages[];
-    items: SalesShipmentItems[];
-    tracks: SalesShipmentTrack[];
-    comments: SalesShipmentComments[];
-}
-
-/**
- * Interface of Customer Object in Magento2
- */
-interface Customer {
-    id: number;
-    group_id: number;
-    default_billing: string;
-    default_shipping: string;
-    created_at: string;
-    updated_at: string;
-    created_in: string;
-    email: string;
-    firstname: string;
-    lastname: string;
-    gender: number;
-    store_id: number;
-    website_id: number;
-    addresses: CustomerAddress[];
-    disable_auto_group_change: number;
-}
-
-/**
- * Interface of Region of Address of Customer Object in Magento2
- */
-interface Region {
-    region_code: string;
-    region: string;
-    region_id: number;
-}
-
-/**
- * Interface of Address of Customer Object in Magento2
- */
-interface  CustomerAddress {
-    id: number;
-    customer_id: number;
-    region: Region;
-    region_id: number;
-    country_id: string;
-    street: string[];
-    telephone: string;
-    postcode: string;
-    city: string;
-    firstname: string;
-    lastname: string;
-    default_shipping?: boolean;
-    default_billing?: boolean;
-}
+// Declaration of Magento2 Interfaces
+/// <reference path="../util/f3_magento2_interfaces.d.ts" />
 
 /**
  * Wrapper class for Magento2 REST API
@@ -221,16 +108,22 @@ class Magento2Wrapper {
             additionalUrl: "orders",
             method: "GET"
         };
-        httpRequestData.additionalUrl += "?";
-
-        httpRequestData.additionalUrl += "searchCriteria[filterGroups][0][filters][0][field]=" + "status";
-        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][0][value]=" + filters.orderStatus.join(",");
-        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][0][condition_type]=" + "in";
-
-        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][field]=" + "updated_at";
-        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][value]=" + filters.updateDate;
-        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][condition_type]=" + "gt";
-
+        httpRequestData.additionalUrl += "?" + Magento2WrapperUtility.toParamStrings({
+            searchCriteria: {
+                filterGroups: [{
+                    filters: [{
+                        field: Magento2Constants.filter.fields.status,
+                        value: ['pending'].join(","), // TODO: use following one for fixed magent2 version (>2.1.0)
+                        // value: filters.orderStatus.join(","),
+                        condition_type: Magento2Constants.filter.condition_types.in
+                    }, {
+                        field: Magento2Constants.filter.fields.updated_at,
+                        value: filters.updateDate,
+                        condition_type: Magento2Constants.filter.condition_types.gt
+                    }]
+                }]
+            }
+        }).join("&");
 
         // Make Call and Get Data
         let serverFinalResponse: any = {};
@@ -263,23 +156,28 @@ class Magento2Wrapper {
     }
 
     /**
+     *
+     */
+    private getSalesOrder(entityId:number|string, sessionId) {
+        let httpRequestData: HttpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "orders/" + entityId,
+            method: "GET"
+        };
+        return this.sendRequest(httpRequestData);
+    }
+    /**
      * Get Sales Order Information
      * @param incrementId
      * @param [sessionId]
      * @returns {any}
      */
-    public getSalesOrderInfo(incrementId: number|string, sessionId?: string): any {
-        let httpRequestData: HttpRequestData = {
-            accessToken: sessionId,
-            additionalUrl: "orders/" + incrementId,
-            method: "GET"
-        };
-
+    public getSalesOrderInfo(entityId: number|string, sessionId?: string): any {
         // Make Call and Get Data
         let serverFinalResponse: any = {};
 
         try {
-            let serverResponse: any = this.sendRequest(httpRequestData);
+            let serverResponse: any = this.getSalesOrder(entityId, sessionId);
 
             if (this.isNAE(serverResponse)) {
                 serverFinalResponse = this.parseSingleSalesOrderResponse(serverResponse);
@@ -646,30 +544,90 @@ class Magento2Wrapper {
     }
 
     /**
-     * Create invoice in magento
+     * parse response in case of successful payment capturing
+     * @param serverResponse
+     */
+    public parseInvoiceSuccessResponse(serverResponse):any {
+        return {
+            status: 1,
+            message: serverResponse.message || '',
+            data: {
+                increment_id: serverResponse.increment_id.toString() || '',
+                id: serverResponse.entity_id.toString() || ''
+            }
+        };
+    }
+
+    /**
+     * parse response in case of failure occured in payment capturing
+     * @param serverResponse
+     */
+    public parseInvoiceFailureResponse(serverResponse):any {
+        return {
+            status: 0,
+            message: serverResponse.message || ''
+        };
+    }
+
+    /**
+     * Create invoice in magento2
      * @param sessionId
      * @param netsuiteInvoiceObj
      * @param store
      * @returns {string}
      */
     public createInvoice(sessionId: string, netsuiteInvoiceObj: any, store: any): any {
-        let magentoInvoiceCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
-        Utility.logDebug("magentoInvoiceCreationUrl_w", magentoInvoiceCreationUrl);
-
-        let dataObj = {
-            "increment_id": "",
-            "capture_online": ""
+        var responseBody:any = {
+            status: 0
         };
-        dataObj.increment_id = netsuiteInvoiceObj.otherSystemSOId;
-        let onlineCapturingPaymentMethod = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
-        dataObj.capture_online = onlineCapturingPaymentMethod.toString();
-        let requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
-        Utility.logDebug("requestParam", JSON.stringify(requestParam));
-        let resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, "POST");
-        let responseBody = resp.getBody();
-        Utility.logDebug("responseBody_w", responseBody);
-        responseBody = JSON.parse(responseBody);
+        var shouldCaptureAmount = 1;//this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
+        if (!!shouldCaptureAmount) {
+            var orderId = netsuiteInvoiceObj.otherSystemSONumber;
+            var salesOrder = this.getSalesOrder(orderId, sessionId);
+            var httpRequestData:HttpRequestData = {
+                accessToken: sessionId,
+                additionalUrl: 'invoices',
+                method: 'POST',
+                postData: {
+                    entity: Magento2WrapperUtility.toInvoiceForCreateInvoice(salesOrder)
+                }
+            };
+
+            var serverResponse = this.sendRequest(httpRequestData);
+            if (!!serverResponse.entity_id) {
+                responseBody = this.parseInvoiceSuccessResponse(serverResponse);
+            } else {
+                responseBody = this.parseInvoiceFailureResponse(serverResponse);
+            }
+        } else {
+            responseBody = {
+                status: 1,
+                message: '',
+                data: {
+                    increment_id: '',
+                    entity_id: ''
+                }
+            }
+        }
         return responseBody;
+        //
+        // let magentoInvoiceCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
+        // Utility.logDebug("magentoInvoiceCreationUrl_w", magentoInvoiceCreationUrl);
+        //
+        // let dataObj = {
+        //     "increment_id": "",
+        //     "capture_online": ""
+        // };
+        // dataObj.increment_id = netsuiteInvoiceObj.otherSystemSOId;
+        // let onlineCapturingPaymentMethod = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
+        // dataObj.capture_online = onlineCapturingPaymentMethod.toString();
+        // let requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
+        // Utility.logDebug("requestParam", JSON.stringify(requestParam));
+        // let resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, "POST");
+        // let responseBody = resp.getBody();
+        // Utility.logDebug("responseBody_w", responseBody);
+        // responseBody = JSON.parse(responseBody);
+        // return responseBody;
     }
 
     /**
@@ -797,7 +755,7 @@ class Magento2Wrapper {
      * @param httpRequestData
      * @returns {any}
      */
-    private sendRequest(httpRequestData: HttpRequestData): void {
+    private sendRequest(httpRequestData: HttpRequestData) {
         let finalUrl = this.serverUrl + httpRequestData.additionalUrl;
         Utility.logDebug("Request final = ", finalUrl);
         let res = null;
@@ -860,7 +818,7 @@ class Magento2Wrapper {
         for (let i = 0; i < orders.length; i++) {
             let order = {
                 increment_id: orders[i].increment_id,
-                order_id: orders[i].increment_id
+                order_id: orders[i].entity_id
             };
 
             ordersList.push(order);
@@ -1289,52 +1247,6 @@ class Magento2Wrapper {
 }
 
 /**
- * Interface for each of custom_attribute item
- */
-interface Magento2CustomAttribute {
-    attribute_code: string;
-    value;
-}
-
-/**
- * Key value interface to help create custom_attributes
- */
-interface Magento2CustomAttributeValues {
-    description?;
-    meta_title?;
-    meta_keywords?;
-    meta_description?;
-    display_mode?;
-    is_anchor?;
-    path?;
-    children_count?;
-    custom_use_parent_settings?;
-    custom_apply_to_products?;
-    url_key?;
-    url_path?;
-}
-
-/**
- * Interface for category in Magento2
- */
-interface Magento2Category {
-    id?;
-    parent_id;
-    name: string;
-    is_active: boolean;
-    position?;
-    level?;
-    children?: string;
-    created_at?: string;
-    updated_at?: string;
-    path?: string;
-    available_sort_by?: Array<any>;
-    include_in_menu?: boolean;
-    extension_attributes?: any;
-    custom_attributes?: Array<Magento2CustomAttribute>;
-}
-
-/**
  * Provides utility functions for Magento2Wrapper class
  */
 class Magento2WrapperUtility {
@@ -1401,5 +1313,114 @@ class Magento2WrapperUtility {
         if (magentoCategoryId) magentoCategory.id = magentoCategoryId;
 
         return magentoCategory;
+    }
+
+    public static toParamStrings(requestParams:Magento2RequestParams) {
+        var arr = [];
+        function parse(obj, pre) {
+            if (typeof obj == "string" || typeof obj == "number") {
+                arr.push(pre+"="+obj);
+            }
+            else {
+                for (var key in obj) {
+                    parse(obj[key], pre+"["+key+"]");
+                }
+            }
+        }
+
+        for (var key in requestParams) {
+            parse(requestParams[key], key);
+        }
+
+        return arr;
+    }
+    
+    public static toInvoiceForCreateInvoice(salesOrder:Magento2SalesOrder) {
+        var items = salesOrder.items;
+        var invoiceItems:Array<Magento2InvoiceItem> = [];
+    
+        for (var i = 0; i < items.length; ++i) {
+            var item = items[i];
+    
+            var invoiceItem:Magento2InvoiceItem = {
+                order_item_id: item.item_id,
+                qty: item.qty_ordered,
+                price: item.price,
+                price_incl_tax: item.price_incl_tax,
+                base_cost: item.base_cost,
+                base_discount_amount: item.base_discount_amount,
+                base_discount_tax_compensation_amount: item.base_discount_tax_compensation_amount,
+                base_price: item.base_price,
+                base_price_incl_tax: item.base_price_incl_tax,
+                base_row_total: item.base_row_total,
+                base_row_total_incl_tax: item.base_row_total_incl_tax,
+                base_tax_amount: item.base_tax_amount,
+                discount_amount: item.discount_amount,
+                discount_tax_compensation_amount: item.discount_tax_compensation_amount,
+                name: item.name,
+                product_id: item.product_id,
+                row_total: item.row_total,
+                row_total_incl_tax: item.row_total_incl_tax,
+                sku: item.sku,
+                tax_amount: item.tax_amount
+            }
+    
+            invoiceItems.push(invoiceItem);
+        }
+        
+        return {
+            order_id: salesOrder.entity_id,
+            base_currency_code: salesOrder.base_currency_code,
+            base_discount_amount: salesOrder.base_discount_amount,
+            base_grand_total: salesOrder.base_grand_total,
+            base_discount_tax_compensation_amount: salesOrder.base_discount_tax_compensation_amount,
+            base_shipping_amount: salesOrder.base_shipping_amount,
+            base_shipping_discount_tax_compensation_amnt: salesOrder.base_shipping_discount_tax_compensation_amnt,
+            base_shipping_incl_tax: salesOrder.base_shipping_incl_tax,
+            base_shipping_tax_amount: salesOrder.base_shipping_tax_amount,
+            base_subtotal: salesOrder.base_subtotal,
+            base_subtotal_incl_tax: salesOrder.base_subtotal_incl_tax,
+            base_tax_amount: salesOrder.base_tax_amount,
+            base_to_global_rate: salesOrder.base_to_global_rate,
+            base_to_order_rate: salesOrder.base_to_order_rate,
+            billing_address_id: salesOrder.billing_address_id,
+            discount_amount: salesOrder.discount_amount,
+            global_currency_code: salesOrder.global_currency_code,
+            grand_total: salesOrder.grand_total,
+            discount_tax_compensation_amount: salesOrder.discount_tax_compensation_amount,
+            order_currency_code: salesOrder.order_currency_code,
+    
+            // shipping_address_id: ??,
+            shipping_amount: salesOrder.shipping_amount,
+            shipping_discount_tax_compensation_amount: salesOrder.shipping_discount_tax_compensation_amount,
+            shipping_incl_tax: salesOrder.shipping_incl_tax,
+            shipping_tax_amount: salesOrder.shipping_tax_amount,
+    
+            state: salesOrder.state,
+            store_currency_code: salesOrder.store_currency_code,
+            store_id: salesOrder.store_id,
+            subtotal: salesOrder.subtotal,
+            subtotal_incl_tax: salesOrder.subtotal_incl_tax,
+            tax_amount: salesOrder.tax_amount,
+            total_qty: salesOrder.total_qty_ordered,
+            updated_at: salesOrder.updated_at,
+            items: invoiceItems
+        };
+    }
+}
+
+/**
+ * Constants for Magento2 REST API
+ */
+class Magento2Constants {
+    public static filter = {
+        fields: {
+            status: 'status',
+            updated_at: 'updated_at',
+        },
+        condition_types: {
+            in: 'in',
+            gt: 'gt'
+        }
     }
 }

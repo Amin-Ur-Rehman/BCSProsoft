@@ -93,7 +93,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     var nsId;
                     var isUpdated = false;
 
-                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
+                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].order_id, sessionID);
                     Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
 
                     // Could not fetch sales order information from Magento

@@ -27,6 +27,11 @@ declare class ExternalSystemWrapper {
     public createCategory(internalCategory:Category, magentoParentCategoryId):any;
     public updateCategory(internalCategory:Category, magentoParentCategoryId, magentoCategoryId):any;
     public deleteCategory(id);
+    public getDateFormat();
+    public getSalesOrders(filters: any, sessionId?: string):any;
+    public getSalesOrderInfo(incrementId: number|string, sessionId?: string): any;
+    public getNsProductIdsByExtSysIds(magentoIds: Array<any>, enviornment: any): any;
+    public createInvoice(sessionId: string, netsuiteInvoiceObj: any, store: any): any;
 }
 
 declare class ConnectorModels {
@@ -101,6 +106,28 @@ declare interface StoreNetSuite {
     soapPassport?:NetSuiteSOAPPassport;
 }
 
+declare interface StoreEntitySyncInfoCommon {
+    emailFrom?:any;
+    emailTo?:any;
+    logInCustomRecord?:any;
+    sendEmail?:any;
+    landingUrls?:any;
+    customRestApiUrl:any;
+}
+declare interface StoreEntitySyncInfo {
+    salesorder?:any;
+    customer?:any;
+    cashrefund?:any;
+    item?:any;
+    promotioncode?:any;
+    giftcertificateitem?:any;
+    magentoCustomizedApiUrl?:any;
+    IdentifierType?:any;
+    common?:StoreEntitySyncInfoCommon;
+    authorization?:any;
+    netsuite?:StoreNetSuite;
+}
+
 declare interface Store {
     internalId:any;
     systemId: any;
@@ -109,10 +136,9 @@ declare interface Store {
     userName: any;
     password: any;
     endpoint: any;
-    entitySyncInfo: any;
+    entitySyncInfo: StoreEntitySyncInfo;
     systemType: any;
     permissions: any;
-    netsuite?: StoreNetSuite
 }
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
