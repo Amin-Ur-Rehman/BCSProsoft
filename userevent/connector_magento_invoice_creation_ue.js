@@ -142,12 +142,13 @@ var InvoiceExportHelper = (function () {
             var netsuiteInvoiceDetails = this.getNetSuiteInvoiceObj();
             Utility.logDebug('netsuiteInvoiceDetails', JSON.stringify(netsuiteInvoiceDetails));
             var responseBody = ConnectorConstants.CurrentWrapper.createInvoice(sessionID, netsuiteInvoiceDetails, store);
+            Utility.logDebug('createInvoice - response', JSON.stringify(responseBody));
             if(!!responseBody.status) {
-                if(!!responseBody.data.increment_id) {
+                if(!!responseBody.data.id) {
                     Utility.logDebug('Success', 'Other systems Invoice created ');
-                    nlapiSubmitField(netsuiteInvoiceDetails.recType, netsuiteInvoiceDetails.recordId, ConnectorConstants.Transaction.Fields.MagentoInvoiceId, responseBody.data.increment_id);
+                    nlapiSubmitField(netsuiteInvoiceDetails.recType, netsuiteInvoiceDetails.recordId, ConnectorConstants.Transaction.Fields.MagentoInvoiceId, responseBody.data.id);
                 } else {
-                    Utility.logDebug('Error', 'Other systems Invoice Increment Id not found');
+                    Utility.logDebug('Error', 'Other systems Invoice id not found');
                 }
                 Utility.logDebug('successfully', 'other systems invoice created');
             } else {
@@ -163,6 +164,7 @@ var InvoiceExportHelper = (function () {
             netsuiteInvoiceDetails.recordId = nlapiGetRecordId();
             netsuiteInvoiceDetails.recType = nlapiGetRecordType();
             netsuiteInvoiceDetails.otherSystemSOId = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+            netsuiteInvoiceDetails.otherSystemSONumber = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber);
             netsuiteInvoiceDetails.netsuiteSOId = nlapiGetFieldValue('createdfrom');
             netsuiteInvoiceDetails.isSOFromOtherSystem = nlapiGetFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem);
             netsuiteInvoiceDetails.sOPaymentMethod = nlapiLookupField('salesorder', netsuiteInvoiceDetails.netsuiteSOId, 'paymentmethod');

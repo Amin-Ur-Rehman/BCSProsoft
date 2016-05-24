@@ -64,7 +64,8 @@ var ConnectorDashboardApi = (function () {
                 case 'exportSalesOrder':
                     return this.exportSalesOrder(request, response);
                     break;
-
+                case 'exportCategory':
+                    return this.exportCategory(request, response);
 
                 case 'getSOSyncLogs':
                     return this.getSOSyncLogs(request, response);
@@ -100,6 +101,9 @@ var ConnectorDashboardApi = (function () {
                 case 'executeItemExportScript':
                     return this.executeItemExportScript(request, response);
                     break;
+                case 'executeCategoryExportScript':
+                    return this.executeCategoryExportScript(request, response);
+                    break;
                 case 'executeItemImportScript':
                     return this.executeItemImportScript(request, response);
                     break;
@@ -111,6 +115,9 @@ var ConnectorDashboardApi = (function () {
                     break;
                 case 'getItemExportScriptDeploymentInstances':
                     return this.getItemExportScriptDeploymentInstances(request, response);
+                    break;
+                case 'getCategoryExportScriptDeploymentInstances':
+                    return this.getCategoryExportScriptDeploymentInstances(request, response);
                     break;
                 case 'getItemImportScriptDeploymentInstances':
                     return this.getItemImportScriptDeploymentInstances(request, response);
@@ -362,7 +369,34 @@ var ConnectorDashboardApi = (function () {
                 'customdeploy_salesorder_export_using_cr',
                 params);
         },
+        exportCategory: function (request, response) {
+            var storeId = request.getParameter('store_id');
+            var salesorderId = request.getParameter('record_id');
+            var params = {};
 
+            var data = {};
+            data[RecordsToSync.FieldName.RecordId] = salesorderId;
+            data[RecordsToSync.FieldName.RecordType] = RecordsToSync.RecordTypes.SalesOrder;
+            data[RecordsToSync.FieldName.Action] = RecordsToSync.Actions.SyncSoSystemNotes;
+            data[RecordsToSync.FieldName.Status] = RecordsToSync.Status.Pending;
+            data[RecordsToSync.FieldName.Operation] = RecordsToSync.Operation.EXPORT;
+            data[RecordsToSync.FieldName.ExternalSystem] = storeId;
+            RecordsToSync.upsert(data);
+
+            /*return this.executeScheduledScript(
+             'customscript_salesorder_export',
+             'customdeploy_salesorder_export_using_cr',
+             {
+             salesorderIds: [salesorderId]
+             }
+             );*/
+            params[ConnectorConstants.ScriptParameters.SalesOrderExportStoreId] = storeId;
+            return this.executeScheduledScript(
+                'customscript_salesorder_export',
+                'customdeploy_salesorder_export_using_cr',
+                params);
+        },
+        
         executeCashRefundSyncScript: function (request, response) {
             var storeId = request.getParameter('store_id');
             var params = {};
@@ -389,6 +423,13 @@ var ConnectorDashboardApi = (function () {
                 'customdeploy_item_export_sch_dash',
                 null
             );
+        },
+        executeCategoryExportScript: function (request, response) {
+            return this.executeScheduledScript(
+                'customscript_category_export_sch',
+                'customdeploy_category_export_sch_dep',
+                null
+            )
         },
         executeItemImportScript: function (request, response) {
             return this.executeScheduledScript(
@@ -571,6 +612,12 @@ var ConnectorDashboardApi = (function () {
             return this.getScriptDeploymentInstances(
                 'customscript_item_export_sch',
                 'customdeploy_item_export_sch_dash'
+            );
+        },
+        getCategoryExportScriptDeploymentInstances: function (request, response) {
+            return this.getScriptDeploymentInstances(
+                'customscript_category_export_sch',
+                'customdeploy_category_export_sch_dep'
             );
         },
         getItemImportScriptDeploymentInstances: function (request, response) {
@@ -831,6 +878,21 @@ var ConnectorDashboardApi = (function () {
                                 url: "/cash-refunds",
                                 templateUrl: "/f3-dash/templates/actions-search-credit-memo.html",
                                 controller: 'SearchCreditMemoController',
+                                controllerAs: 'viewModel'
+                            });
+                            break;
+
+                        case "EXPORT_CATEGORY_TO_EXTERNAL_SYSTEM":
+                            menu.push({
+                                key: 'export-category',
+                                menuOrder: 26,
+                                group: 'Synchronize',
+                                groupIcon: 'icon-refresh',
+                                icon: 'icon-cloud-upload',
+                                title: 'Export Categories',
+                                url: '/export-categories',
+                                templateUrl: "/f3-dash/templates/actions-execute-category-export-script.html",
+                                controller: 'ExecuteCategoryExportScriptController',
                                 controllerAs: 'viewModel'
                             });
                             break;

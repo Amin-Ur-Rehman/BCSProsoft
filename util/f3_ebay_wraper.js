@@ -1995,7 +1995,10 @@ EbayWrapper = (function () {
             var responseBody = {};
             responseBody.status = 1;
             responseBody.message = serverResponse.transaction.message || '';
-            responseBody.data = {increment_id: serverResponse.transaction.id.toString() || ''};
+            responseBody.data = {
+                increment_id: serverResponse.transaction.id.toString() || '',
+                id: serverResponse.transaction.id.toString() || ''
+            };
             return responseBody;
         },
         /**
