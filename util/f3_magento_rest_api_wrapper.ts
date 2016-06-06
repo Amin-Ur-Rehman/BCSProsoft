@@ -71,6 +71,33 @@ class MagentoRestApiWrapper extends MagentoWrapper {
         return result;
     }
 
+    public getCustomerCreditLimit(customerId: string, store:any){
+        let result: any = {};
+        try {
+            let customRestApiUrl: string = store.entitySyncInfo.common.customRestApiUrl;
+            let dataObj: any = {};
+            dataObj.customerID = customerId;
+            let requestParam = {"apiMethod": "getCreditValue", "data": JSON.stringify(dataObj)};
+            let resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            let responseBody: string = resp.getBody();
+            Utility.logDebug("getItemInfo responseBody", responseBody);
+
+            let responseBodyData: any = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+              //  result.product = this.getItemInfoParsedData(responseBodyData.data.product);
+            } else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+            
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    }
+    
+    
     /**
      * Assign attributes to a configurable product
      * @param productId

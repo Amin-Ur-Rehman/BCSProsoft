@@ -15,6 +15,7 @@ CUSTOMER = {
 
         arrFils.push(new nlobjSearchFilter('custentity_magentosync_dev', null, 'is', 'F'));
 
+        arrFils.push(new nlobjSearchFilter('internalid',null,'is','4930'));
         //arrFils.push(new nlobjSearchFilter('custentity_magentosync_msg', null, 'isempty'));
 
         arrCols.push(new nlobjSearchColumn('custentity_magento_custid'));
