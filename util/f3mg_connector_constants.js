@@ -70,10 +70,15 @@ ConnectorConstants = (function () {
                 ExternalSystemSalesOrderModifiedAt: 'custbody_f3mg_external_modified_time',
                 NetSuiteSalesOrderModifiedAt: 'custbody_f3mg_netsuite_modified_time',
                 MagentoShipmentId: 'custbody_magento_shipment_id',
-                ExternalSystemNumber: 'custbody_external_system_number'
+                ExternalSystemNumber: 'custbody_external_system_number',
+                Class: 'class',
+                SalesOrderType:'custbody_so_po_type',
+                Location:'location'
+
             },
             Columns: {
-                MagentoOrderId: 'custcol_mg_order_item_id'
+                MagentoOrderId: 'custcol_mg_order_item_id',
+
             }
         },
 

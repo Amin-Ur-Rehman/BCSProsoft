@@ -27,6 +27,9 @@ F3ClientFactory = (function () {
                 case "938277":
                     client = new F3KablaWooClient();
                     break;
+                case "585361":
+                    client= new F3IntekShopifyClient();
+                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -1424,5 +1427,70 @@ function F3KablaWooClient() {
         Utility.logDebug("F3BaseV1Client.setPayment", "End");
     };
 
+    return currentClient;
+}
+/**
+ *
+ * @returns {F3ClientBase}
+ * @constructor
+ * IntekAmerica customized Set Sales Order Function
+ */
+function F3IntekShopifyClient(){
+
+
+    var currentClient = new F3ClientBase();
+    /**
+     *
+     * @param rec
+     * @param salesOrderObj
+     */
+    currentClient.setSalesOrderFields= function (rec, salesOrderObj) {
+
+        var order = salesOrderObj.order;
+
+        var magentoIdId;
+        var magentoSyncId;
+        var externalSystemSalesOrderModifiedAt;
+
+
+        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
+        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
+        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
+
+        // set csutomer in order
+        rec.setFieldValue('entity', netsuiteCustomerId);
+        rec.setFieldValue(magentoSyncId, 'T');
+        rec.setFieldValue(magentoIdId, order.increment_id.toString());
+        rec.setFieldValue('tranid', order.order_number);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
+        rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+        //rec.setFieldValue('memo', 'Test Folio3');
+
+        // isDummyItemSetInOrder is set in while setting line items in order
+        if (salesOrderObj.isDummyItemSetInOrder) {
+            // A = Pending Approval
+            // if order has dummy item then set status to A (Pending Approval)
+            rec.setFieldValue('orderstatus', 'A');
+        }
+        else {
+            rec.setFieldValue('orderstatus', 'B');
+        }
+
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
+        var _storeID=ConnectorConstants.CurrentStore.systemId;
+        Utility.logDebug(_storeID);
+        if(_storeID ==1){
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class,19);
+            Utility.logDebug(ConnectorConstants.Transaction.Fields.Class);
+        }
+        else if(_storeID ==2){
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class,20);
+        }
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.Location,5);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesOrderType,4);
+        Utility.logDebug(ConnectorConstants.Transaction.Fields.SalesOrderType);
+    }
     return currentClient;
 }
