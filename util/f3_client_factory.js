@@ -1435,8 +1435,7 @@ function F3KablaWooClient() {
  * @constructor
  * IntekAmerica customized Set Sales Order Function
  */
-function F3IntekShopifyClient(){
-
+function F3IntekShopifyClient() {
 
     var currentClient = new F3ClientBase();
     /**
@@ -1444,14 +1443,13 @@ function F3IntekShopifyClient(){
      * @param rec
      * @param salesOrderObj
      */
-    currentClient.setSalesOrderFields= function (rec, salesOrderObj) {
+    currentClient.setSalesOrderFields = function(rec, salesOrderObj) {
 
         var order = salesOrderObj.order;
 
         var magentoIdId;
         var magentoSyncId;
         var externalSystemSalesOrderModifiedAt;
-
 
         magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
         magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
@@ -1465,6 +1463,7 @@ function F3IntekShopifyClient(){
         rec.setFieldValue('tranid', order.order_number);
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
         rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.PhoneNo,salesOrderObj.phone);
         //rec.setFieldValue('memo', 'Test Folio3');
 
         // isDummyItemSetInOrder is set in while setting line items in order
@@ -1472,24 +1471,25 @@ function F3IntekShopifyClient(){
             // A = Pending Approval
             // if order has dummy item then set status to A (Pending Approval)
             rec.setFieldValue('orderstatus', 'A');
-        }
-        else {
+        } else {
             rec.setFieldValue('orderstatus', 'B');
         }
 
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
-        var _storeID=ConnectorConstants.CurrentStore.systemId;
+        var _storeID = ConnectorConstants.CurrentStore.systemId;
         Utility.logDebug(_storeID);
-        if(_storeID ==1){
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class,19);
+        if (_storeID == 1) {
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class, 19);
             Utility.logDebug(ConnectorConstants.Transaction.Fields.Class);
+        } else if (_storeID == 2) {
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class, 20);
         }
-        else if(_storeID ==2){
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class,20);
-        }
-        rec.setFieldValue(ConnectorConstants.Transaction.Fields.Location,5);
-        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesOrderType,4);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.Location, 5);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesOrderType, 4);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesReresentative,18);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingMethod,85);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingTerms,2);
         Utility.logDebug(ConnectorConstants.Transaction.Fields.SalesOrderType);
     }
     return currentClient;
