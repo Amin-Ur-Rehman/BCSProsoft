@@ -42,7 +42,7 @@ var ItemExportLibrary = (function () {
             Utility.logDebug('log_w', 'calling getItemsByIdentifier');
             var filters = [];
             filters.push(new nlobjSearchFilter(criteriaObj.identifierType, null, 'is', criteriaObj.identifierValue));
-            filters.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoStores, null, 'anyof', criteriaObj.selectedStoreId));
+           // filters.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoStores, null, 'anyof', criteriaObj.selectedStoreId));
             return this.getItemsData(filters);
         },
 
@@ -54,10 +54,12 @@ var ItemExportLibrary = (function () {
             var filters = [];
             var ageOfItemToExportInDays = store.entitySyncInfo.item.ageOfItemToExportInDays;
             var previousDate = this.getPreviousDayDate(ageOfItemToExportInDays);
-            filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', previousDate));
+           // filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', previousDate));
             // TODO: undo test
-            //filters.push(new nlobjSearchFilter('internalid', null, 'is', '1267'));// matrix parent
-            //filters.push(new nlobjSearchFilter('internalid', null, 'is', '1270'));// matrix child
+          //  filters.push(new nlobjSearchFilter('internalid', null, 'is', '7462'));// matrix parent
+          //  filters.push(new nlobjSearchFilter('internalid', null, 'is', '2533'));// matrix child
+            filters.push(new nlobjSearchFilter('matrix',null,'is','false'));
+          //  filters.push(new nlobjSearchFilter('type',null, 'is','InvtPart'));
             return this.getItemsData(filters);
         },
 
@@ -212,8 +214,10 @@ var ItemExportLibrary = (function () {
             // Load Image Data
             itemObject.image = {};
             var imageField = store.entitySyncInfo.item.imageField;
+            Utility.logDebug('Image Field2',imageField);
             imageField = imageField || 'storedisplayimage';
             itemObject.image.fileId = itemRecord.getFieldValue(imageField);
+            Utility.logDebug('Image Field',itemObject.image.fileId);
             if(!!itemObject.image.fileId) {
                 itemObject.image.fileUrl = nlapiLookupField('file', itemObject.image.fileId, 'url');
                 var imageBaseUrl = store.entitySyncInfo.item.imageBaseUrl;
@@ -303,6 +307,7 @@ var ItemExportLibrary = (function () {
                 var externalSystemItemAttrSets = ConnectorConstants.ItemConfigRecords.ExternalSystemItemAttributeSets;
                 var extSysItemAttrSetObj = _.findWhere(externalSystemItemAttrSets, {id: itemObject.itemAttributeSet.netsuiteItemAttrSetId});
                 itemObject.itemAttributeSet.externalSystemItemAttrSetId = !!extSysItemAttrSetObj ? extSysItemAttrSetObj.itemAttributeSetId : '';
+
             }
         },
 
@@ -729,7 +734,7 @@ var ItemExportLibrary = (function () {
             // Set the name of the Price sublist based on features enabled and currency type.
             // See Pricing Sublist Internal IDs for details on why this is important.
             var priceID;
-            var currencyID = "USD";
+            var currencyID = "AUD";
             var obj = {};
             var itemRec = itemRecord;
             var catalogProductTierPriceEntityArray = [];
@@ -751,30 +756,39 @@ var ItemExportLibrary = (function () {
                     //for USD as default curremcy id - TODO: generalize in future for more than one currency support
                     var internalId = 1;
                     // Append the currency ID to the sublist name
+                    Utility.logDebug('Price Level Multi Curency',priceID);
                     priceID = priceID + internalId;
                 }
 
+                var incr=itemRec.getMatrixValue(priceID,'price',1);
+                if(incr==null){
+                    incr=1;
+                }
                 // reading price level from configuration
                 var priceLevel = store.entitySyncInfo.item.priceLevel;
-
-                for (var i = 1; i <= 5; i++) {
+                Utility.logDebug('Price Level',priceID);
+                for (var i = 1; i <= incr; i++) {
                     var catalogProductTierPriceEntity = {};
-                    // update tier price if tiers exist
-                    if (!!itemRec.getMatrixValue(priceID, 'price', i)) {
+                 //   update tier price if tiers exist
+                 //  if (!!itemRec.getMatrixValue(priceID, 'price', i)) {
+                        Utility.logDebug('Price Level',priceID +'__'+ itemRec.getMatrixValue(priceID, 'price', i))
 
-                        qty = itemRec.getMatrixValue(priceID, 'price', i);
-                        //price = itemRec.getLineItemValue('price', 'price_' + i + '_', priceLevel);
+                       qty= itemRec.getMatrixValue(priceID, 'price', i);
+                    if(qty==null){
+                        qty=0;
+                    }
+                       // price = itemRec.getLineItemValue('price', 'price_' + i + '_', priceLevel);
                         price = itemRec.getLineItemMatrixValue(priceID, 'price', priceLevel, i);
 
-                        catalogProductTierPriceEntity.qty = qty;
-                        catalogProductTierPriceEntity.price = price;
+                       catalogProductTierPriceEntity.qty = qty;
+                       catalogProductTierPriceEntity.price = price;
 
-                        catalogProductTierPriceEntityArray.push(catalogProductTierPriceEntity);
+                       catalogProductTierPriceEntityArray.push(catalogProductTierPriceEntity);
                     }
-                }
-
+          //      }
                 Utility.logDebug('catalogProductTierPriceEntityArray', JSON.stringify(catalogProductTierPriceEntityArray));
                 itemObject.catalogProductTierPriceEntityArray = catalogProductTierPriceEntityArray;
+                Utility.logDebug('5');
             }
         },
 
@@ -785,10 +799,15 @@ var ItemExportLibrary = (function () {
          * @param itemRecord
          */
         setInventoryData: function (store, itemObject, itemRecord) {
+            Utility.logDebug('Step 21');
             if (Utility.isMultiLocInvt()) {
+                Utility.logDebug('Step 1');
                 var quantityLocation = store.entitySyncInfo.item.inventoryLocation;
+                Utility.logDebug(quantityLocation);
                 var locLine = itemRecord.findLineItemValue('locations', 'location', quantityLocation);
+                Utility.logDebug(locLine);
                 itemObject.quatity = itemRecord.getLineItemValue('locations', 'quantityavailable', locLine) || 0;
+                Utility.logDebug('Step 4');
             } else {
                 itemObject.quatity = itemRecord.getFieldValue('quantityavailable') || 0;
             }
@@ -839,7 +858,9 @@ var ItemExportLibrary = (function () {
          * @param itemObject
          */
         exportInventoryItemToExternalSystem: function (store, itemInternalId, itemType, itemObject, createOnly) {
+            Utility.logDebug(ConnectorConstants.CurrentWrapper);
             return ConnectorConstants.CurrentWrapper.exportInventoryItem(store, itemInternalId, itemType, itemObject, createOnly);
+
         },
 
         /**

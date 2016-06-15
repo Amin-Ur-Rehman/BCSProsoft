@@ -545,6 +545,7 @@ MagentoXmlWrapper = (function () {
 
             return result;
         },
+
         transformSalesOrderListXMLtoArray: function (orders) {
             var result = [];
 
@@ -2062,12 +2063,12 @@ MagentoXmlWrapper = (function () {
                 xml = xml + '<password xsi:type="xsd:string" xs:type="type:string">' + nlapiEscapeXML(customerDataObject.password) + '</password>';
                 xml = xml + '<website_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.website_id + '</website_id>';
                 xml = xml + '<store_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.store_id + '</store_id>';
-                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.group_id + '</group_id>';
                 xml = xml + '<prefix xsi:type="xsd:string" xs:type="type:string"></prefix>';
                 xml = xml + '<suffix xsi:type="xsd:string" xs:type="type:string"></suffix>';
                 xml = xml + '<dob xsi:type="xsd:string" xs:type="type:string"></dob>';
                 xml = xml + '<taxvat xsi:type="xsd:string" xs:type="type:string"></taxvat>';
                 xml = xml + '<gender xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.gender + '</gender>';
+                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
                 xml = xml + '</customerData>';
                 xml = xml + '</urn:customerCustomerCreate>';
                 xml = xml + '</soapenv:Body>';
@@ -2080,6 +2081,7 @@ MagentoXmlWrapper = (function () {
         },
 
         getMagentoUpdateCustomerRequestXML: function (customerDataObject, sessionId) {
+            Utility.logDebug('Update Price Level', customerDataObject.pricelevel);
             var xml = '';
 
             if (customerDataObject != null) {
@@ -2099,12 +2101,12 @@ MagentoXmlWrapper = (function () {
                 //xml = xml + '<password xsi:type="xsd:string" xs:type="type:string"></password>';
                 xml = xml + '<website_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.website_id + '</website_id>';
                 xml = xml + '<store_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.store_id + '</store_id>';
-                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.group_id + '</group_id>';
                 xml = xml + '<prefix xsi:type="xsd:string" xs:type="type:string"></prefix>';
                 xml = xml + '<suffix xsi:type="xsd:string" xs:type="type:string"></suffix>';
                 xml = xml + '<dob xsi:type="xsd:string" xs:type="type:string"></dob>';
                 xml = xml + '<taxvat xsi:type="xsd:string" xs:type="type:string"></taxvat>';
                 xml = xml + '<gender xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.gender + '</gender>';
+                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
                 xml = xml + '</customerData>';
                 xml = xml + '</urn:customerCustomerUpdate>';
                 xml = xml + '</soapenv:Body>';
@@ -2750,6 +2752,7 @@ MagentoXmlWrapper = (function () {
                 if (!!id) {
                     createRecord = false;
                 }
+                
                 var parsedResponse = null;
                 if (createRecord) {
                     // if id not exist then create record
@@ -3163,8 +3166,9 @@ MagentoXmlWrapper = (function () {
          * @returns {*}
          */
         getCreateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
+            Utility.logDebug('Create Block');
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
             var xml;
-
             xml = this.OrderRequestXMLHeader;
             xml = xml + '<urn:catalogProductCreate soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
             xml = xml + '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + ConnectorConstants.CurrentStore.sessionID + '</sessionId>';
@@ -3237,7 +3241,7 @@ MagentoXmlWrapper = (function () {
             }
 
             xml = xml + '</productData>';
-            //xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
+            xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
             xml = xml + '</urn:catalogProductCreate>';
 
             xml = xml + this.OrderRequestXmlFooter;
@@ -3257,7 +3261,7 @@ MagentoXmlWrapper = (function () {
          * @returns {*}
          */
         getUpdateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
-
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
             var xml = '';
             xml = this.OrderRequestXMLHeader;
             xml += '<urn:catalogProductUpdate>';
