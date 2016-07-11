@@ -114,13 +114,17 @@ MagentoXmlWrapper = (function () {
             return 'MAGENTO_CUSTOM';
         },
         soapRequestToServer: function (xml) {
-            var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
-            var body = res.getBody();
-            Utility.logDebug('requestbody', xml);
-            Utility.logDebug('responsetbody', body);
-            var responseXML = nlapiStringToXML(body);
-
-            return responseXML;
+            try {
+                var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
+                var body = res.getBody();
+                // Utility.logDebug('Soap Request: requestbody', xml);
+                // Utility.logDebug('Soap Request: responsetbody', body);
+                var responseXML = nlapiStringToXML(body);
+                return responseXML;
+            }
+            catch(err){
+                nlapiLogExecution("DEBUG", "Error in Soap Request: ", err);
+            }
         },
         soapRequestToServerSpecificStore: function (xml, store) {
             var res = this._nlapiRequestURL(store.endpoint, xml);
@@ -2839,12 +2843,12 @@ MagentoXmlWrapper = (function () {
          */
         exportProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             var responseBody = null;
+            createOnly = createOnly || null;
             try {
                 var createRecord = true;
                 if (!!itemObject.currentExternalSystemId) {
                     createRecord = false;
                 }
-
                 if (createRecord) {
                     responseBody = this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
                 } else {
@@ -2867,14 +2871,17 @@ MagentoXmlWrapper = (function () {
          * @param magentoProductId
          */
         addProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
+            try{
             //Utility.logDebug('adding product image', 'Start');
             var parsedResponse = null;
             var createImageXml = this.getCreateImageXml(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
-            //Utility.logDebug('createImageXml', createImageXml);
             //ConnectorCommon.createLogRec(magentoProductId, createImageXml, "Image Export - Create");
-
             var responseXml = MagentoWrapper.soapRequestToServer(createImageXml);
-            Utility.logDebug('addImage response', responseXml);
+            return responseXml;
+                }
+            catch(err){
+                nlapiLogExecution("DEBUG", "Error in Adding Product Image: ", err.message);
+            }
         },
 
         /**
@@ -2923,15 +2930,20 @@ MagentoXmlWrapper = (function () {
          * @constructor
          */
         UpdateProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
-            var parsedResponse = null;
-            var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
-            Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
+            try {
+                var parsedResponse = null;
+                var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+                //Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
+                //Utility.logDebug('magentoImagesList Lenght', magentoImagesList.length);
 
-            for (var i = 0; i < magentoImagesList.length; i++) {
-                this.removeImageFromMagento(store, magentoProductId, magentoImagesList[i]);
+                for (var i = 0; i < magentoImagesList.length; i++) {
+                    this.removeImageFromMagento(store, magentoProductId, magentoImagesList[i]);
+                }
+                this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
             }
-
-            this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            catch (err){
+                nlapiLogExecution("DEBUG", "Error in Updating Product Image: ", err);
+            }
         },
 
         /**
@@ -2948,9 +2960,9 @@ MagentoXmlWrapper = (function () {
             xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
             xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
             var getMagentoProductImagesListXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
-            Utility.logDebug('getMagentoProductImagesList xmlRequest', getMagentoProductImagesListXml);
+            //Utility.logDebug('getMagentoProductImagesList xmlRequest', getMagentoProductImagesListXml);
             var imgListResponse = MagentoWrapper.soapRequestToServer(getMagentoProductImagesListXml);
-            Utility.logDebug('getMagentoProductImagesList response', imgListResponse);
+            //Utility.logDebug('getMagentoProductImagesList response', imgListResponse);
 
             var imageList = [];
             try {
@@ -2976,14 +2988,20 @@ MagentoXmlWrapper = (function () {
          * @param magentoProductId
          */
         removeImageFromMagento: function (store, magentoProductId, magentoImageFile) {
-            var xmlRequest = this.ImageRemoveXml;
-            xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
-            xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
-            xmlRequest = xmlRequest.replace('[FILE]', magentoImageFile);
-            var removeImageFromMagentoXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
-            Utility.logDebug('removeImageFromMagento xmlRequest', removeImageFromMagentoXml);
-            var imgListResponse = MagentoWrapper.soapRequestToServer(removeImageFromMagentoXml);
-            Utility.logDebug('removeImageFromMagento response', imgListResponse);
+            try {
+                var xmlRequest = this.ImageRemoveXml;
+                xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
+                xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
+                xmlRequest = xmlRequest.replace('[FILE]', magentoImageFile);
+                var removeImageFromMagentoXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
+                //Utility.logDebug('removeImageFromMagento xmlRequest', removeImageFromMagentoXml);
+                var imgListResponse = MagentoWrapper.soapRequestToServer(removeImageFromMagentoXml);
+                //Utility.logDebug('removeImageFromMagento response', imgListResponse);
+            }
+            catch (err)
+            {
+                nlapiLogExecution("DEBUG", "Error in Removing image: ", err);
+            }
         },
 
         /**
