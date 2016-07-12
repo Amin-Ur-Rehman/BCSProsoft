@@ -19,7 +19,7 @@ var Image_Sync_Module = (function () {
     return {
 
         startTime: null
-        , minutesAfterReschedule: 15,
+        , minutesAfterReschedule: 50,
 
         ScriptParams: {
             IdentifierType: 'custscript_f3_identifier_type'
@@ -62,7 +62,7 @@ var Image_Sync_Module = (function () {
                 }
 
                 customImageFieldsLists.push("storedisplayimage");
-                nlapiLogExecution("DEBUG", "Image Fields List Length: ", customImageFieldsLists.length );
+                nlapiLogExecution("DEBUG", "Image Fields List Length: ", customImageFieldsLists.length);
                 nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
 
                 var search = nlapiLoadSearch(null, savedSearchId).runSearch();
@@ -210,7 +210,7 @@ var Image_Sync_Module = (function () {
             try {
                 var usageRemaining = context.getRemainingUsage();
 
-                if (usageRemaining < 100 || results == 1000) {
+                if (usageRemaining < 1000 || results == 1000) {
                     this.rescheduleScript(context, params);
                     return true;
                 }
@@ -237,7 +237,8 @@ var Image_Sync_Module = (function () {
          */
         processRecords: function (store, records, customImageFieldsLists) {
             try {
-                var context = nlapiGetContext();
+                //var context = nlapiGetContext();
+                var ctx = nlapiGetContext();
                 nlapiLogExecution("DEBUG", "Processing Records", "Processing " + records.length + " records");
                 var response;
                 for (var i = 0; i < records.length; i++) {
@@ -248,11 +249,15 @@ var Image_Sync_Module = (function () {
                     obj.magento = JSON.parse(obj.magento);
                     obj.magentoProductId = obj.magento[0].MagentoId;
 
-                    if(!this.deleteImages(store, obj.itemInternalId, obj.itemType, null, null, obj.magentoProductId))
+                    if (!this.deleteImages(store, obj.itemInternalId, obj.itemType, null, null, obj.magentoProductId))
                         return;
 
+                    if (this.rescheduleIfNeeded(ctx, records, null)) {
+                        return null;
+                    }
+
                     nlapiLogExecution("DEBUG", "Adding New Image(s)", " ");
-                    for(var j=0; j<customImageFieldsLists.length; j++) {
+                    for (var j = 0; j < customImageFieldsLists.length; j++) {
                         var path = records[i].getValue(customImageFieldsLists[j]);
                         if (!!path) {
                             var file = nlapiLoadFile(path);
@@ -269,11 +274,16 @@ var Image_Sync_Module = (function () {
                             response = MagentoXmlWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
                         }
                     }
-                   /* if (!response) {
+                    if (!response.error) {
                         nlapiLogExecution("DEBUG", "Marking Record", "Marking Record");
                         this.markRecords(obj.itemType, obj.itemInternalId);
                     }
-                    else nlapiLogExecution("DEBUG", "Error in Processing Records", " ");     */
+                    else {
+                        nlapiLogExecution("DEBUG", "Error in Processing Records", "Record #" + i + " was not processed");
+                    }
+                    if (this.rescheduleIfNeeded(ctx, records, null)) {
+                        return null;
+                    }
                 }
                 nlapiLogExecution("DEBUG", "All Ok!", "All records have been processed successfully");
                 return;
@@ -286,7 +296,7 @@ var Image_Sync_Module = (function () {
         deleteImages: function (store, itemInternalId, itemType, itemObject, creatOnly, magentoProductId) {
             try {
                 var imageList = MagentoXmlWrapper.getMagentoProductImagesList(store, itemInternalId, itemType, null, null, magentoProductId);
-                if (imageList.length > 0){
+                if (imageList.length > 0) {
                     nlapiLogExecution("DEBUG", "Deleting Old Image(s)", " ");
                     for (var j = 0; j < imageList.length; j++) {
                         MagentoXmlWrapper.removeImageFromMagento(store, magentoProductId, imageList[j]);
