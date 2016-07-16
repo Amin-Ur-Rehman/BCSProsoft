@@ -233,7 +233,10 @@ var Image_Sync_Module = (function () {
         },
 
         /**
-         * sends records to Salesforce using its API
+         * Process Records: gets the images of items and send it to the Store
+         * @param store Store
+         * @param records Search Results
+         * @param customImageFieldsLists List of Custom Fields to get images from
          */
         processRecords: function (store, records, customImageFieldsLists) {
             try {
@@ -243,7 +246,7 @@ var Image_Sync_Module = (function () {
                 var response;
                 for (var i = 0; i < records.length; i++) {
                     var obj = {};
-                    obj.itemType = records[i].getText("type");
+                    obj.itemType = records[i].getRecordType();
                     obj.itemInternalId = records[i].getValue("internalid");
                     obj.magento = records[i].getValue("custitem_magentoid");
                     obj.magento = JSON.parse(obj.magento);
@@ -293,6 +296,12 @@ var Image_Sync_Module = (function () {
             }
         },
 
+        /**
+         * Delete Images: Delete the existing images of the items at the store
+         * @param store Store
+         * @param items related fields such ID, Type, ItemObject(Image object) MagentoProductID,
+         * @returns boolean false if there is an error, true otherwise
+         */
         deleteImages: function (store, itemInternalId, itemType, itemObject, creatOnly, magentoProductId) {
             try {
                 var imageList = MagentoXmlWrapper.getMagentoProductImagesList(store, itemInternalId, itemType, null, null, magentoProductId);
@@ -310,15 +319,16 @@ var Image_Sync_Module = (function () {
         },
 
         /**
-         * Marks record as completed
+         * MarkRecords: Uncheck the field "ImageSync" when the Item's images has been successfully synced to a store
+         * @param itemType
+         * @param itemID
+         * @returns void
          */
         markRecords: function (itemType, itemId) {
             try {
-                if (itemType.indexOf("non") < 0) {
-                    nlapiSubmitField("inventoryitem", itemId, "custitem_f3_image_sync", "F", null);
+                    nlapiSubmitField(itemType, itemId, "custitem_f3_image_sync", "F", null);
                     nlapiLogExecution("DEBUG", "Record Marked", "Record Marked");
                     return;
-                }
             } catch (err) {
                 nlapiLogExecution("DEBUG", "Error! Cannot Mark Record(s)", err);
             }
