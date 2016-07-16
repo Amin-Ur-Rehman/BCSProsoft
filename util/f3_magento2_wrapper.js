@@ -1,7 +1,7 @@
 /**
  * Created by zahmed on 28-Mar-16.
  *
- * Class Name: Magento2Wrapper
+ * Class Name:  Magento2Wrapper
  *
  * Description:
  * - This script is responsible for handling Magento 2 API
@@ -12,21 +12,16 @@
  * Dependency:
  *   -
  */
-// Declaration of all NetSuite SuiteScript 1.0 APIs
 /// <reference path="../util/SuiteScriptAPITS.d.ts" />
-// Declaration of Existing Custom Libraries methods
 /// <reference path="../util/CustomMethods.d.ts" />
-// Declaration of Magento2 Interfaces
-/// <reference path="../util/f3_magento2_interfaces.d.ts" />
 /**
- * Wrapper class for Magento2 REST API
+ * Magento2Wraper has the functionality of Magento2 CRUD operations
  */
 var Magento2Wrapper = (function () {
     function Magento2Wrapper() {
-        this.serverUrl = '';
-        this.username = '';
-        this.password = '';
-        this.token = '';
+        this.ServerUrl = "";
+        this.UserName = "";
+        this.Password = "";
         // intentionally empty contructor 
     }
     /************** public methods **************/
@@ -47,17 +42,15 @@ var Magento2Wrapper = (function () {
         return serverResponse;
     };
     /**
-     * Initializes the wrapper for given store,
-     * setting up server url
-     *
+     * Init method
      * @param storeInfo
      */
     Magento2Wrapper.prototype.initialize = function (storeInfo) {
         if (!!storeInfo) {
-            this.serverUrl = storeInfo.endpoint;
+            this.ServerUrl = storeInfo.endpoint;
         }
         else if (!!ConnectorConstants && !!ConnectorConstants.CurrentStore) {
-            this.serverUrl = ConnectorConstants.CurrentStore.endpoint;
+            this.ServerUrl = ConnectorConstants.CurrentStore.endpoint;
         }
     };
     /**
@@ -68,8 +61,7 @@ var Magento2Wrapper = (function () {
         return "ISO";
     };
     /**
-     * Sets up credential
-     *
+     * Get token from Magento
      * @param userName
      * @param apiKey
      * @returns {string}
@@ -77,10 +69,9 @@ var Magento2Wrapper = (function () {
     Magento2Wrapper.prototype.getSessionIDFromServer = function (userName, apiKey) {
         // TODO:  Get the token using 2-ledge authentication
         var sessionID = "DUMMY_SESSION_ID";
-        this.username = userName;
-        this.password = apiKey;
+        this.UserName = userName;
+        this.Password = apiKey;
         sessionID = apiKey;
-        this.token = apiKey;
         return sessionID;
     };
     /**
@@ -95,22 +86,13 @@ var Magento2Wrapper = (function () {
             additionalUrl: "orders",
             method: "GET"
         };
-        httpRequestData.additionalUrl += "?" + Magento2WrapperUtility.toParamStrings({
-            searchCriteria: {
-                filterGroups: [{
-                        filters: [{
-                                field: Magento2Constants.filter.fields.status,
-                                value: ['pending'].join(","),
-                                // value: filters.orderStatus.join(","),
-                                condition_type: Magento2Constants.filter.condition_types.in
-                            }, {
-                                field: Magento2Constants.filter.fields.updated_at,
-                                value: filters.updateDate,
-                                condition_type: Magento2Constants.filter.condition_types.gt
-                            }]
-                    }]
-            }
-        }).join("&");
+        httpRequestData.additionalUrl += "?";
+        httpRequestData.additionalUrl += "searchCriteria[filterGroups][0][filters][0][field]=" + "status";
+        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][0][value]=" + filters.orderStatus.join(",");
+        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][0][condition_type]=" + "in";
+        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][field]=" + "updated_at";
+        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][value]=" + filters.updateDate;
+        httpRequestData.additionalUrl += "&searchCriteria[filterGroups][0][filters][1][condition_type]=" + "gt";
         // Make Call and Get Data
         var serverFinalResponse = {};
         try {
@@ -138,27 +120,21 @@ var Magento2Wrapper = (function () {
         return serverFinalResponse;
     };
     /**
-     *
-     */
-    Magento2Wrapper.prototype.getSalesOrder = function (entityId, sessionId) {
-        var httpRequestData = {
-            accessToken: sessionId,
-            additionalUrl: "orders/" + entityId,
-            method: "GET"
-        };
-        return this.sendRequest(httpRequestData);
-    };
-    /**
      * Get Sales Order Information
      * @param incrementId
      * @param [sessionId]
      * @returns {any}
      */
-    Magento2Wrapper.prototype.getSalesOrderInfo = function (entityId, sessionId) {
+    Magento2Wrapper.prototype.getSalesOrderInfo = function (incrementId, sessionId) {
+        var httpRequestData = {
+            accessToken: sessionId,
+            additionalUrl: "orders/" + incrementId,
+            method: "GET"
+        };
         // Make Call and Get Data
         var serverFinalResponse = {};
         try {
-            var serverResponse = this.getSalesOrder(entityId, sessionId);
+            var serverResponse = this.sendRequest(httpRequestData);
             if (this.isNAE(serverResponse)) {
                 serverFinalResponse = this.parseSingleSalesOrderResponse(serverResponse);
                 serverFinalResponse.status = true;
@@ -488,221 +464,55 @@ var Magento2Wrapper = (function () {
         return serverFinalResponse;
     };
     /**
-     * parse response in case of successful payment capturing
-     * @param serverResponse
-     */
-    Magento2Wrapper.prototype.parseInvoiceSuccessResponse = function (serverResponse) {
-        return {
-            status: 1,
-            message: serverResponse.message || '',
-            data: {
-                increment_id: serverResponse.increment_id.toString() || '',
-                id: serverResponse.entity_id.toString() || ''
-            }
-        };
-    };
-    /**
-     * parse response in case of failure occured in payment capturing
-     * @param serverResponse
-     */
-    Magento2Wrapper.prototype.parseInvoiceFailureResponse = function (serverResponse) {
-        return {
-            status: 0,
-            message: serverResponse.message || ''
-        };
-    };
-    /**
-     * Create invoice in magento2
+     * Create invoice in magento
      * @param sessionId
      * @param netsuiteInvoiceObj
      * @param store
      * @returns {string}
      */
     Magento2Wrapper.prototype.createInvoice = function (sessionId, netsuiteInvoiceObj, store) {
-        var responseBody = {
-            status: 0
+        var magentoInvoiceCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
+        Utility.logDebug("magentoInvoiceCreationUrl_w", magentoInvoiceCreationUrl);
+        var dataObj = {
+            "increment_id": "",
+            "capture_online": ""
         };
-        var shouldCaptureAmount = 1; //this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
-        if (!!shouldCaptureAmount) {
-            var orderId = netsuiteInvoiceObj.otherSystemSONumber;
-            var salesOrder = this.getSalesOrder(orderId, sessionId);
-            var httpRequestData = {
-                accessToken: sessionId,
-                additionalUrl: 'invoices',
-                method: 'POST',
-                postData: {
-                    entity: Magento2WrapperUtility.toInvoiceForCreateInvoice(salesOrder)
-                }
-            };
-            var serverResponse = this.sendRequest(httpRequestData);
-            if (!!serverResponse.entity_id) {
-                responseBody = this.parseInvoiceSuccessResponse(serverResponse);
-            }
-            else {
-                responseBody = this.parseInvoiceFailureResponse(serverResponse);
-            }
-        }
-        else {
-            responseBody = {
-                status: 1,
-                message: '',
-                data: {
-                    increment_id: '',
-                    entity_id: ''
-                }
-            };
-        }
+        dataObj.increment_id = netsuiteInvoiceObj.otherSystemSOId;
+        var onlineCapturingPaymentMethod = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
+        dataObj.capture_online = onlineCapturingPaymentMethod.toString();
+        var requestParam = { "data": JSON.stringify(dataObj), "apiMethod": "createInvoice" };
+        Utility.logDebug("requestParam", JSON.stringify(requestParam));
+        var resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, "POST");
+        var responseBody = resp.getBody();
+        Utility.logDebug("responseBody_w", responseBody);
+        responseBody = JSON.parse(responseBody);
         return responseBody;
-        //
-        // let magentoInvoiceCreationUrl = store.entitySyncInfo.salesorder.magentoSOClosingUrl;
-        // Utility.logDebug("magentoInvoiceCreationUrl_w", magentoInvoiceCreationUrl);
-        //
-        // let dataObj = {
-        //     "increment_id": "",
-        //     "capture_online": ""
-        // };
-        // dataObj.increment_id = netsuiteInvoiceObj.otherSystemSOId;
-        // let onlineCapturingPaymentMethod = this.checkPaymentCapturingMode(netsuiteInvoiceObj, store);
-        // dataObj.capture_online = onlineCapturingPaymentMethod.toString();
-        // let requestParam = {"data": JSON.stringify(dataObj), "apiMethod": "createInvoice"};
-        // Utility.logDebug("requestParam", JSON.stringify(requestParam));
-        // let resp = this._nlapiRequestURL(magentoInvoiceCreationUrl, requestParam, null, "POST");
-        // let responseBody = resp.getBody();
-        // Utility.logDebug("responseBody_w", responseBody);
-        // responseBody = JSON.parse(responseBody);
-        // return responseBody;
-    };
-    /**
-     * Creates of updates the category and returns category id
-     *
-     * @param internalCategory
-     * @param magentoParentCategoryId
-     * @param magentoCategoryId
-     * @returns {string|any|number}
-     */
-    Magento2Wrapper.prototype.createOrUpdateCategory = function (internalCategory, magentoParentCategoryId, magentoCategoryId) {
-        var response;
-        var magentoCategory = Magento2WrapperUtility.getMagentoCategory(internalCategory, magentoParentCategoryId);
-        if (magentoCategory.id)
-            magentoCategory.id = magentoCategoryId;
-        var httpRequestData = {
-            additionalUrl: 'categories',
-            method: 'POST',
-            postData: { "category": magentoCategory }
-        };
-        response = this.sendRequest(httpRequestData);
-        return response.id;
-    };
-    /**
-     * Returns categories from category with
-     * given categoryId till given depth
-     *
-     * @param categoryId
-     * @param depth
-     */
-    Magento2Wrapper.prototype.getCategories = function (categoryId, depth) {
-        return this.sendRequest({
-            additionalUrl: 'categories?rootCategoryId=' + categoryId + '&depth=' + depth,
-            method: 'GET'
-        });
-    };
-    /**
-     * Creates category for given params
-     *
-     * @param internalCategory
-     * @param magentoParentCategoryId
-     * @returns {any}
-     */
-    Magento2Wrapper.prototype.createCategory = function (internalCategory, magentoParentCategoryId) {
-        return this.createOrUpdateCategory(internalCategory, magentoParentCategoryId);
-    };
-    /**
-     * Updates category for given params
-     *
-     * @param internalCategory
-     * @param magentoParentCategoryId
-     * @param magentoCategoryId
-     * @returns {any}
-     */
-    Magento2Wrapper.prototype.updateCategory = function (internalCategory, magentoParentCategoryId, magentoCategoryId) {
-        return this.createOrUpdateCategory(internalCategory, magentoParentCategoryId, magentoCategoryId);
-    };
-    /**
-     * Deletes category for given id
-     *
-     * @param id
-     */
-    Magento2Wrapper.prototype.deleteCategory = function (id) {
-        return this.sendRequest({
-            method: "DELETE",
-            additionalUrl: "categories/" + id
-        });
-    };
-    /**
-     * Deletes categories within (inclusive) given category id range
-     *
-     * @param startId
-     * @param endId
-     */
-    Magento2Wrapper.prototype.deleteCategoriesInRange = function (startId, endId) {
-        for (var i = startId; i <= endId; ++i) {
-            this.deleteCategory(i);
-        }
-    };
-    /**
-     * Deletes categories with given category ids
-     * @param ids
-     */
-    Magento2Wrapper.prototype.deleteCategoriesWithIds = function (ids) {
-        for (var i = ids.length - 1; i >= 0; --i) {
-            this.deleteCategory(ids[i]);
-        }
     };
     /************** private methods **************/
-    /**
-     * Wrapper method for send nlapiRequestURL
-     *
-     * @param url
-     * @param postdata
-     * @param headers
-     * @param callback
-     * @param httpMethod
-     * @returns {nlobjResponse}
-     * @private
-     */
-    Magento2Wrapper.prototype._nlapiRequestURL = function (url, postdata, headers, callback, httpMethod) {
-        url = url || null;
-        postdata = postdata || null;
-        headers = headers || {};
-        callback = callback || null;
-        httpMethod = httpMethod || null;
-        // this.setAuthHeaderIfNeeded(headers);
-        return nlapiRequestURL(url, postdata, headers, callback, httpMethod);
-    };
     /**
      * This method is used to send the request to Magento2 from NetSuite and entertains every Rest API call
      * @param httpRequestData
      * @returns {any}
      */
     Magento2Wrapper.prototype.sendRequest = function (httpRequestData) {
-        var finalUrl = this.serverUrl + httpRequestData.additionalUrl;
+        var finalUrl = this.ServerUrl + httpRequestData.additionalUrl;
         Utility.logDebug("Request final = ", finalUrl);
         var res = null;
         if (!httpRequestData.headers) {
             httpRequestData.headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + (httpRequestData.accessToken || this.token)
+                "Authorization": "Bearer " + httpRequestData.accessToken
             };
         }
         Utility.logDebug("httpRequestData = ", JSON.stringify(httpRequestData));
         if (httpRequestData.method === "GET") {
-            res = this._nlapiRequestURL(finalUrl, null, httpRequestData.headers);
+            res = nlapiRequestURL(finalUrl, null, httpRequestData.headers);
         }
         else {
-            var postDataString = httpRequestData.postData && typeof httpRequestData.postData === "object" ?
+            var postDataString = typeof httpRequestData.postData === "object" ?
                 JSON.stringify(httpRequestData.postData) : httpRequestData.postData;
-            res = this._nlapiRequestURL(finalUrl, postDataString, httpRequestData.headers, null, httpRequestData.method);
+            res = nlapiRequestURL(finalUrl, postDataString, httpRequestData.headers, httpRequestData.method);
         }
         var body = res.getBody();
         Utility.logDebug("Magento2 Response Body", body);
@@ -741,7 +551,7 @@ var Magento2Wrapper = (function () {
         for (var i = 0; i < orders.length; i++) {
             var order = {
                 increment_id: orders[i].increment_id,
-                order_id: orders[i].entity_id
+                order_id: orders[i].increment_id
             };
             ordersList.push(order);
         }
@@ -1105,172 +915,5 @@ var Magento2Wrapper = (function () {
         return onlineSupported;
     };
     return Magento2Wrapper;
-}());
-/**
- * Provides utility functions for Magento2Wrapper class
- */
-var Magento2WrapperUtility = (function () {
-    function Magento2WrapperUtility() {
-    }
-    /**
-     * Returns Magento2CustomAttribute object for given params
-     *
-     * @param attributeCode
-     * @param value
-     * @returns {{attribute_code: string, value: any}}
-     */
-    Magento2WrapperUtility.getCustomAttribute = function (attributeCode, value) {
-        return {
-            attribute_code: attributeCode,
-            value: value
-        };
-    };
-    /**
-     * Returns Array of Magento2CustomAttributes for given key value dictionary
-     *
-     * @param dictionary
-     * @returns {Array<Magento2CustomAttribute>}
-     */
-    Magento2WrapperUtility.getCustomAttributes = function (dictionary) {
-        var customAttributes = [];
-        for (var attrKey in dictionary) {
-            var attrValue = dictionary[attrKey];
-            if (attrValue || typeof (attrValue) != "undefined") {
-                customAttributes.push(this.getCustomAttribute(attrKey, attrValue));
-            }
-        }
-        return customAttributes;
-    };
-    /**
-     * Returns Magento2Category equivalent of internal Category
-     * for given parameters
-     *
-     * @param internalCategory
-     * @param magentoParentCategoryId
-     * @param magentoCategoryId
-     * @returns {Magento2Category}
-     */
-    Magento2WrapperUtility.getMagentoCategory = function (internalCategory, magentoParentCategoryId, magentoCategoryId) {
-        var customAttributes = this.getCustomAttributes({
-            description: internalCategory.description,
-            meta_title: internalCategory.pageTitle,
-            meta_description: internalCategory.metaTagHtml,
-            meta_keywords: internalCategory.searchKeywords,
-            url_key: internalCategory.urlComponent // TODO: set a unique key if not existing
-        });
-        var magentoCategory = {
-            include_in_menu: !internalCategory.excludeFromSitemap,
-            parent_id: magentoParentCategoryId || 1,
-            name: internalCategory.itemId,
-            // TODO: set the actual value for is_active when Magento2 API allows updating inactive category
-            is_active: true,
-            custom_attributes: customAttributes
-        };
-        if (magentoCategoryId)
-            magentoCategory.id = magentoCategoryId;
-        return magentoCategory;
-    };
-    Magento2WrapperUtility.toParamStrings = function (requestParams) {
-        var arr = [];
-        function parse(obj, pre) {
-            if (typeof obj == "string" || typeof obj == "number") {
-                arr.push(pre + "=" + obj);
-            }
-            else {
-                for (var key in obj) {
-                    parse(obj[key], pre + "[" + key + "]");
-                }
-            }
-        }
-        for (var key in requestParams) {
-            parse(requestParams[key], key);
-        }
-        return arr;
-    };
-    Magento2WrapperUtility.toInvoiceForCreateInvoice = function (salesOrder) {
-        var items = salesOrder.items;
-        var invoiceItems = [];
-        for (var i = 0; i < items.length; ++i) {
-            var item = items[i];
-            var invoiceItem = {
-                order_item_id: item.item_id,
-                qty: item.qty_ordered,
-                price: item.price,
-                price_incl_tax: item.price_incl_tax,
-                base_cost: item.base_cost,
-                base_discount_amount: item.base_discount_amount,
-                base_discount_tax_compensation_amount: item.base_discount_tax_compensation_amount,
-                base_price: item.base_price,
-                base_price_incl_tax: item.base_price_incl_tax,
-                base_row_total: item.base_row_total,
-                base_row_total_incl_tax: item.base_row_total_incl_tax,
-                base_tax_amount: item.base_tax_amount,
-                discount_amount: item.discount_amount,
-                discount_tax_compensation_amount: item.discount_tax_compensation_amount,
-                name: item.name,
-                product_id: item.product_id,
-                row_total: item.row_total,
-                row_total_incl_tax: item.row_total_incl_tax,
-                sku: item.sku,
-                tax_amount: item.tax_amount
-            };
-            invoiceItems.push(invoiceItem);
-        }
-        return {
-            order_id: salesOrder.entity_id,
-            base_currency_code: salesOrder.base_currency_code,
-            base_discount_amount: salesOrder.base_discount_amount,
-            base_grand_total: salesOrder.base_grand_total,
-            base_discount_tax_compensation_amount: salesOrder.base_discount_tax_compensation_amount,
-            base_shipping_amount: salesOrder.base_shipping_amount,
-            base_shipping_discount_tax_compensation_amnt: salesOrder.base_shipping_discount_tax_compensation_amnt,
-            base_shipping_incl_tax: salesOrder.base_shipping_incl_tax,
-            base_shipping_tax_amount: salesOrder.base_shipping_tax_amount,
-            base_subtotal: salesOrder.base_subtotal,
-            base_subtotal_incl_tax: salesOrder.base_subtotal_incl_tax,
-            base_tax_amount: salesOrder.base_tax_amount,
-            base_to_global_rate: salesOrder.base_to_global_rate,
-            base_to_order_rate: salesOrder.base_to_order_rate,
-            billing_address_id: salesOrder.billing_address_id,
-            discount_amount: salesOrder.discount_amount,
-            global_currency_code: salesOrder.global_currency_code,
-            grand_total: salesOrder.grand_total,
-            discount_tax_compensation_amount: salesOrder.discount_tax_compensation_amount,
-            order_currency_code: salesOrder.order_currency_code,
-            // shipping_address_id: ??,
-            shipping_amount: salesOrder.shipping_amount,
-            shipping_discount_tax_compensation_amount: salesOrder.shipping_discount_tax_compensation_amount,
-            shipping_incl_tax: salesOrder.shipping_incl_tax,
-            shipping_tax_amount: salesOrder.shipping_tax_amount,
-            state: salesOrder.state,
-            store_currency_code: salesOrder.store_currency_code,
-            store_id: salesOrder.store_id,
-            subtotal: salesOrder.subtotal,
-            subtotal_incl_tax: salesOrder.subtotal_incl_tax,
-            tax_amount: salesOrder.tax_amount,
-            total_qty: salesOrder.total_qty_ordered,
-            updated_at: salesOrder.updated_at,
-            items: invoiceItems
-        };
-    };
-    return Magento2WrapperUtility;
-}());
-/**
- * Constants for Magento2 REST API
- */
-var Magento2Constants = (function () {
-    function Magento2Constants() {
-    }
-    Magento2Constants.filter = {
-        fields: {
-            status: 'status',
-            updated_at: 'updated_at',
-        },
-        condition_types: {
-            in: 'in',
-            gt: 'gt'
-        }
-    };
-    return Magento2Constants;
 }());
 //# sourceMappingURL=f3_magento2_wrapper.js.map
