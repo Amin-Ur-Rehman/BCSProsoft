@@ -304,7 +304,7 @@ var Image_Sync_Module = (function () {
                 }
                 return true;
             } catch (err) {
-                nlapiLogExecution("DEBUG", "Error in Deleting Images", err);
+                nlapiLogExecution("DEBUG", "Error! Cannot Delete Image(s)", err);
                 return false;
             }
         },
@@ -320,7 +320,7 @@ var Image_Sync_Module = (function () {
                     return;
                 }
             } catch (err) {
-                nlapiLogExecution("DEBUG", "Error in Marking Records", err);
+                nlapiLogExecution("DEBUG", "Error! Cannot Mark Record(s)", err);
             }
         },
 
