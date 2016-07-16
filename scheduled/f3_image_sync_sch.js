@@ -90,12 +90,12 @@ var Image_Sync_Module = (function () {
                     for (var i in externalSystemArr) {
                         var store = externalSystemArr[i];
                         ConnectorConstants.CurrentStore = store;
-                        /*
+
                          // Check for feature availability
                          if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
                          nlapiLogExecution("DEBUG",';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
                          continue;
-                         }        */
+                         }
 
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
