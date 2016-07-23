@@ -30,6 +30,9 @@ F3ClientFactory = (function () {
                 case "585361":
                     client= new F3IntekShopifyClient();
                     break;
+                case "926253":
+                    client= new F3AlphaOmegaClient();
+                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -1491,6 +1494,68 @@ function F3IntekShopifyClient() {
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingMethod,85);
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingTerms,2);
         Utility.logDebug(ConnectorConstants.Transaction.Fields.SalesOrderType);
+    }
+    return currentClient;
+}
+function F3AlphaOmegaClient(){
+    var currentClient = new F3ClientBase();
+    /**
+     * This method sets the shipping cost,
+     * @param salesOrderObj
+     * @param rec
+     */
+    currentClient.setShippingInformation=function (salesOrderObj, rec) {
+        var order = salesOrderObj.order;
+        var products = salesOrderObj.products;
+
+        if (!order.shipment_method && this.checkAllProductsAreGiftCards(products)) {
+            Utility.logDebug('inside check', '');
+            // If shipment_method is empty, and all products in order are 'gift cards',
+            // (Note: No shipping information required if you add only gift cards product in an order)
+            order.shipment_method = "DEFAULT_NS";
+        }
+
+        // settting shipping method: start
+
+        var orderShipMethod = order.shipment_method + '';
+        var shippingCost = order.shipping_amount || 0;
+
+        Utility.logDebug('XML', 'orderShipMethod: ' + orderShipMethod);
+
+        //var nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod_' + systemId, orderShipMethod);
+        var nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod', orderShipMethod);
+        var shippingCarrier;
+        var shippingMethod;
+
+        Utility.logDebug('SCRUB', 'nsShipMethod: ' + nsShipMethod);
+
+        // if no mapping is found then search for default
+        if (orderShipMethod === nsShipMethod) {
+            //nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod_' + systemId, 'DEFAULT_NS');
+            nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod', 'DEFAULT_NS');
+        }
+
+        Utility.logDebug('Final SCRUB', 'nsShipMethod: ' + nsShipMethod);
+
+        nsShipMethod = (nsShipMethod + '').split('_');
+
+        shippingCarrier = nsShipMethod.length === 2 ? nsShipMethod[0] : '';
+        shippingMethod = nsShipMethod.length === 2 ? nsShipMethod[1] : '';
+
+        if (!(Utility.isBlankOrNull(shippingCarrier) || Utility.isBlankOrNull(shippingMethod))) {
+            rec.setFieldValue('shipcarrier', shippingCarrier);
+            rec.setFieldValue('custbody_shippingcarrier', shippingMethod);
+            rec.setFieldValue('shippingcost', shippingCost);
+        } else {
+            rec.setFieldValue('shipcarrier', '');
+            rec.setFieldValue('shipmethod', '');
+            rec.setFieldValue('shippingcost', '');
+        }
+
+        Utility.logDebug('order.shipping_amount ', order.shipping_amount);
+        Utility.logDebug('setting method ', nsShipMethod.join(','));
+
+        // settting shipping method: end
     }
     return currentClient;
 }

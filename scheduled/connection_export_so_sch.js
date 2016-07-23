@@ -826,6 +826,7 @@ var ExportSalesOrders = (function () {
 
                 if (!customerAlreadySynched) {
                     customerObj = CUSTOMER.getCustomer(customerId, store);
+                    Utility.logDebug("zee->Hello", JSON.stringify(customerObj));
                     var magentoCustomer = this.getCustomerFromExternalSystem(customerObj);
                     Utility.logDebug("zee->magentoCustomer", JSON.stringify(magentoCustomer));
                     if (magentoCustomer.status) {

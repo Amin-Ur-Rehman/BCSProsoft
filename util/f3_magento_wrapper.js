@@ -2068,7 +2068,7 @@ MagentoXmlWrapper = (function () {
                 xml = xml + '<dob xsi:type="xsd:string" xs:type="type:string"></dob>';
                 xml = xml + '<taxvat xsi:type="xsd:string" xs:type="type:string"></taxvat>';
                 xml = xml + '<gender xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.gender + '</gender>';
-                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
+                //xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
                 xml = xml + '</customerData>';
                 xml = xml + '</urn:customerCustomerCreate>';
                 xml = xml + '</soapenv:Body>';
@@ -3360,7 +3360,7 @@ MagentoXmlWrapper = (function () {
 
             // making simple associative array
             if (obj.hasOwnProperty("filters") && obj.filters instanceof Array) {
-                var filters = customer.filters;
+                var filters = obj.filters;
                 if (filters.length > 0) {
                     customerXML += '<filter>';
                     for (var i in filters) {
@@ -3391,8 +3391,11 @@ MagentoXmlWrapper = (function () {
          */
         getCustomerList: function (obj) {
             var result = [];
+            Utility.logDebug("Hello","2");
             var xml = this.getCustomerListXML(obj, ConnectorConstants.CurrentStore.sessionID);
-            var responseMagento = this.validateResponseCustomer(this.soapRequestToMagento(xml));
+            Utility.logDebug("Hello","3");
+            var responseXML = this.soapRequestToServer(xml);
+            var responseMagento = this.validateResponseCustomer(responseXML);
             if (!responseMagento.status) {
                 result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
             } else {
@@ -3415,8 +3418,9 @@ MagentoXmlWrapper = (function () {
             var filters = [];
             filters.push({key: "email", value: email});
             customerObj.filters = filters;
-
+            Utility.logDebug("Hello","1");
             var customerList = this.getCustomerList(customerObj);
+            Utility.logDebug("Hello","4");
 
             if (customerList instanceof Array && customerList.length > 0) {
                 customer = customerList[0];
