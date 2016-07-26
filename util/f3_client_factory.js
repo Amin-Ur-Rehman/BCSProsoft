@@ -391,7 +391,9 @@ function F3ClientBase() {
                         // set custom amount
                         rec.setLineItemValue('item', 'amount', x + 1, products[x].product_options.aw_gc_amounts);
                         if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
-                            rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
+                           // rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
+                        rec.setLineItemValue('item', 'istaxable', x + 1, 'F'); // -Not Taxable-
+
                     }
 
                     rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
@@ -400,7 +402,8 @@ function F3ClientBase() {
                     taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
                     // tax handling for line items
                     if (taxAmount > 0) {
-                        rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxCode);
+                        rec.setLineItemValue('item', 'istaxable', x + 1, 'T');
+
                     }
                 }
                 else {

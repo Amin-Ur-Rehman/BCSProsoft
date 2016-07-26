@@ -538,7 +538,10 @@ var OrderExportHelper = (function () {
                     this.appendShippingInfoInDataObject(orderRecord, orderDataObject);
                     this.appendPaymentInfoInDataObject(orderRecord, orderDataObject, store);
                     this.appendGiftCardInfoInDataObject(orderRecord, orderDataObject);
-
+                    orderDataObject.taxAmount=orderRecord.getFieldValue('taxtotal');
+                    if(orderDataObject.taxAmount==null || orderDataObject.taxAmount==''){
+                        orderDataObject.taxAmount=0.00;
+                    }
                     if (!!orderDataObject.cancelledMagentoSOId) {
                         orderDataObject.history += orderDataObject.cancelledMagentoSOId + 'E';
                     }

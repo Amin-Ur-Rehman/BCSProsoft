@@ -1466,6 +1466,19 @@ MagentoXmlWrapper = (function () {
 
             return xml;
         },
+
+        /**
+         * status XML
+         * @param history
+         * @return {string}
+         */
+        getCustomTaxData: function (tax) {
+            var taxXml = '';
+
+            taxXml += '<tax xsi:type="xsd:double" xs:type="type:double">' + tax + '</tax>';
+
+            return taxXml;
+        },
         /**
          * Creates XML for Sales Order and returns
          * @param orderCreationInfo
@@ -1481,6 +1494,7 @@ MagentoXmlWrapper = (function () {
             var paymentInfo = orderCreationInfo.paymentInfo;
             var history = orderCreationInfo.history;
             var status = orderCreationInfo.status;
+            var customTax=orderCreationInfo.taxAmount;
             var giftCertificates = orderCreationInfo.giftCertificates;
 
             var customerXml = this.getCustomerXmlForSaleOrder(customer);
@@ -1489,6 +1503,7 @@ MagentoXmlWrapper = (function () {
             var paymentXml = this.getPaymentXml(paymentInfo);
             var historyXml = this.getHistoryXml(history);
             var statusXml = this.getStatusXml(status);
+            var customTaxXml=this.getCustomTaxData(customTax);
             var giftCertificatesXml = this.getGiftCertificatesXml(giftCertificates);
             var additionalDataXml = this.getAdditionalData(orderCreationInfo);
 
@@ -1502,6 +1517,7 @@ MagentoXmlWrapper = (function () {
             orderXml = orderXml + paymentXml;
             orderXml = orderXml + historyXml;
             orderXml = orderXml + statusXml;
+            orderXml = orderXml + customTaxXml;
             orderXml = orderXml + giftCertificatesXml;
             orderXml = orderXml + additionalDataXml;
             orderXml = orderXml + '</urn:folio3_salesOrderCreateSalesOrder>';
