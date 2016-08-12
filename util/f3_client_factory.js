@@ -1547,7 +1547,7 @@ function F3AlphaOmegaClient(){
 
         if (!(Utility.isBlankOrNull(shippingCarrier) || Utility.isBlankOrNull(shippingMethod))) {
             rec.setFieldValue('shipcarrier', shippingCarrier);
-            rec.setFieldValue('custbody_shippingcarrier', shippingMethod);
+            rec.setFieldValue('shipmethod', shippingMethod);
             rec.setFieldValue('shippingcost', shippingCost);
         } else {
             rec.setFieldValue('shipcarrier', '');

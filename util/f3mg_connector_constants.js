@@ -73,7 +73,8 @@ ConnectorConstants = (function () {
                 ExternalSystemNumber: 'custbody_external_system_number',
                 Class: 'class',
                 SalesOrderType:'custbody_so_po_type',
-                Location:'location'
+                Location:'location',
+                TrackingNumberIds:'custbody_tracking_number_ids'
 
             },
             Columns: {
@@ -281,6 +282,19 @@ ConnectorConstants = (function () {
             this.ItemConfigRecords.ExternalSystemMatrixFieldMap = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldMapList();
             this.ItemConfigRecords.ExternalSystemMatrixFieldValues = ItemConfigRecordHandler.getAllExternalSystemMatrixFieldValuesList();
             this.ItemConfigRecords.ExtSysAttrSetAssociations = ItemConfigRecordHandler.getAllExtSysAttrSetAssociationsList();
+        },
+        ImageSync:{
+            Fields:{
+                ItemId:'itemid',
+                Name:'displayname',
+                Type:'type',
+                Parent:'parent',
+                DisplayImage:'storedisplayimage',
+                CustomImage:'custitem_imagefield',
+                DispalyThumbnail:'storedisplaythumbnail',
+                MagentoId:'custitem_magentoid',
+                MagentoStore:'custitem_f3mg_magento_stores'
+            }
         },
         initializeDummyItem: function () {
             this.DummyItem.Id = ConnectorCommon.getDummyItemId(this.DummyItem.ItemId);

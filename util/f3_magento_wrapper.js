@@ -677,6 +677,7 @@ MagentoXmlWrapper = (function () {
                     product.product_type = nlapiSelectValue(products[i], 'product_type');
                     product.item_id = nlapiSelectValue(products[i], 'item_id');
                     product.tax_amount = nlapiSelectValue(products[i], 'tax_amount');
+                    product.tax_percent= nlapiSelectValue(products[i],'tax_percent');
                     var unSerializedObject = null;
                     var productOptions = nlapiSelectValue(products[i], 'product_options');
                     if (!!productOptions) {
@@ -1450,6 +1451,17 @@ MagentoXmlWrapper = (function () {
 
             return giftCertificatesXml;
         },
+
+        discountXmlData: function(discountAmount){
+            var xml = '';
+            var discAmount = discountAmount
+            if (discAmount == null || discAmount == '') {
+                discAmount = 0.00;
+            }
+            discAmount = -discAmount;
+            xml += '<discount_amount>' + discAmount + '</discount_amount>';
+            return xml;
+        },
         /**
          * Additional data xml
          * @param orderDataObject
@@ -1496,7 +1508,7 @@ MagentoXmlWrapper = (function () {
             var status = orderCreationInfo.status;
             var customTax=orderCreationInfo.taxAmount;
             var giftCertificates = orderCreationInfo.giftCertificates;
-
+            var discountAmount= orderCreationInfo.discountAmount;
             var customerXml = this.getCustomerXmlForSaleOrder(customer);
             var productsXml = this.getProductsXmlForSaleOrder(items);
             var shippingXml = this.getShippingXml(shipmentInfo);
@@ -1504,6 +1516,7 @@ MagentoXmlWrapper = (function () {
             var historyXml = this.getHistoryXml(history);
             var statusXml = this.getStatusXml(status);
             var customTaxXml=this.getCustomTaxData(customTax);
+            var discountXml=this.discountXmlData(discountAmount)
             var giftCertificatesXml = this.getGiftCertificatesXml(giftCertificates);
             var additionalDataXml = this.getAdditionalData(orderCreationInfo);
 
@@ -1518,6 +1531,7 @@ MagentoXmlWrapper = (function () {
             orderXml = orderXml + historyXml;
             orderXml = orderXml + statusXml;
             orderXml = orderXml + customTaxXml;
+            orderXml=  orderXml+ discountXml;
             orderXml = orderXml + giftCertificatesXml;
             orderXml = orderXml + additionalDataXml;
             orderXml = orderXml + '</urn:folio3_salesOrderCreateSalesOrder>';
@@ -2894,6 +2908,7 @@ MagentoXmlWrapper = (function () {
 
             var responseXml = MagentoWrapper.soapRequestToServer(createImageXml);
             Utility.logDebug('addImage response', responseXml);
+            return responseXml;
         },
 
         /**
@@ -3747,6 +3762,74 @@ MagentoXmlWrapper = (function () {
                 item = this.tranformItemForNetSuite(responseMagentoItemInfo.product);
             }
             return item;
+        },
+        /**
+         *
+         * @param shipmentId
+         * @param trackingNumberId
+         * @param sessionID
+         * @returns {string}
+         */
+
+        removeTrackXML: function (shipmentId, trackingNumberId, sessionID) {
+            // remove tracking numbers
+            var xml = '';
+
+            xml += this.XmlHeader;
+            xml += '<urn:salesOrderShipmentRemoveTrack soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
+            xml += '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + sessionID + '</sessionId>';
+            xml += '<shipmentIncrementId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + shipmentId + '</shipmentIncrementId>';
+            xml += '<trackId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + trackingNumberId + '</trackId>';
+            xml += '</urn:salesOrderShipmentRemoveTrack>';
+            xml += this.XmlFooter;
+
+            return xml;
+        },
+
+        /**
+         *
+         * @param xml
+         * @returns {{}}
+         */
+        validateRemoveTrackResponse: function (xml) {
+            Utility.logDebug('XML', nlapiEscapeXML(xml));
+            var responseMagento = {};
+            var magentoFulfillmentID;
+            var faultCode;
+            var faultString;
+
+
+            try {
+                faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+                faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+
+                //  if (operation=='create')
+                magentoFulfillmentID = nlapiSelectValue(xml, "//result");
+
+            } catch (ex) {
+                Utility.logException('XmlUtility.validateRemoveTrackResponse', ex);
+            }
+
+
+            if (faultCode != null) {
+                responseMagento.status = false;       // Means There is fault
+                responseMagento.faultCode = faultCode;   // Fault Code
+                responseMagento.faultString = faultString; //Fault String
+                Utility.logDebug('Tracking Number Remove Operation Failed', responseMagento.faultString + ' - ' + responseMagento.faultCode);
+            }
+            else if (magentoFulfillmentID != null) {
+                responseMagento.status = true;       // Means There is fault
+                responseMagento.result = magentoFulfillmentID;
+            }
+            else    // Not Attribute ID Found, Nor fault code found
+            {
+                responseMagento.status = false;
+                responseMagento.faultCode = '000';
+                responseMagento.faultString = 'Unexpected Error';
+                Utility.logDebug('Tracking Number Remove Operation Failed', responseMagento.faultString + ' - ' + responseMagento.faultCode);
+            }
+
+            return responseMagento;
         }
     };
 })();

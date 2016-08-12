@@ -32,10 +32,11 @@
 var FulfillmentExportHelper = (function () {
     return {
         // userevent start: creating shipment in Magento
-        setShipmentIdInFulfillment: function (shipmentId) {
+        setShipmentIdInFulfillment: function (shipmentId, trackingNumbersIdsStr) {
             var rec = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId(), null);
             rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId, shipmentId + '');
             rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.TrackingNumberIds, trackingNumbersIdsStr);
             nlapiSubmitRecord(rec);
         },
 
@@ -197,6 +198,7 @@ var FulfillmentExport = (function () {
          * @returns {Void}
          */
         userEventAfterSubmit: function (type) {
+            Utility.logDebug("Apex Start Up", "Start");
             try {
                 Utility.logDebug("step-01", type);
                 // checking license validation
@@ -211,12 +213,11 @@ var FulfillmentExport = (function () {
 
                 Utility.logDebug("step-01.1", JSON.stringify([magentoShipmentId, shipStatus]));
                 if (!Utility.isBlankOrNull(magentoShipmentId)) {
-                    return;
+                    Utility.logDebug("step-01.3", "");
                 }
                 Utility.logDebug("step-03", "");
                 // only executes code when license is valid and type is create
-                if (type.toString() === 'create' || type.toString() === 'edit' ||
-                    type.toString() === 'xedit' || type.toString() === 'ship' || type.toString() === 'pack') {
+                if (type.toString() === 'create' || type.toString() === 'xedit' || type.toString() === 'ship' || type.toString() === 'pack') {
                     Utility.logDebug("step-04", "");
                     var orderId = rec.getFieldValue('orderid');
                     var recType = ConnectorCommon.getRecordTypeOfTransaction(orderId);
@@ -228,98 +229,230 @@ var FulfillmentExport = (function () {
                     }
                     Utility.logDebug("step-05", "");
                     var magentoSO = nlapiLoadRecord('salesorder', orderId, null);
-                    var salesOrderStore = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
-                    var salesOrderMagentoId = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
-
-                    // if not sales order is not synced with magento then terminate
-                    if (Utility.isBlankOrNull(salesOrderStore) || Utility.isBlankOrNull(salesOrderMagentoId)) {
-                        Utility.logDebug("step-05.1", "");
-                        return;
-                    }
-                    Utility.logDebug("step-06", "");
-                    ConnectorConstants.initialize();
-                    // getting configuration
-                    var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
-                    var sessionID;
-
-                    var store = externalSystemConfig[salesOrderStore];
-                    ConnectorConstants.CurrentStore = store;
-
-                    Utility.logDebug("step-06", JSON.stringify(store));
-                    // check if status is defined in config
-                    /*if ((ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
-                     ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status") &&
-                     Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status) &&
-                     type.toString() !== 'create') || ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
-                     Utility.logDebug("step-07", "08");
-                     return;
-                     }*/
-
-                    if (ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
-                        ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status")) {
-                        if (Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status)) {
-                            Utility.logDebug("step-07", "01");
-                            if (type.toString() !== 'create') {
-                                Utility.logDebug("step-07", "02");
-                                return;
-                            }
-                            Utility.logDebug("step-07", "03");
-                        } else {
-                            Utility.logDebug("step-08", "01");
-                            if (ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
-                                Utility.logDebug("step-08", "02");
-                                return;
-                            }
-                        }
-                    } else {
-                        Utility.logDebug("step-081", "01");
-                        if (type.toString() !== 'create') {
-                            Utility.logDebug("step-081", "02");
-                            return;
-                        }
-                    }
-
-                    Utility.logDebug("step-09", "");
-                    // Check for feature availability
-                    if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
-                        Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
-                        return;
-                    }
-                    Utility.logDebug("step-10", "");
-                    ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
-                    ConnectorConstants.CurrentWrapper.initialize(store);
-                    sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
-
-                    // if session id is not captured then terminate
-                    if (Utility.isBlankOrNull(sessionID)) {
-                        Utility.logDebug('sessionID', 'sessionID is empty');
-                        ErrorLogNotification.logAndNotify({
-                            externalSystem: ConnectorConstants.CurrentStore.systemId,
-                            recordType: nlapiGetRecordType(),
-                            recordId: nlapiGetRecordId(),
-                            recordDetail: "NetSuite # " + rec.getFieldValue("tranid"),
-                            action: "Export Item Fulfillment from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
-                            message: "Unable to fetch Session Id from " + ConnectorConstants.CurrentStore.systemDisplayName,
-                            messageDetails: "Look into logs",
-                            status: F3Message.Status.ERROR,
-                            externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
-                            system: "NetSuite"
-                        });
-                        return;
-                    }
-                    Utility.logDebug("step-11", "");
-                    var response = FulfillmentExportHelper.syncFulfillmentMagento(sessionID, magentoSO, rec);
-                    Utility.logDebug("step-12", "");
-                    if (response) {
-                        Utility.logDebug("step-13", "");
-                        FulfillmentExportHelper.setShipmentIdInFulfillment(response.result);
-                    }
-                    Utility.logDebug("step-14", "");
+                    this.createFulfillmentOrder(magentoSO, rec, type);
+                }
+                else if (type.toString() === 'edit') {
+                    this.updateTrackingInfo(type);
                 }
             } catch (e) {
                 Utility.logException('startup - afterSubmit', e);
             }
+        },
+        /**
+         *
+         * @param magentoSO
+         * @param rec
+         */
+        createFulfillmentOrder: function (magentoSO, rec, type) {
+            var salesOrderStore = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
+            var salesOrderMagentoId = magentoSO.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+            var shipStatus = rec.getFieldValue("shipstatus");
+            // if not sales order is not synced with magento then terminate
+            if (Utility.isBlankOrNull(salesOrderStore) || Utility.isBlankOrNull(salesOrderMagentoId)) {
+                Utility.logDebug("step-05.1", "");
+                return;
+            }
+            Utility.logDebug("step-06", "");
+            ConnectorConstants.initialize();
+            // getting configuration
+            var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
+            var sessionID;
+
+            var store = externalSystemConfig[salesOrderStore];
+            ConnectorConstants.CurrentStore = store;
+
+            Utility.logDebug("step-06", JSON.stringify(store));
+            // if (store.systemId != 2) {
+            //     return;
+            // }
+            // check if status is defined in config
+            /*if ((ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
+             ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status") &&
+             Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status) &&
+             type.toString() !== 'create') || ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+             Utility.logDebug("step-07", "08");
+             return;
+             }*/
+
+            if (ConnectorConstants.CurrentStore.entitySyncInfo.hasOwnProperty("itemFulfillment") &&
+                ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.hasOwnProperty("status")) {
+                if (Utility.isBlankOrNull(ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status)) {
+                    Utility.logDebug("step-07", "01");
+                    if (type.toString() !== 'create') {
+                        Utility.logDebug("step-07", "02");
+                        return;
+                    }
+                    Utility.logDebug("step-07", "03");
+                } else {
+                    Utility.logDebug("step-08", "01");
+                    if (ConnectorConstants.CurrentStore.entitySyncInfo.itemFulfillment.status !== shipStatus) {
+                        Utility.logDebug("step-08", "02");
+                        return;
+                    }
+                }
+            } else {
+                Utility.logDebug("step-081", "01" + type.toString());
+                if (type.toString() !== 'create' && type.toString() !== 'edit') {
+                    Utility.logDebug("step-081", "02");
+                    return;
+                }
+            }
+
+            Utility.logDebug("step-09", "");
+            // Check for feature availability
+            if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
+                Utility.logEmergency('FEATURE PERMISSION', Features.EXPORT_ITEM_FULFILLMENT_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                return;
+            }
+            Utility.logDebug("step-10", "");
+            ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
+            ConnectorConstants.CurrentWrapper.initialize(store);
+            sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
+
+            // if session id is not captured then terminate
+            if (Utility.isBlankOrNull(sessionID)) {
+                Utility.logDebug('sessionID', 'sessionID is empty');
+                ErrorLogNotification.logAndNotify({
+                    externalSystem: ConnectorConstants.CurrentStore.systemId,
+                    recordType: nlapiGetRecordType(),
+                    recordId: nlapiGetRecordId(),
+                    recordDetail: "NetSuite # " + rec.getFieldValue("tranid"),
+                    action: "Export Item Fulfillment from NetSuite to " + ConnectorConstants.CurrentStore.systemDisplayName,
+                    message: "Unable to fetch Session Id from " + ConnectorConstants.CurrentStore.systemDisplayName,
+                    messageDetails: "Look into logs",
+                    status: F3Message.Status.ERROR,
+                    externalSystemText: ConnectorConstants.CurrentStore.systemDisplayName,
+                    system: "NetSuite"
+                });
+                return;
+            }
+            Utility.logDebug("step-11", "");
+            Utility.logDebug('ConnectorConstants.CurrentStore', JSON.stringify(ConnectorConstants.CurrentStore));
+            var response = FulfillmentExportHelper.syncFulfillmentMagento(sessionID, magentoSO, rec);
+            Utility.logDebug("step-12", "");
+            if (response) {
+                Utility.logDebug("step-13", "");
+                FulfillmentExportHelper.setShipmentIdInFulfillment(response.result, response.trackingNumbersIdsStr);
+            }
+            Utility.logDebug("step-14", "");
+        },
+        updateTrackingInfo: function (type) {
+            Utility.logDebug("step-13.3", "");
+            var fulfillmentRec = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId(), null);
+            var shipmentId = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId);
+            var systemId = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore);
+            var createdFrom = fulfillmentRec.getFieldValue('createdfrom');
+
+            if (!(Utility.isBlankOrNullZeeVersion(shipmentId, systemId, createdFrom))) {
+                Utility.logDebug("step-4.1.1", "");
+                ConnectorConstants.initialize();
+                var salesOrderRec = nlapiLoadRecord('salesorder', createdFrom, null);
+                // getting configuration
+                var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
+                var sessionID;
+                var store = this._getExternalSystemConfig(externalSystemConfig, systemId);
+                ConnectorConstants.CurrentStore = store;
+                var magentoWrapper = F3WrapperFactory.getWrapper(store.systemType);
+                magentoWrapper.initialize(store);
+                ConnectorConstants.CurrentWrapper = magentoWrapper;
+                sessionID = ConnectorConstants.CurrentWrapper.getSessionIDFromServer(store.userName, store.password);
+                // if session id is not captured then terminate
+                if (Utility.isBlankOrNull(sessionID)) {
+                    // terminate script if session id is not found
+                    Utility.logDebug('sessionID', 'sessionID is empty');
+                    return;
+                }
+
+                this.removeOldTrackingNumbers(fulfillmentRec, sessionID, shipmentId);
+                this.addNewTrackingNumbers(fulfillmentRec, salesOrderRec, sessionID, shipmentId);
+            }
+
+            else {
+                Utility.logDebug("step-5.1.1", "");
+                var orderId = fulfillmentRec.getFieldValue('orderid');
+                var magentoId = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoId);
+                if (magentoId != null || magentoId != '') {
+                    Utility.logDebug("step-6.1.1", "");
+                    var magentoSO = nlapiLoadRecord('salesorder', orderId, null);
+                    this.createFulfillmentOrder(magentoSO, fulfillmentRec, type);
+                }
+
+            }
+
+        },
+
+        _getExternalSystemConfig: function (externalSystemConfig, systemId) {
+            var s;
+            for (var i in externalSystemConfig) {
+                var externalSystem = externalSystemConfig[i];
+                if (externalSystem.systemId == systemId) {
+                    s = externalSystem;
+                    break;
+                }
+            }
+            return s;
+        },
+
+        removeOldTrackingNumbers: function (fulfillmentRec, sessionID, shipmentId) {
+            var shipmentId = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId);
+            var trackingNumbersIdsStr = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.TrackingNumberIds);
+
+            if (!Utility.isBlankOrNullZeeVersion(trackingNumbersIdsStr)) {
+                var trackingNumberIds = trackingNumbersIdsStr.split(",");
+
+                for (var i in trackingNumberIds) {
+                    var trackingNumberId = trackingNumberIds[i];
+                    Utility.logDebug('REMOVE', 'trackingNumberId : ' + trackingNumberId);
+                    if (!Utility.isBlankOrNull(trackingNumberId)) {
+                        var trackingXML = ConnectorConstants.CurrentWrapper.removeTrackXML(shipmentId, trackingNumberId, sessionID);
+                        var responseTracking = ConnectorConstants.CurrentWrapper.validateRemoveTrackResponse(ConnectorConstants.CurrentWrapper.soapRequestToServer(trackingXML));
+                        Utility.logDebug('REMOVE', 'I tried removingg shipment tracking id Got this in response : ' + responseTracking.result);
+                    }
+                }
+            }
+        },
+
+
+        addNewTrackingNumbers: function (fulfillmentRec, salesOrderRec, sessionID, shipmentId) {
+            var shipmentId = fulfillmentRec.getFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId);
+
+            var upsPackage = '';
+            var totalPackages;
+
+            // packages sublist is generated by carrier / netsuite feature
+            if (fulfillmentRec.getLineItemCount('packageups') > 0) {
+                upsPackage = 'ups';
+            }
+            if (fulfillmentRec.getLineItemCount('packagefedex') > 0) {
+                upsPackage = 'fedex';
+            }
+
+            // from SO
+            var carrier = salesOrderRec.getFieldValue('shipcarrier');
+            totalPackages = fulfillmentRec.getLineItemCount('package' + upsPackage);
+            var carrierText = salesOrderRec.getFieldText('shipmethod');
+
+            Utility.logDebug('addNewTrackingNumbers', 'carrier: ' + carrier + ' totalPackages: ' + totalPackages + ' carrierText: ' + carrierText);
+
+            var trackingNumbersIds = [];
+
+            for (var p = 1; p <= totalPackages; p++) {
+                var tracking = fulfillmentRec.getLineItemValue('package' + upsPackage, 'packagetrackingnumber' + upsPackage, p);
+                if (!Utility.isBlankOrNull(tracking)) {
+                    // Setting Tracking Number
+                    var trackingXML = ConnectorConstants.CurrentWrapper.createTrackingXML(shipmentId, carrier, carrierText, tracking, sessionID);
+                    var responseTracking = ConnectorConstants.CurrentWrapper.validateTrackingCreateResponse(ConnectorConstants.CurrentWrapper.soapRequestToServer(trackingXML));
+                    Utility.logDebug('CHECK', 'I tried setting shipment tracking id Got this in response : ' + responseTracking.result);
+                    trackingNumbersIds.push(responseTracking.result);
+                }
+            }
+
+            // update tracking ids for future modification in tracking numbers - it is a rare cases
+            var trackingNumbersIdsStr = trackingNumbersIds.join(",");
+            fulfillmentRec.setFieldValue(ConnectorConstants.Transaction.Fields.TrackingNumberIds, trackingNumbersIdsStr);
+            nlapiSubmitRecord(fulfillmentRec);
         }
+
     };
 })();
 

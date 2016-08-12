@@ -248,7 +248,7 @@ function ws_soaftsubm(type) {
                 var column = [];
 
                 filter.push(new nlobjSearchFilter('internalidnumber', null, 'greaterthan', !!paramInternalId ? paramInternalId : '-1', null));
-                //filter.push(new nlobjSearchFilter('internalid', null, 'is', '387'));
+                //filter.push(new nlobjSearchFilter('internalid', null, 'is', '4043'));
                 filter.push(new nlobjSearchFilter(ConnectorConstants.Item.Fields.MagentoSync, null, 'is', 'T', null));
                 filter.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', lastModifiedDate, null));
                 //filter.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', '8/18/2015 8:15 am', null));
@@ -339,6 +339,10 @@ function ws_soaftsubm(type) {
                                 //product.quatity = itemRec.getLineItemValue('locations', 'quantityonhand', 1) || 0;
                                 product.quatity = itemRec.getLineItemValue('locations', 'quantityavailable', 1) || 0;
                             }
+                            var sku=itemRec.getFieldValue('itemid') || '';
+                            if(sku==null || sku==''){
+                                sku=magentoId;
+                            }
 
                             // for woo
                             product.quantity = product.quatity;
@@ -347,7 +351,7 @@ function ws_soaftsubm(type) {
                             Utility.logDebug('checkpoint', '9');
                             Utility.logDebug('checkpoint', '11');
                             // if child matrix item
-                            product.magentoSKU = magentoId;
+                            product.magentoSKU = sku;
                             Utility.logDebug('updating now... ', 'updating now... ');
                             syncProduct(product, productRecordtype, product_id, sessionID, false);
 
