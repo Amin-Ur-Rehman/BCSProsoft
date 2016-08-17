@@ -162,12 +162,30 @@ var Image360Sync = (function() {
                                     var res= this.imageRequestToMagento(response,sku,image)
 
                                 }
+                                var itemObject1 = {
+                                    "content": 'iergh234CDdsfssssfds110dfd'
+                                };
+                                var requestParam1={
+                                    "apiMethod":'moveImages',
+                                    "data": JSON.stringify(itemObject1)
+                                };
+                                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
+
+                                var removeDirObject={
+                                    "sku": sku
+                                };
+                                var requestParam2={
+                                    "apiMethod":'removeDirectory',
+                                    "data": JSON.stringify(removeDirObject)
+                                };
+                                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
                             }
                             catch(e){
                                 Utility.logDebug("Error in process Image");
                             }
                             if(res){
-                                rec.setFieldValue(Image360Field.ImageSync,'T');
+                                rec.setFieldValue(Image360Field.ImageSync,'F');
+                                nlapiSubmitRecord(rec);
                             }
                             var params=[];
                             params['custscript_parm_iternal_id']=orderObject.id;
@@ -202,23 +220,7 @@ var Image360Sync = (function() {
                     Utility.logDebug('Data1', JSON.stringify(requestParam));
                     var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
                 }
-                var itemObject1 = {
-                    "content": 'iergh234CDdsfssssfds110dfd'
-                };
-                var requestParam1={
-                    "apiMethod":'moveImages',
-                    "data": JSON.stringify(itemObject1)
-                };
-                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
 
-                var removeDirObject={
-                    "sku": sku
-                };
-                var requestParam2={
-                    "apiMethod":'removeDirectory',
-                    "data": JSON.stringify(removeDirObject)
-                };
-                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
                 return true;
 
             }

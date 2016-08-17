@@ -60,7 +60,16 @@ var InstantSync = (function () {
         // },
 
         serializedinventoryitem: function (recordId) {
-            Utility.logDebug("recordID",recordId);
+            var responseObj = {
+                error: ''
+            };
+            try {
+                Utility.logDebug("recordID", recordId);
+            }
+            catch (e) {
+                Utility.logException('InstantSync.serializeditem', e);
+                responseObj.error += e.toString() + '\n';
+            }
         },
         /**
          * Set cusrrent Store and generate session id using store id
