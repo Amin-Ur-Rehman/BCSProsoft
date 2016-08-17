@@ -16,6 +16,12 @@
  */
 var InstantSync = (function () {
     return {
+        InternalId:'customrecord_image_sync_order_tracking',
+        FieldName:{
+            OrderIncrementsIds:'custrecord_isot_increment_ids',
+            storeId: 'custrecord_isot_storeid',
+            IteratedOrderIds:'custrecord_isot_iterated_ids'
+        },
         // process credit memo
         // funtion name is same as record type
         // creditmemo: function (recordId) {
@@ -59,17 +65,19 @@ var InstantSync = (function () {
         //     return responseObj;
         // },
 
-        serializedinventoryitem: function (recordId) {
+        serializedinventoryitem: function (recordId,recordtype) {
             var responseObj = {
                 error: ''
             };
             try {
+                this.createRecordEntry(recordId,recordtype);
                 Utility.logDebug("recordID", recordId);
             }
             catch (e) {
                 Utility.logException('InstantSync.serializeditem', e);
                 responseObj.error += e.toString() + '\n';
             }
+            return responseObj;
         },
         /**
          * Set cusrrent Store and generate session id using store id
@@ -177,7 +185,7 @@ var InstantSync = (function () {
                 Utility.logDebug('before calling ' + recordType, '');
 
                 // process record
-                responseObj = this[recordType](recordId);
+                responseObj = this[recordType](recordId,recordType);
 
                 Utility.logDebug('after calling ' + recordType, '');
 
@@ -192,6 +200,58 @@ var InstantSync = (function () {
                 }
             }
         },
+        //////////
+        createRecordEntry: function(dataIn,dataType) {
+            var orderIds = dataIn;
+            var itemType=dataType
+            var storeId = ConnectorConstants.CurrentStore.systemId;
+
+            nlapiLogExecution('DEBUG', 'createRecordEntry', 'orderIds: ' + orderIds+itemType);
+            nlapiLogExecution('DEBUG', 'createRecordEntry', 'storeId: ' + storeId);
+
+            var id;
+
+            if (!Utility.isBlankOrNull(orderIds)) {
+                var data = {};
+                nlapiLogExecution('DEBUG', 'createRecordEntry', 'storeId1: ' + storeId);
+                // sort array
+                orderIds = orderIds.split(',').sort().join(',');
+                nlapiLogExecution('DEBUG', 'createRecordEntry', 'orderIds1: ' + orderIds);
+                var itemObj={
+                    "id":orderIds,
+                    "recordType": itemType
+                };
+                data[InstantSync.FieldName.OrderIncrementsIds] = JSON.stringify(itemObj);
+                data[InstantSync.FieldName.StoreId] = storeId;
+                id = this.upsert(data);
+
+                nlapiLogExecution('DEBUG', 'createRecordEntry', 'Id: ' + id);
+               // var status = nlapiScheduleScript('customscript_saleorder_import_groupbuy','customdeploy_saleorder_import_groupby_de', null);
+                Utility.logDebug('initiateScheduledScript', 'Status:' + status);
+            }
+
+            if (!id) {
+                this.throwError('DEV_ERR', 'Data Not Sent');
+
+            }
+
+        },
+
+
+        upsert: function (data, id) {
+            try {
+                Utility.logDebug("Data", data.toSource()+ "@@@"+this.InternalId);
+                var rec = !!id ? nlapiLoadRecord(this.InternalId, id, null) : nlapiCreateRecord(this.InternalId, null);
+                for (var field in data) {
+                    rec.setFieldValue(field, data[field]);
+                }
+                id = nlapiSubmitRecord(rec, true, true);
+            } catch (e) {
+                Utility.logException('MagentoOrderTracking.upsert', e);
+            }
+            return id;
+        },
+        ///////////
         /**
          * main method
          */

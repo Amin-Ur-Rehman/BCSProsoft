@@ -27,6 +27,13 @@ var Image360Field={
 }
 var Image360Sync = (function() {
     return {
+        InternalId: 'customrecord_image_sync_order_tracking',
+        FieldName: {
+            OrderIncrementIds: 'custrecord_isot_increment_ids',// last run date time
+            StoreId: 'custrecord_isot_storeid',
+            IteratedOrderIds: 'custrecord_isot_iterated_ids',
+            FailedOrderIds: 'custrecord_isot_failed_id'
+        },
         startTime: null
         , minutesAfterReschedule: 50,
         /**
@@ -72,9 +79,9 @@ var Image360Sync = (function() {
             // getting configuration
             var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
             var context = nlapiGetContext();
-            var orderIds, externalSystemArr;
+            var orderIds, externalSystemArr,iteratedOrderIds, failedOrderIds,internalId;
             var lastOrderId = context.getSetting('SCRIPT', 'custscript_parm_iternal_id');
-
+            var isCustomRecord='';
             var specificStoreId, params = {};
             // this handling is for specific store sync handling
             specificStoreId = context.getSetting('SCRIPT', Image360Field.SpecificStore);
@@ -104,7 +111,17 @@ var Image360Sync = (function() {
                             continue;
                         }
                     }
-                    orderIds = this.getOrderList(false, store.systemId,lastOrderId);
+                    isCustomRecord=this.checkIfCustomRecord(context.getDeploymentId());
+                    if(isCustomRecord){
+                       var orderSearchObject=this.getCustomOrderList(store.systemId);
+                        orderIds= orderSearchObject.orderIncrementIds;
+                        iteratedOrderIds=orderSearchObject.iteratedOrderIds;
+                        failedOrderIds=orderSearchObject.failedOrderIds;
+                        internalId=orderSearchObject.internalId;
+                    }
+                    else {
+                        orderIds = this.getOrderList(false, store.systemId, lastOrderId);
+                    }
                     Utility.logDebug('fetched sales order count', orderIds.length);
                     Utility.logDebug('debug', 'Step-3');
 
@@ -123,65 +140,20 @@ var Image360Sync = (function() {
                                     var sku= rec.getFieldValue('itemid');
                                     Utility.logDebug("sku",sku);
                                     Utility.logDebug("base64",response,image);
-                                //     if(response.body != null || response.body != '') {
-                                //         var itemObject = {
-                                //                 "mime": response.contentType,
-                                //                 "fullName": image.toLowerCase(),
-                                //                 "content": response.body,
-                                //                 "sku": sku
-                                //         };
-                                //
-                                //         var requestParam = {
-                                //             "apiMethod": nsRequestMethod.nsMethodCreate,
-                                //             "data": JSON.stringify(itemObject)
-                                //         };
-                                //         Utility.logDebug('Data1', JSON.stringify(requestParam));
-                                //         var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
-                                //
-                                //     }
-                                // }
-                                // var itemObject1 = {
-                                //     "content": 'iergh234CDdsfssssfds110dfd'
-                                // };
-                                // var requestParam1={
-                                //     "apiMethod":'moveImages',
-                                //     "data": JSON.stringify(itemObject1)
-                                //
-                                // };
-                                // var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
-                                //
-                                // var removeDirObject={
-                                //     "sku": sku
-                                // };
-                                // var requestParam2={
-                                //     "apiMethod":'removeDirectory',
-                                //     "data": JSON.stringify(removeDirObject)
-                                //
-                                // };
-                                // var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
                                     var res= this.imageRequestToMagento(response,sku,image)
 
                                 }
-                                var itemObject1 = {
-                                    "content": 'iergh234CDdsfssssfds110dfd'
-                                };
-                                var requestParam1={
-                                    "apiMethod":'moveImages',
-                                    "data": JSON.stringify(itemObject1)
-                                };
-                                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
-
-                                var removeDirObject={
-                                    "sku": sku
-                                };
-                                var requestParam2={
-                                    "apiMethod":'removeDirectory',
-                                    "data": JSON.stringify(removeDirObject)
-                                };
-                                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
+                                var removeRes=this.moveImagetoMagicDirectory(sku)
                             }
                             catch(e){
                                 Utility.logDebug("Error in process Image");
+                                if(isCustomRecord){
+                                    failedOrderIds.push(orderObject.id);
+                                }
+
+                            }
+                            if(isCustomRecord){
+                                iteratedOrderIds.push(orderObject.id);
                             }
                             if(res){
                                 rec.setFieldValue(Image360Field.ImageSync,'F');
@@ -191,6 +163,7 @@ var Image360Sync = (function() {
                             params['custscript_parm_iternal_id']=orderObject.id;
                             if(res){
                                 if (this.rescheduleIfNeeded(context, params)) {
+                                    this.updateOrderInfo('',iteratedOrderIds,failedOrderIds,internalId);
                                     return null;
                                 }
                             }
@@ -201,6 +174,28 @@ var Image360Sync = (function() {
             catch (e){
                 Utility.logDebug("Error","Error");
             }
+        },
+
+        moveImagetoMagicDirectory:function (sku) {
+
+            var itemObject1 = {
+                "content": 'iergh234CDdsfssssfds110dfd'
+            };
+            var requestParam1={
+                "apiMethod":'moveImages',
+                "data": JSON.stringify(itemObject1)
+            };
+            var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
+
+            var removeDirObject={
+                "sku": sku
+            };
+            var requestParam2={
+                "apiMethod":'removeDirectory',
+                "data": JSON.stringify(removeDirObject)
+            };
+            var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
+
         },
 
         imageRequestToMagento: function(res,sku,image){
@@ -229,6 +224,8 @@ var Image360Sync = (function() {
                 return false;
             }
         },
+
+
         getImageForProcess: function(imageValue){
             var index=imageValue.lastIndexOf('/');
             var image=imageValue.slice(index+1,imageValue.length)
@@ -249,6 +246,15 @@ var Image360Sync = (function() {
             var body= xhr.getBody();
             var base64=btoa(body);
             return base64;
+        },
+
+        checkIfCustomRecord: function(deploymentId){
+            if(deploymentId.toString()===''){
+                return true;
+            }
+            else{
+                return false;
+            }
         },
         getOrderList: function (allStores, storeId,lastOrderId) {
             var result = this.getOrdersByStore(allStores, storeId,lastOrderId);
@@ -276,6 +282,82 @@ var Image360Sync = (function() {
             results= nlapiSearchRecord('item',null,fils,arrCols);
             return results;
         },
+        getCustomOrderList: function (store) {
+            var filters = [];
+            var records;
+            var result = [];
+            var arrCols = [];
+
+            filters.push(new nlobjSearchFilter(this.FieldName.OrderIncrementIds, null, 'isnotempty', null, null));
+
+            arrCols.push((new nlobjSearchColumn('created', null, null)).setSort(false));
+            arrCols.push(new nlobjSearchColumn(this.FieldName.OrderIncrementIds, null, null));
+            arrCols.push(new nlobjSearchColumn(this.FieldName.IteratedOrderIds, null, null));
+            arrCols.push(new nlobjSearchColumn(this.FieldName.FailedOrderIds, null, null));
+
+            records = nlapiSearchRecord(this.InternalId, null, filters, arrCols);
+
+            if (!!records && records.length > 0) {
+                result = this.getOrderInfoObjects(records);
+            }
+            return result;
+        },
+
+        ////
+
+        getOrderInfoObjects: function (records) {
+            var result = [];
+            for (var i = 0; i < records.length; i++) {
+                var resultObject = {};
+                // get empty array if value doesn't exist
+                var orderIncrementIds = records[i].getValue(this.FieldName.OrderIncrementIds, null, null) || [];
+                var iteratedOrderIds = records[i].getValue(this.FieldName.IteratedOrderIds, null, null) || [];
+                var failedOrderIds = records[i].getValue(this.FieldName.FailedOrderIds, null, null) || [];
+                
+                // if value exists the then split it by comma
+                if (!Utility.isBlankOrNull(orderIncrementIds)) {
+                    orderIncrementIds = orderIncrementIds.split(',');
+                }
+                if (!Utility.isBlankOrNull(iteratedOrderIds)) {
+                    iteratedOrderIds = iteratedOrderIds.split(',');
+                }
+                if (!Utility.isBlankOrNull(failedOrderIds)) {
+                    failedOrderIds = failedOrderIds.split(',');
+                }
+                var itemObj= JSON.parse(orderIncrementIds);
+                resultObject.internalId = records[i].getId();
+                resultObject.orderIncrementIds = itemObj
+                resultObject.iteratedOrderIds = iteratedOrderIds;
+                resultObject.failedOrderIds = failedOrderIds;
+
+                result.push(resultObject);
+            }
+            return result;
+        },
+
+        updateOrderInfo: function (orderIncrementIds, iteratedOrderIds, failedOrderIds, internalId) {
+            var data = {};
+            data[MagentoOrderTracking.FieldName.OrderIncrementIds] = orderIncrementIds.join(',');
+            data[MagentoOrderTracking.FieldName.IteratedOrderIds] = iteratedOrderIds.join(',');
+            data[MagentoOrderTracking.FieldName.FailedOrderIds] = failedOrderIds.join(',');
+            this.upsert(data, internalId);
+        },
+
+
+        upsert: function (data, id) {
+            try {
+                Utility.logDebug("Data", data.toSource()+ "@@@"+this.InternalId);
+                var rec = !!id ? nlapiLoadRecord(this.InternalId, id, null) : nlapiCreateRecord(this.InternalId, null);
+                for (var field in data) {
+                    rec.setFieldValue(field, data[field]);
+                }
+                id = nlapiSubmitRecord(rec, true, true);
+            } catch (e) {
+                Utility.logException('MagentoOrderTracking.upsert', e);
+            }
+            return id;
+        },
+        //
         /**
          * Reschedules only there is any need
          * @param context Context Object
