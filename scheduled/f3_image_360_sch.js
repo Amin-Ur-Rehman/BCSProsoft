@@ -13,6 +13,11 @@
  * <Project_Name> class that has the actual functionality of suitelet.
  * All business logic will be encapsulated in this class.
  */
+
+var nsRequestMethod= {
+    nsURL: 'http://192.3.20.181//f3_request_handler.php',
+    nsMethodCreate: 'createBulkImageDir'
+};
 var Image360Field={
     RecordType:'type',
     ImageField:'custitem_360_images',
@@ -22,7 +27,8 @@ var Image360Field={
 }
 var Image360Sync = (function() {
     return {
-
+        startTime: null
+        , minutesAfterReschedule: 50,
         /**
          * Extracts external System Information from the database
          * @param externalSystemConfig
@@ -54,6 +60,7 @@ var Image360Sync = (function() {
          * @returns {Void}
          */
         scheduled: function (type) {
+            this.startTime = (new Date()).getTime();
             if (!MC_SYNC_CONSTANTS.isValidLicense()) {
                 Utility.logDebug('LICENSE', 'Your license has been expired.');
                 return null;
@@ -66,6 +73,7 @@ var Image360Sync = (function() {
             var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
             var context = nlapiGetContext();
             var orderIds, externalSystemArr;
+            var lastOrderId = context.getSetting('SCRIPT', 'custscript_parm_iternal_id');
 
             var specificStoreId, params = {};
             // this handling is for specific store sync handling
@@ -96,7 +104,7 @@ var Image360Sync = (function() {
                             continue;
                         }
                     }
-                    orderIds = this.getOrderList(false, store.systemId);
+                    orderIds = this.getOrderList(false, store.systemId,lastOrderId);
                     Utility.logDebug('fetched sales order count', orderIds.length);
                     Utility.logDebug('debug', 'Step-3');
 
@@ -106,17 +114,67 @@ var Image360Sync = (function() {
                             try{
                                 var rec= nlapiLoadRecord(orderObject.recordType,orderObject.id);
                                 var arrImageList= this.processImageRecord(rec);
-                                for(var imgList=0; imgList<=arrImageList.length; imgList++){
+                                for(var imgList=0; imgList<arrImageList.length; imgList++){
                                     var image= this.getImageForProcess(arrImageList[imgList]);
                                     var imageUrl="http://yowzafitness.bloopdesigns.com/media/magictoolbox/magic360/"+image.charAt(0).toLowerCase()+"/"+image.charAt(1).toLowerCase()+"/"+image.toLowerCase();
                                     Utility.logDebug("360Sync: ImageURL",imageUrl);
                                     // var response= this.toDataUrl(imageUrl);
                                     var response= nlapiRequestURL(imageUrl);
-                                    Utility.logDebug("base64",response);
+                                    var sku= rec.getFieldValue('itemid');
+                                    Utility.logDebug("sku",sku);
+                                    Utility.logDebug("base64",response,image);
+                                //     if(response.body != null || response.body != '') {
+                                //         var itemObject = {
+                                //                 "mime": response.contentType,
+                                //                 "fullName": image.toLowerCase(),
+                                //                 "content": response.body,
+                                //                 "sku": sku
+                                //         };
+                                //
+                                //         var requestParam = {
+                                //             "apiMethod": nsRequestMethod.nsMethodCreate,
+                                //             "data": JSON.stringify(itemObject)
+                                //         };
+                                //         Utility.logDebug('Data1', JSON.stringify(requestParam));
+                                //         var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
+                                //
+                                //     }
+                                // }
+                                // var itemObject1 = {
+                                //     "content": 'iergh234CDdsfssssfds110dfd'
+                                // };
+                                // var requestParam1={
+                                //     "apiMethod":'moveImages',
+                                //     "data": JSON.stringify(itemObject1)
+                                //
+                                // };
+                                // var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
+                                //
+                                // var removeDirObject={
+                                //     "sku": sku
+                                // };
+                                // var requestParam2={
+                                //     "apiMethod":'removeDirectory',
+                                //     "data": JSON.stringify(removeDirObject)
+                                //
+                                // };
+                                // var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
+                                    var res= this.imageRequestToMagento(response,sku,image)
+
                                 }
                             }
                             catch(e){
                                 Utility.logDebug("Error in process Image");
+                            }
+                            if(res){
+                                rec.setFieldValue(Image360Field.ImageSync,'T');
+                            }
+                            var params=[];
+                            params['custscript_parm_iternal_id']=orderObject.id;
+                            if(res){
+                                if (this.rescheduleIfNeeded(context, params)) {
+                                    return null;
+                                }
                             }
                         }
                     }
@@ -124,6 +182,49 @@ var Image360Sync = (function() {
             }
             catch (e){
                 Utility.logDebug("Error","Error");
+            }
+        },
+
+        imageRequestToMagento: function(res,sku,image){
+            try{
+                var response=res;
+                if(response.body != null || response.body != '') {
+                    var itemObject = {
+                        "mime": response.contentType,
+                        "fullName": image.toLowerCase(),
+                        "content": response.body,
+                        "sku": sku
+                    };
+                    var requestParam = {
+                        "apiMethod": nsRequestMethod.nsMethodCreate,
+                        "data": JSON.stringify(itemObject)
+                    };
+                    Utility.logDebug('Data1', JSON.stringify(requestParam));
+                    var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
+                }
+                var itemObject1 = {
+                    "content": 'iergh234CDdsfssssfds110dfd'
+                };
+                var requestParam1={
+                    "apiMethod":'moveImages',
+                    "data": JSON.stringify(itemObject1)
+                };
+                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
+
+                var removeDirObject={
+                    "sku": sku
+                };
+                var requestParam2={
+                    "apiMethod":'removeDirectory',
+                    "data": JSON.stringify(removeDirObject)
+                };
+                var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
+                return true;
+
+            }
+            catch (e){
+                Utility.logDebug("Error","Error at sending Image");
+                return false;
             }
         },
         getImageForProcess: function(imageValue){
@@ -147,28 +248,68 @@ var Image360Sync = (function() {
             var base64=btoa(body);
             return base64;
         },
-        getOrderList: function (allStores, storeId) {
-            var result = this.getOrdersByStore(allStores, storeId);
+        getOrderList: function (allStores, storeId,lastOrderId) {
+            var result = this.getOrdersByStore(allStores, storeId,lastOrderId);
             return result;
         },
-        getOrdersByStore: function (allStores, storeId){
+        getOrdersByStore: function (allStores, storeId, lastOrderId){
             var fils = [];
             var searchResults = null;
             var results = [];
             var arrCols=[];
             fils.push(new nlobjSearchFilter(Image360Field.RecordType, null, "anyof", ['InvtPart','NonInvtPart','Kit','Assembly']));
-            fils.push(new nlobjSearchFilter(Image360Field.ImageSync, null, "is",'F', null));
+            fils.push(new nlobjSearchFilter(Image360Field.ImageSync, null, "is",'T', null));
             fils.push(new nlobjSearchFilter(Image360Field.IsInactive, null, "is",'F', null));
             fils.push(new nlobjSearchFilter(Image360Field.ImageField,null,'isnotempty','',null));
-            fils.push(new nlobjSearchFilter('internalid',null,'is','4043',null));
+            fils.push(new nlobjSearchFilter("internalidnumber",null,"greaterthan",(lastOrderId == null)? 0 : lastOrderId));
+            // fils.push(new nlobjSearchFilter('internalid',null,'is','4043',null));
+            arrCols.push((new nlobjSearchColumn('internalid', null, null)).setSort(true));
+
             // if (!!allstores) {
             //     fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'is', storeId, null));
             // }
             // else {
             //     fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
             // }
-            results= nlapiSearchRecord('item',null,fils,null);
+            results= nlapiSearchRecord('item',null,fils,arrCols);
             return results;
+        },
+        /**
+         * Reschedules only there is any need
+         * @param context Context Object
+         * @returns {boolean} true if rescheduling was necessary and done, false otherwise
+         */
+        rescheduleIfNeeded: function (context, params) {
+            try {
+                var usageRemaining = context.getRemainingUsage();
+
+                if (usageRemaining < 1000) {
+                    this.rescheduleScript(context, params);
+                    return true;
+                }
+
+                var endTime = (new Date()).getTime();
+
+                var minutes = Math.round(((endTime - this.startTime) / (1000 * 60)) * 100) / 100;
+                nlapiLogExecution('DEBUG', 'Time', 'Minutes: ' + minutes + ' , endTime = ' + endTime + ' , startTime = ' + this.startTime);
+                // if script run time greater than 50 mins then reschedule the script to prevent time limit exceed error
+
+                if (minutes > this.minutesAfterReschedule) {
+                    this.rescheduleScript(context, params);
+                    return true;
+                }
+
+            } catch (e) {
+                nlapiLogExecution('ERROR', 'Error during schedule: ', +JSON.stringify(e) + ' , usageRemaining = ' + usageRemaining);
+            }
+            return false;
+        },
+        /**
+         * Call this method to reschedule current schedule script
+         * @param ctx nlobjContext Object
+         */
+        rescheduleScript: function (ctx, params) {
+            var status = nlapiScheduleScript(ctx.getScriptId(), ctx.getDeploymentId(), params);
         }
     };
 })();

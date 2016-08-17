@@ -18,47 +18,50 @@ var InstantSync = (function () {
     return {
         // process credit memo
         // funtion name is same as record type
-        creditmemo: function (recordId) {
-            var responseObj = {
-                error: ''
-            };
+        // creditmemo: function (recordId) {
+        //     var responseObj = {
+        //         error: ''
+        //     };
+        //
+        //     try {
+        //         var creditMemoNsId = recordId;
+        //
+        //         Utility.logDebug('after  CreditMemoExportHelper.getCreditMemo', '');
+        //
+        //         // get credit card data
+        //         var creditMemo = CreditMemoExportHelper.getCreditMemo(creditMemoNsId);
+        //
+        //         Utility.logDebug('after calling CreditMemoExportHelper.getCreditMemo', '');
+        //
+        //         if (creditMemo.items.length === 0) {
+        //             Utility.throwException(null, 'No item found to refund');
+        //         }
+        //
+        //         // TODO: get session
+        //         var sessionID = ConnectorConstants.CurrentStore.sessionID;
+        //
+        //         var requestXml = MagentoWrapper.getCreditMemoCreateXml(creditMemo, sessionID);
+        //         var responseMagento = MagentoWrapper.validateAndTransformResponse(MagentoWrapper.soapRequestToServer(requestXml), MagentoWrapper.transformCreditMemoCreateResponse);
+        //
+        //         if (responseMagento.status) {
+        //             CreditMemoExportHelper.setCreditMemoMagentoId(responseMagento.result.creditMemoId, creditMemoNsId);
+        //         } else {
+        //             Utility.logDebug('CreditMemoExportHelper.processCreditMemo', responseMagento.faultString);
+        //             //ExportCreditMemos.markRecords(creditMemoNsId, responseMagento.faultString);
+        //             responseObj.error += responseMagento.faultString + '\n';
+        //         }
+        //
+        //     } catch (e) {
+        //         Utility.logException('InstantSync.creditmemo', e);
+        //         responseObj.error += e.toString() + '\n';
+        //     }
+        //
+        //     return responseObj;
+        // },
 
-            try {
-                var creditMemoNsId = recordId;
-
-                Utility.logDebug('after  CreditMemoExportHelper.getCreditMemo', '');
-
-                // get credit card data
-                var creditMemo = CreditMemoExportHelper.getCreditMemo(creditMemoNsId);
-
-                Utility.logDebug('after calling CreditMemoExportHelper.getCreditMemo', '');
-
-                if (creditMemo.items.length === 0) {
-                    Utility.throwException(null, 'No item found to refund');
-                }
-
-                // TODO: get session
-                var sessionID = ConnectorConstants.CurrentStore.sessionID;
-
-                var requestXml = MagentoWrapper.getCreditMemoCreateXml(creditMemo, sessionID);
-                var responseMagento = MagentoWrapper.validateAndTransformResponse(MagentoWrapper.soapRequestToServer(requestXml), MagentoWrapper.transformCreditMemoCreateResponse);
-
-                if (responseMagento.status) {
-                    CreditMemoExportHelper.setCreditMemoMagentoId(responseMagento.result.creditMemoId, creditMemoNsId);
-                } else {
-                    Utility.logDebug('CreditMemoExportHelper.processCreditMemo', responseMagento.faultString);
-                    //ExportCreditMemos.markRecords(creditMemoNsId, responseMagento.faultString);
-                    responseObj.error += responseMagento.faultString + '\n';
-                }
-
-            } catch (e) {
-                Utility.logException('InstantSync.creditmemo', e);
-                responseObj.error += e.toString() + '\n';
-            }
-
-            return responseObj;
+        serializedinventoryitem: function (recordId) {
+            Utility.logDebug("recordID",recordId);
         },
-
         /**
          * Set cusrrent Store and generate session id using store id
          * @param externalSystemConfig
@@ -105,7 +108,7 @@ var InstantSync = (function () {
          * @param response
          */
         processGetRequest: function (request, response) {
-
+            Utility.logDebug("processGetRequest","processGetRequest");
             var ctx = nlapiGetContext();
             var recordId = request.getParameter('recordid');
             var recordType = request.getParameter('recordtype');
@@ -113,7 +116,7 @@ var InstantSync = (function () {
             var url = nlapiResolveURL('SUITELET', ctx.getScriptId(), ctx.getDeploymentId());
 
             var form = nlapiCreateForm('', true);
-
+            Utility.logDebug("processGetRequest",url+"storeId:"+storeId+"recordType"+recordType+"recordId"+recordId);
             form.addField('custpage_recordid', 'text').setDisplayType('hidden').setDefaultValue(recordId);
             form.addField('custpage_recordtype', 'text').setDisplayType('hidden').setDefaultValue(recordType);
             form.addField('custpage_storeid', 'text').setDisplayType('hidden').setDefaultValue(storeId);
