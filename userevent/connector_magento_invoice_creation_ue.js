@@ -143,10 +143,10 @@ var InvoiceExportHelper = (function () {
             Utility.logDebug('netsuiteInvoiceDetails', JSON.stringify(netsuiteInvoiceDetails));
             var responseBody = ConnectorConstants.CurrentWrapper.createInvoice(sessionID, netsuiteInvoiceDetails, store);
             Utility.logDebug('createInvoice - response', JSON.stringify(responseBody));
-            if(!!responseBody.status) {
-                if(!!responseBody.data.id) {
+            if(!!responseBody.status) { 
+                if(!!responseBody.data.increment_id) {
                     Utility.logDebug('Success', 'Other systems Invoice created ');
-                    nlapiSubmitField(netsuiteInvoiceDetails.recType, netsuiteInvoiceDetails.recordId, ConnectorConstants.Transaction.Fields.MagentoInvoiceId, responseBody.data.id);
+                    nlapiSubmitField(netsuiteInvoiceDetails.recType, netsuiteInvoiceDetails.recordId, ConnectorConstants.Transaction.Fields.MagentoInvoiceId, responseBody.data.increment_id);
                 } else {
                     Utility.logDebug('Error', 'Other systems Invoice id not found');
                 }
@@ -178,7 +178,7 @@ var InvoiceExportHelper = (function () {
          */
         setShipmentIdInFulFillment: function(shipmentId) {
             var rec = nlapiLoadRecord(nlapiGetRecordType(), nlapiGetRecordId(), null);
-            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoId, shipmentId + '');
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoShipmentId, shipmentId + '');
             rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
             nlapiSubmitRecord(rec);
         },
