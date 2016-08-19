@@ -114,61 +114,24 @@ var Image360Sync = (function() {
                     isCustomRecord=this.checkIfCustomRecord(context.getDeploymentId());
                     if(isCustomRecord){
                        var orderSearchObject=this.getCustomOrderList(store.systemId);
-                        orderIds= orderSearchObject.orderIncrementIds;
-                        iteratedOrderIds=orderSearchObject.iteratedOrderIds;
-                        failedOrderIds=orderSearchObject.failedOrderIds;
-                        internalId=orderSearchObject.internalId;
+                        Utility.logDebug("orderSearchObject",JSON.stringify(orderSearchObject));
+                        for(var j=0; j<orderSearchObject.length;j++) {
+                            orderIds = orderSearchObject[j].orderIncrementIds;
+                            iteratedOrderIds = orderSearchObject[j].iteratedOrderIds;
+                            failedOrderIds = orderSearchObject[j].failedOrderIds;
+                            internalId = orderSearchObject[j].internalId;
+                            Utility.logDebug('debug', JSON.stringify(orderSearchObject[j].orderIncrementIds));
+                            orderIds=JSON.parse(orderIds);
+                            this.iterateImageIds(context,orderIds,isCustomRecord,failedOrderIds,iteratedOrderIds,internalId);
+
+                        }
                     }
                     else {
                         orderIds = this.getOrderList(false, store.systemId, lastOrderId);
-                    }
-                    Utility.logDebug('fetched sales order count', orderIds.length);
-                    Utility.logDebug('debug', 'Step-3');
+                        this.iterateImageIds(context,orderIds,isCustomRecord);
+                    };
+                    Utility.logDebug('debug', 'END');
 
-                    if (orderIds.length > 0) {
-                        for (var c = 0; c < orderIds.length; c++) {
-                            var orderObject = orderIds[c];
-                            try{
-                                var rec= nlapiLoadRecord(orderObject.recordType,orderObject.id);
-                                var arrImageList= this.processImageRecord(rec);
-                                for(var imgList=0; imgList<arrImageList.length; imgList++){
-                                    var image= this.getImageForProcess(arrImageList[imgList]);
-                                    var imageUrl="http://yowzafitness.bloopdesigns.com/media/magictoolbox/magic360/"+image.charAt(0).toLowerCase()+"/"+image.charAt(1).toLowerCase()+"/"+image.toLowerCase();
-                                    Utility.logDebug("360Sync: ImageURL",imageUrl);
-                                    // var response= this.toDataUrl(imageUrl);
-                                    var response= nlapiRequestURL(imageUrl);
-                                    var sku= rec.getFieldValue('itemid');
-                                    Utility.logDebug("sku",sku);
-                                    Utility.logDebug("base64",response,image);
-                                    var res= this.imageRequestToMagento(response,sku,image)
-
-                                }
-                                var removeRes=this.moveImagetoMagicDirectory(sku)
-                            }
-                            catch(e){
-                                Utility.logDebug("Error in process Image");
-                                if(isCustomRecord){
-                                    failedOrderIds.push(orderObject.id);
-                                }
-
-                            }
-                            if(isCustomRecord){
-                                iteratedOrderIds.push(orderObject.id);
-                            }
-                            if(res){
-                                rec.setFieldValue(Image360Field.ImageSync,'F');
-                                nlapiSubmitRecord(rec);
-                            }
-                            var params=[];
-                            params['custscript_parm_iternal_id']=orderObject.id;
-                            if(res){
-                                if (this.rescheduleIfNeeded(context, params)) {
-                                    this.updateOrderInfo('',iteratedOrderIds,failedOrderIds,internalId);
-                                    return null;
-                                }
-                            }
-                        }
-                    }
                 }
             }
             catch (e){
@@ -176,6 +139,72 @@ var Image360Sync = (function() {
             }
         },
 
+        iterateImageIds:function (context,orderIds,isCustomRecord,failedOrderIds,iteratedOrderIds,internalId) {
+            Utility.logDebug('debug', 'Step-3');
+            Utility.logDebug('length', orderIds.length);
+            if (orderIds.length > 0) {
+
+                for (var c = 0; c < orderIds.length; c++) {
+                    var orderObject = orderIds[c];
+                    Utility.logDebug('debug', orderIds[c]);
+                    if(isCustomRecord){
+                        orderObject=orderIds[c];
+                    }
+                    try{
+                        var rec= nlapiLoadRecord(orderObject.recordType,orderObject.id);
+                        var arrImageList= this.processImageRecord(rec);
+                        for(var imgList=0; imgList<arrImageList.length; imgList++){
+                            var image= this.getImageForProcess(arrImageList[imgList]);
+                            var imageUrl="http://yowzafitness.bloopdesigns.com/media/magictoolbox/magic360/"+image.charAt(0).toLowerCase()+"/"+image.charAt(1).toLowerCase()+"/"+image.toLowerCase();
+                            Utility.logDebug("360Sync: ImageURL",imageUrl);
+                            // var response= this.toDataUrl(imageUrl);
+                            var response= nlapiRequestURL(imageUrl);
+                            var sku= rec.getFieldValue('itemid');
+                            Utility.logDebug("sku",sku);
+                            Utility.logDebug("base64",response,image);
+                            var res= this.imageRequestToMagento(response,sku,image)
+                        }
+                        if(res)
+                            var removeRes=this.moveImagetoMagicDirectory(sku)
+                    }
+                    catch(e){
+                        Utility.logDebug("Error in process Image");
+                        if(isCustomRecord){
+                            Utility.logDebug("failedOrderIds",orderObject.id);
+                            failedOrderIds.push(orderObject.id);
+                        }
+                    }
+                    if(res){
+                        Utility.logDebug("isCustomRecord",isCustomRecord);
+                        if(isCustomRecord){
+                            Utility.logDebug("iteratedOrderIds",orderObject.id);
+                            iteratedOrderIds.push(orderObject.id);
+                        }
+                        rec.setFieldValue(Image360Field.ImageSync,'F');
+                        nlapiSubmitRecord(rec);
+                    }
+                    var params=[];
+                    params['custscript_parm_iternal_id']=orderObject.id;
+                    if(res){
+                        if(isCustomRecord) {
+                            Utility.logDebug("res1",res);
+                            this.updateOrderInfo('', iteratedOrderIds, failedOrderIds, internalId);
+                        }
+                        if (this.rescheduleIfNeeded(context, params)) {
+                            return null;
+                        }
+                    }
+                    else{
+                        if(isCustomRecord){
+                            Utility.logDebug("failedOrderIds1",orderObject.id);
+                            failedOrderIds.push(orderObject.id);
+                            this.updateOrderInfo('', iteratedOrderIds, failedOrderIds, internalId);
+                        }
+                        continue;
+                    }
+                }
+            }
+        },
         moveImagetoMagicDirectory:function (sku) {
 
             var itemObject1 = {
@@ -195,7 +224,7 @@ var Image360Sync = (function() {
                 "data": JSON.stringify(removeDirObject)
             };
             var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
-
+            Utility.logDebug("REMOVED IMAGE","removed Image");
         },
 
         imageRequestToMagento: function(res,sku,image){
@@ -208,16 +237,22 @@ var Image360Sync = (function() {
                         "content": response.body,
                         "sku": sku
                     };
-                    var requestParam = {
-                        "apiMethod": nsRequestMethod.nsMethodCreate,
-                        "data": JSON.stringify(itemObject)
-                    };
-                    Utility.logDebug('Data1', JSON.stringify(requestParam));
-                    var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
+                    Utility.logDebug("response.contentType",response.contentType);
+                    if (response.contentType== "image/jpeg") {
+                        var requestParam = {
+                            "apiMethod": nsRequestMethod.nsMethodCreate,
+                            "data": JSON.stringify(itemObject)
+                        };
+                        Utility.logDebug('Data1', JSON.stringify(requestParam));
+                        var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam, null, 'POST');
+                        return true;
+                    }
+                    else {
+                        Utility.logDebug('Data1', JSON.stringify(requestParam));
+                        return false;
+                    }
                 }
-
-                return true;
-
+                return false;
             }
             catch (e){
                 Utility.logDebug("Error","Error at sending Image");
@@ -249,7 +284,8 @@ var Image360Sync = (function() {
         },
 
         checkIfCustomRecord: function(deploymentId){
-            if(deploymentId.toString()===''){
+            nlapiLogExecution("DEBUG","deploymentId",deploymentId+"###"+deploymentId.toString());
+            if(deploymentId.toString()==='customdeploy_image_360_sync_ns_dep'){
                 return true;
             }
             else{
@@ -296,10 +332,11 @@ var Image360Sync = (function() {
             arrCols.push(new nlobjSearchColumn(this.FieldName.FailedOrderIds, null, null));
 
             records = nlapiSearchRecord(this.InternalId, null, filters, arrCols);
-
+            nlapiLogExecution("DEBUG","records",JSON.stringify(records));
             if (!!records && records.length > 0) {
                 result = this.getOrderInfoObjects(records);
             }
+            nlapiLogExecution("DEBUG","records",JSON.stringify(result));
             return result;
         },
 
@@ -313,7 +350,7 @@ var Image360Sync = (function() {
                 var orderIncrementIds = records[i].getValue(this.FieldName.OrderIncrementIds, null, null) || [];
                 var iteratedOrderIds = records[i].getValue(this.FieldName.IteratedOrderIds, null, null) || [];
                 var failedOrderIds = records[i].getValue(this.FieldName.FailedOrderIds, null, null) || [];
-                
+
                 // if value exists the then split it by comma
                 if (!Utility.isBlankOrNull(orderIncrementIds)) {
                     orderIncrementIds = orderIncrementIds.split(',');
@@ -324,9 +361,8 @@ var Image360Sync = (function() {
                 if (!Utility.isBlankOrNull(failedOrderIds)) {
                     failedOrderIds = failedOrderIds.split(',');
                 }
-                var itemObj= JSON.parse(orderIncrementIds);
                 resultObject.internalId = records[i].getId();
-                resultObject.orderIncrementIds = itemObj
+                resultObject.orderIncrementIds = orderIncrementIds
                 resultObject.iteratedOrderIds = iteratedOrderIds;
                 resultObject.failedOrderIds = failedOrderIds;
 
@@ -336,10 +372,11 @@ var Image360Sync = (function() {
         },
 
         updateOrderInfo: function (orderIncrementIds, iteratedOrderIds, failedOrderIds, internalId) {
+            Utility.logDebug("updateOrderInfo","orderIncrementIds"+JSON.stringify(orderIncrementIds)+"iteratedOrderIds"+iteratedOrderIds+"failedOrderIds"+JSON.stringify(failedOrderIds)+"internalId"+internalId);
             var data = {};
-            data[MagentoOrderTracking.FieldName.OrderIncrementIds] = orderIncrementIds.join(',');
-            data[MagentoOrderTracking.FieldName.IteratedOrderIds] = iteratedOrderIds.join(',');
-            data[MagentoOrderTracking.FieldName.FailedOrderIds] = failedOrderIds.join(',');
+             data[this.FieldName.OrderIncrementIds] = [''];
+            data[this.FieldName.IteratedOrderIds] = iteratedOrderIds.join(',');
+            data[this.FieldName.FailedOrderIds] = failedOrderIds.join(',');
             this.upsert(data, internalId);
         },
 

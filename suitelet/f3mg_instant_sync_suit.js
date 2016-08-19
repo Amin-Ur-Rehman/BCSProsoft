@@ -217,16 +217,18 @@ var InstantSync = (function () {
                 // sort array
                 orderIds = orderIds.split(',').sort().join(',');
                 nlapiLogExecution('DEBUG', 'createRecordEntry', 'orderIds1: ' + orderIds);
+                var itemArray=[];
                 var itemObj={
-                    "id":orderIds,
-                    "recordType": itemType
+                    id:orderIds,
+                    recordType: itemType
                 };
-                data[InstantSync.FieldName.OrderIncrementsIds] = JSON.stringify(itemObj);
+                itemArray.push(itemObj);
+                data[InstantSync.FieldName.OrderIncrementsIds] =JSON.stringify(itemArray);
                 data[InstantSync.FieldName.StoreId] = storeId;
                 id = this.upsert(data);
 
                 nlapiLogExecution('DEBUG', 'createRecordEntry', 'Id: ' + id);
-               // var status = nlapiScheduleScript('customscript_saleorder_import_groupbuy','customdeploy_saleorder_import_groupby_de', null);
+                var status = nlapiScheduleScript('customscript_f3__img_sync_360_sch','customdeploy_image_360_sync_ns_dep', null);
                 Utility.logDebug('initiateScheduledScript', 'Status:' + status);
             }
 

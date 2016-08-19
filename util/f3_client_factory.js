@@ -1461,7 +1461,6 @@ function F3IntekShopifyClient() {
         magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
         externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
         var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
-
         // set csutomer in order
         rec.setFieldValue('entity', netsuiteCustomerId);
         rec.setFieldValue(magentoSyncId, 'T');
