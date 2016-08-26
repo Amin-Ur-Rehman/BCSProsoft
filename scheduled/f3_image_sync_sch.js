@@ -19,13 +19,13 @@
  * All business logic will be encapsulated in this class.
  */
 
-ImageSync={
-        FieldName:{
-            RecordType:'type',
-            ImageSync: 'custitem_f3_image_sync',
-            IsInactive:'isinactive',
-            ExternalSystem: 'custitem_f3mg_magento_stores'
-        }
+ImageSync = {
+    FieldName: {
+        RecordType: 'type',
+        ImageSync: 'custitem_f3_image_sync',
+        IsInactive: 'isinactive',
+        ExternalSystem: 'custitem_f3mg_magento_stores'
+    }
 };
 var Image_Sync_Module = (function () {
 
@@ -58,7 +58,7 @@ var Image_Sync_Module = (function () {
                 var identifierType = ctx.getSetting('SCRIPT', "custscript_identifiertype");
                 var identifierValue = ctx.getSetting('SCRIPT', "custscript_identifiervalue");
                 var selectedStoreId = ctx.getSetting('SCRIPT', "custscript_selectedstoreid");
-               // var savedSearchId = ctx.getSetting('SCRIPT', "custscript_savedsearchid");
+                // var savedSearchId = ctx.getSetting('SCRIPT', "custscript_savedsearchid");
                 var customImageFields = ctx.getSetting('SCRIPT', "custscript_cust_img_fields");
                 //
                 // if (!savedSearchId) {
@@ -75,7 +75,7 @@ var Image_Sync_Module = (function () {
                 }
                 customImageFieldsLists.push("storedisplayimage");
                 nlapiLogExecution("DEBUG", "Image Fields List Length: ", customImageFieldsLists.length);
-               // nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
+                // nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
                 //initialize constants
                 ConnectorConstants.initialize();
                 ConnectorConstants.loadItemConfigRecords();
@@ -93,8 +93,8 @@ var Image_Sync_Module = (function () {
                     for (var i in externalSystemArr) {
                         var store = externalSystemArr[i];
                         ConnectorConstants.CurrentStore = store;
-                        if(!!selectedStoreId){
-                            if(selectedStoreId !== store.systemId){
+                        if (!!selectedStoreId) {
+                            if (selectedStoreId !== store.systemId) {
                                 continue;
                             }
                         }
@@ -102,16 +102,16 @@ var Image_Sync_Module = (function () {
                             //Utility.logDebug('store ' + system, 'This store is null');
                             continue;
                         }
-                        storeId= store.systemId;
-                         // Check for feature availability
-                         if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
-                         nlapiLogExecution("DEBUG",';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
-                         continue;
-                         }
+                        storeId = store.systemId;
+                        // Check for feature availability
+                        if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
+                            nlapiLogExecution("DEBUG", ';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                            continue;
+                        }
 
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
-                        var results= this.getImageToSyncItems(null,storeId);
+                        var results = this.getImageToSyncItems(null, storeId);
 
                         //////
                         if (!!results && results.length > 0) {
@@ -258,12 +258,13 @@ var Image_Sync_Module = (function () {
                     obj.magento = records[i].getValue("custitem_magentoid");
                     obj.magento = JSON.parse(obj.magento);
                     obj.magentoProductId = obj.magento[0].MagentoId;
-
+                    var rec = nlapiLoadRecord(obj.itemType, obj.itemInternalId);
                     if (!this.deleteImages(store, obj.itemInternalId, obj.itemType, null, null, obj.magentoProductId))
                         return;
-                    nlapiLogExecution("DEBUG", "Adding New Image(s)", " ");
+                    nlapiLogExecution("DEBUG", "Adding New Image(s)", JSON.stringify(rec));
                     for (var j = 0; j < customImageFieldsLists.length; j++) {
-                        var path = records[i].getValue(customImageFieldsLists[j]);
+                        var path = rec.getFieldValue(customImageFieldsLists[j]);
+                        nlapiLogExecution("DEBUG", "Adding New Image(s)" + j, customImageFieldsLists[j] + "path" + path);
                         if (!!path) {
                             var file = nlapiLoadFile(path);
                             var itemObject = {
@@ -328,23 +329,23 @@ var Image_Sync_Module = (function () {
          */
         markRecords: function (itemType, itemId) {
             try {
-                    nlapiSubmitField(itemType, itemId, "custitem_f3_image_sync", "F", null);
-                    nlapiLogExecution("DEBUG", "Record Marked", "Record Marked");
-                    return;
+                nlapiSubmitField(itemType, itemId, "custitem_f3_image_sync", "F", null);
+                nlapiLogExecution("DEBUG", "Record Marked", "Record Marked");
+                return;
             } catch (err) {
                 nlapiLogExecution("DEBUG", "Error! Cannot Mark Record(s)", err);
             }
         },
 
 
-        getImageToSyncItems: function (allstores,storeId) {
+        getImageToSyncItems: function (allstores, storeId) {
             var fils = [];
             var searchResults = null;
             var results = [];
-            var arrCols=[];
-            fils.push(new nlobjSearchFilter(ImageSync.FieldName.RecordType, null, "anyof", ['InvtPart','NonInvtPart','Kit','Assembly']));
-            fils.push(new nlobjSearchFilter(ImageSync.FieldName.ImageSync, null, "is",'T', null));
-            fils.push(new nlobjSearchFilter(ImageSync.FieldName.IsInactive, null, "is",'F', null));
+            var arrCols = [];
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.RecordType, null, "anyof", ['InvtPart', 'NonInvtPart', 'Kit', 'Assembly']));
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.ImageSync, null, "is", 'T', null));
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.IsInactive, null, "is", 'F', null));
             if (!!allstores) {
                 fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'is', storeId, null));
             }
@@ -357,11 +358,11 @@ var Image_Sync_Module = (function () {
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.Type, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.Parent, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.DisplayImage, null, null));
-           // arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.CustomImage, null, null));
+            // arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.CustomImage, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.DispalyThumbnail, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.MagentoId, null, null));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.MagentoStore, null, null));
-            results= nlapiSearchRecord('item',null,fils,arrCols);
+            results = nlapiSearchRecord('item', null, fils, arrCols);
             return results;
         },
 

@@ -14,18 +14,18 @@
  * All business logic will be encapsulated in this class.
  */
 
-var nsRequestMethod= {
-    nsURL: 'http://192.3.20.181//f3_request_handler.php',
+var nsRequestMethod = {
+    nsURL: 'http://192.3.20.181/f3_request_handler.php',
     nsMethodCreate: 'createBulkImageDir'
 };
-var Image360Field={
-    RecordType:'type',
-    ImageField:'custitem_360_images',
+var Image360Field = {
+    RecordType: 'type',
+    ImageField: 'custitem_360_images',
     ImageSync: 'custitem_image_360',
-    IsInactive:'isinactive',
-    SpecificStore:'custscript_360_image_exp_storeid'
+    IsInactive: 'isinactive',
+    SpecificStore: 'custscript_360_image_exp_storeid'
 }
-var Image360Sync = (function() {
+var Image360Sync = (function () {
     return {
         InternalId: 'customrecord_image_sync_order_tracking',
         FieldName: {
@@ -79,9 +79,9 @@ var Image360Sync = (function() {
             // getting configuration
             var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
             var context = nlapiGetContext();
-            var orderIds, externalSystemArr,iteratedOrderIds, failedOrderIds,internalId;
+            var orderIds, externalSystemArr, iteratedOrderIds, failedOrderIds, internalId;
             var lastOrderId = context.getSetting('SCRIPT', 'custscript_parm_iternal_id');
-            var isCustomRecord='';
+            var isCustomRecord = '';
             var specificStoreId, params = {};
             // this handling is for specific store sync handling
             specificStoreId = context.getSetting('SCRIPT', Image360Field.SpecificStore);
@@ -111,35 +111,36 @@ var Image360Sync = (function() {
                             continue;
                         }
                     }
-                    isCustomRecord=this.checkIfCustomRecord(context.getDeploymentId());
-                    if(isCustomRecord){
-                       var orderSearchObject=this.getCustomOrderList(store.systemId);
-                        Utility.logDebug("orderSearchObject",JSON.stringify(orderSearchObject));
-                        for(var j=0; j<orderSearchObject.length;j++) {
+                    isCustomRecord = this.checkIfCustomRecord(context.getDeploymentId());
+                    if (isCustomRecord) {
+                        var orderSearchObject = this.getCustomOrderList(store.systemId);
+                        Utility.logDebug("orderSearchObject", JSON.stringify(orderSearchObject));
+                        for (var j = 0; j < orderSearchObject.length; j++) {
                             orderIds = orderSearchObject[j].orderIncrementIds;
                             iteratedOrderIds = orderSearchObject[j].iteratedOrderIds;
                             failedOrderIds = orderSearchObject[j].failedOrderIds;
                             internalId = orderSearchObject[j].internalId;
                             Utility.logDebug('debug', JSON.stringify(orderSearchObject[j].orderIncrementIds));
-                            orderIds=JSON.parse(orderIds);
-                            this.iterateImageIds(context,orderIds,isCustomRecord,failedOrderIds,iteratedOrderIds,internalId);
+                            orderIds = JSON.parse(orderIds);
+                            this.iterateImageIds(context, orderIds, isCustomRecord, failedOrderIds, iteratedOrderIds, internalId);
 
                         }
                     }
                     else {
                         orderIds = this.getOrderList(false, store.systemId, lastOrderId);
-                        this.iterateImageIds(context,orderIds,isCustomRecord);
-                    };
+                        this.iterateImageIds(context, orderIds, isCustomRecord);
+                    }
+                    ;
                     Utility.logDebug('debug', 'END');
 
                 }
             }
-            catch (e){
-                Utility.logDebug("Error","Error");
+            catch (e) {
+                Utility.logDebug("Error", "Error");
             }
         },
 
-        iterateImageIds:function (context,orderIds,isCustomRecord,failedOrderIds,iteratedOrderIds,internalId) {
+        iterateImageIds: function (context, orderIds, isCustomRecord, failedOrderIds, iteratedOrderIds, internalId) {
             Utility.logDebug('debug', 'Step-3');
             Utility.logDebug('length', orderIds.length);
             if (orderIds.length > 0) {
@@ -147,56 +148,56 @@ var Image360Sync = (function() {
                 for (var c = 0; c < orderIds.length; c++) {
                     var orderObject = orderIds[c];
                     Utility.logDebug('debug', orderIds[c]);
-                    if(isCustomRecord){
-                        orderObject=orderIds[c];
+                    if (isCustomRecord) {
+                        orderObject = orderIds[c];
                     }
-                    try{
-                        var rec= nlapiLoadRecord(orderObject.recordType,orderObject.id);
-                        var arrImageList= this.processImageRecord(rec);
-                        for(var imgList=0; imgList<arrImageList.length; imgList++){
-                            var image= this.getImageForProcess(arrImageList[imgList]);
-                            var imageUrl="http://yowzafitness.bloopdesigns.com/media/magictoolbox/magic360/"+image.charAt(0).toLowerCase()+"/"+image.charAt(1).toLowerCase()+"/"+image.toLowerCase();
-                            Utility.logDebug("360Sync: ImageURL",imageUrl);
+                    try {
+                        var rec = nlapiLoadRecord(orderObject.recordType, orderObject.id);
+                        var arrImageList = this.processImageRecord(rec);
+                        for (var imgList = 0; imgList < arrImageList.length; imgList++) {
+                            var image = this.getImageForProcess(arrImageList[imgList]);
+                            var imageUrl = "http://yowzafitness.bloopdesigns.com/media/magictoolbox/magic360/" + image.charAt(0).toLowerCase() + "/" + image.charAt(1).toLowerCase() + "/" + image.toLowerCase();
+                            Utility.logDebug("360Sync: ImageURL", imageUrl);
                             // var response= this.toDataUrl(imageUrl);
-                            var response= nlapiRequestURL(imageUrl);
-                            var sku= rec.getFieldValue('itemid');
-                            Utility.logDebug("sku",sku);
-                            Utility.logDebug("base64",response,image);
-                            var res= this.imageRequestToMagento(response,sku,image)
+                            var response = nlapiRequestURL(imageUrl);
+                            var sku = rec.getFieldValue('itemid');
+                            Utility.logDebug("sku", sku);
+                            Utility.logDebug("base64", response, image);
+                            var res = this.imageRequestToMagento(response, sku, image)
                         }
-                        if(res)
-                            var removeRes=this.moveImagetoMagicDirectory(sku)
+                        if (res)
+                            var removeRes = this.moveImagetoMagicDirectory(sku)
                     }
-                    catch(e){
+                    catch (e) {
                         Utility.logDebug("Error in process Image");
-                        if(isCustomRecord){
-                            Utility.logDebug("failedOrderIds",orderObject.id);
+                        if (isCustomRecord) {
+                            Utility.logDebug("failedOrderIds", orderObject.id);
                             failedOrderIds.push(orderObject.id);
                         }
                     }
-                    if(res){
-                        Utility.logDebug("isCustomRecord",isCustomRecord);
-                        if(isCustomRecord){
-                            Utility.logDebug("iteratedOrderIds",orderObject.id);
+                    if (res) {
+                        Utility.logDebug("isCustomRecord", isCustomRecord);
+                        if (isCustomRecord) {
+                            Utility.logDebug("iteratedOrderIds", orderObject.id);
                             iteratedOrderIds.push(orderObject.id);
                         }
-                        rec.setFieldValue(Image360Field.ImageSync,'F');
+                        rec.setFieldValue(Image360Field.ImageSync, 'F');
                         nlapiSubmitRecord(rec);
                     }
-                    var params=[];
-                    params['custscript_parm_iternal_id']=orderObject.id;
-                    if(res){
-                        if(isCustomRecord) {
-                            Utility.logDebug("res1",res);
+                    var params = [];
+                    params['custscript_parm_iternal_id'] = orderObject.id;
+                    if (res) {
+                        if (isCustomRecord) {
+                            Utility.logDebug("res1", res);
                             this.updateOrderInfo('', iteratedOrderIds, failedOrderIds, internalId);
                         }
                         if (this.rescheduleIfNeeded(context, params)) {
                             return null;
                         }
                     }
-                    else{
-                        if(isCustomRecord){
-                            Utility.logDebug("failedOrderIds1",orderObject.id);
+                    else {
+                        if (isCustomRecord) {
+                            Utility.logDebug("failedOrderIds1", orderObject.id);
                             failedOrderIds.push(orderObject.id);
                             this.updateOrderInfo('', iteratedOrderIds, failedOrderIds, internalId);
                         }
@@ -205,40 +206,40 @@ var Image360Sync = (function() {
                 }
             }
         },
-        moveImagetoMagicDirectory:function (sku) {
+        moveImagetoMagicDirectory: function (sku) {
 
             var itemObject1 = {
                 "content": 'iergh234CDdsfssssfds110dfd'
             };
-            var requestParam1={
-                "apiMethod":'moveImages',
+            var requestParam1 = {
+                "apiMethod": 'moveImages',
                 "data": JSON.stringify(itemObject1)
             };
             var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam1, null, 'POST');
 
-            var removeDirObject={
+            var removeDirObject = {
                 "sku": sku
             };
-            var requestParam2={
-                "apiMethod":'removeDirectory',
+            var requestParam2 = {
+                "apiMethod": 'removeDirectory',
                 "data": JSON.stringify(removeDirObject)
             };
             var response = nlapiRequestURL(nsRequestMethod.nsURL, requestParam2, null, 'POST');
-            Utility.logDebug("REMOVED IMAGE","removed Image");
+            Utility.logDebug("REMOVED IMAGE", "removed Image");
         },
 
-        imageRequestToMagento: function(res,sku,image){
-            try{
-                var response=res;
-                if(response.body != null || response.body != '') {
+        imageRequestToMagento: function (res, sku, image) {
+            try {
+                var response = res;
+                if (response.body != null || response.body != '') {
                     var itemObject = {
                         "mime": response.contentType,
                         "fullName": image.toLowerCase(),
                         "content": response.body,
                         "sku": sku
                     };
-                    Utility.logDebug("response.contentType",response.contentType);
-                    if (response.contentType== "image/jpeg") {
+                    Utility.logDebug("response.contentType", response.contentType);
+                    if (response.contentType == "image/jpeg") {
                         var requestParam = {
                             "apiMethod": nsRequestMethod.nsMethodCreate,
                             "data": JSON.stringify(itemObject)
@@ -254,58 +255,58 @@ var Image360Sync = (function() {
                 }
                 return false;
             }
-            catch (e){
-                Utility.logDebug("Error","Error at sending Image");
+            catch (e) {
+                Utility.logDebug("Error", "Error at sending Image");
                 return false;
             }
         },
 
 
-        getImageForProcess: function(imageValue){
-            var index=imageValue.lastIndexOf('/');
-            var image=imageValue.slice(index+1,imageValue.length)
+        getImageForProcess: function (imageValue) {
+            var index = imageValue.lastIndexOf('/');
+            var image = imageValue.slice(index + 1, imageValue.length)
             return image;
         },
         processImageRecord: function (rec) {
-            var array=[];
-            var imageField=rec.getFieldValue(Image360Field.ImageField);
-            var imageFieldXml=nlapiStringToXML(imageField);
-            var imageFieldNode=nlapiSelectNode(imageFieldXml,'/a');
-            var imageFieldValue=imageFieldNode.getAttribute('rel');
-            array=imageFieldValue.split('*');
+            var array = [];
+            var imageField = rec.getFieldValue(Image360Field.ImageField);
+            var imageFieldXml = nlapiStringToXML(imageField);
+            var imageFieldNode = nlapiSelectNode(imageFieldXml, '/a');
+            var imageFieldValue = imageFieldNode.getAttribute('rel');
+            array = imageFieldValue.split('*');
             return array;
         },
 
-        toDataUrl: function(url) {
+        toDataUrl: function (url) {
             var xhr = nlapiRequestURL(url);
-            var body= xhr.getBody();
-            var base64=btoa(body);
+            var body = xhr.getBody();
+            var base64 = btoa(body);
             return base64;
         },
 
-        checkIfCustomRecord: function(deploymentId){
-            nlapiLogExecution("DEBUG","deploymentId",deploymentId+"###"+deploymentId.toString());
-            if(deploymentId.toString()==='customdeploy_image_360_sync_ns_dep'){
+        checkIfCustomRecord: function (deploymentId) {
+            nlapiLogExecution("DEBUG", "deploymentId", deploymentId + "###" + deploymentId.toString());
+            if (deploymentId.toString() === 'customdeploy_image_360_sync_ns_dep') {
                 return true;
             }
-            else{
+            else {
                 return false;
             }
         },
-        getOrderList: function (allStores, storeId,lastOrderId) {
-            var result = this.getOrdersByStore(allStores, storeId,lastOrderId);
+        getOrderList: function (allStores, storeId, lastOrderId) {
+            var result = this.getOrdersByStore(allStores, storeId, lastOrderId);
             return result;
         },
-        getOrdersByStore: function (allStores, storeId, lastOrderId){
+        getOrdersByStore: function (allStores, storeId, lastOrderId) {
             var fils = [];
             var searchResults = null;
             var results = [];
-            var arrCols=[];
-            fils.push(new nlobjSearchFilter(Image360Field.RecordType, null, "anyof", ['InvtPart','NonInvtPart','Kit','Assembly']));
-            fils.push(new nlobjSearchFilter(Image360Field.ImageSync, null, "is",'T', null));
-            fils.push(new nlobjSearchFilter(Image360Field.IsInactive, null, "is",'F', null));
-            fils.push(new nlobjSearchFilter(Image360Field.ImageField,null,'isnotempty','',null));
-            fils.push(new nlobjSearchFilter("internalidnumber",null,"greaterthan",(lastOrderId == null)? 0 : lastOrderId));
+            var arrCols = [];
+            fils.push(new nlobjSearchFilter(Image360Field.RecordType, null, "anyof", ['InvtPart', 'NonInvtPart', 'Kit', 'Assembly']));
+            fils.push(new nlobjSearchFilter(Image360Field.ImageSync, null, "is", 'T', null));
+            fils.push(new nlobjSearchFilter(Image360Field.IsInactive, null, "is", 'F', null));
+            fils.push(new nlobjSearchFilter(Image360Field.ImageField, null, 'isnotempty', '', null));
+            fils.push(new nlobjSearchFilter("internalidnumber", null, "greaterthan", (lastOrderId == null) ? 0 : lastOrderId));
             // fils.push(new nlobjSearchFilter('internalid',null,'is','4043',null));
             arrCols.push((new nlobjSearchColumn('internalid', null, null)).setSort(true));
 
@@ -315,7 +316,7 @@ var Image360Sync = (function() {
             // else {
             //     fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
             // }
-            results= nlapiSearchRecord('item',null,fils,arrCols);
+            results = nlapiSearchRecord('item', null, fils, arrCols);
             return results;
         },
         getCustomOrderList: function (store) {
@@ -332,11 +333,11 @@ var Image360Sync = (function() {
             arrCols.push(new nlobjSearchColumn(this.FieldName.FailedOrderIds, null, null));
 
             records = nlapiSearchRecord(this.InternalId, null, filters, arrCols);
-            nlapiLogExecution("DEBUG","records",JSON.stringify(records));
+            nlapiLogExecution("DEBUG", "records", JSON.stringify(records));
             if (!!records && records.length > 0) {
                 result = this.getOrderInfoObjects(records);
             }
-            nlapiLogExecution("DEBUG","records",JSON.stringify(result));
+            nlapiLogExecution("DEBUG", "records", JSON.stringify(result));
             return result;
         },
 
@@ -372,9 +373,9 @@ var Image360Sync = (function() {
         },
 
         updateOrderInfo: function (orderIncrementIds, iteratedOrderIds, failedOrderIds, internalId) {
-            Utility.logDebug("updateOrderInfo","orderIncrementIds"+JSON.stringify(orderIncrementIds)+"iteratedOrderIds"+iteratedOrderIds+"failedOrderIds"+JSON.stringify(failedOrderIds)+"internalId"+internalId);
+            Utility.logDebug("updateOrderInfo", "orderIncrementIds" + JSON.stringify(orderIncrementIds) + "iteratedOrderIds" + iteratedOrderIds + "failedOrderIds" + JSON.stringify(failedOrderIds) + "internalId" + internalId);
             var data = {};
-             data[this.FieldName.OrderIncrementIds] = [''];
+            data[this.FieldName.OrderIncrementIds] = [''];
             data[this.FieldName.IteratedOrderIds] = iteratedOrderIds.join(',');
             data[this.FieldName.FailedOrderIds] = failedOrderIds.join(',');
             this.upsert(data, internalId);
@@ -383,7 +384,7 @@ var Image360Sync = (function() {
 
         upsert: function (data, id) {
             try {
-                Utility.logDebug("Data", data.toSource()+ "@@@"+this.InternalId);
+                Utility.logDebug("Data", data.toSource() + "@@@" + this.InternalId);
                 var rec = !!id ? nlapiLoadRecord(this.InternalId, id, null) : nlapiCreateRecord(this.InternalId, null);
                 for (var field in data) {
                     rec.setFieldValue(field, data[field]);
