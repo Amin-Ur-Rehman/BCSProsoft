@@ -426,7 +426,9 @@ var FulfillmentExport = (function () {
             if (fulfillmentRec.getLineItemCount('packagefedex') > 0) {
                 upsPackage = 'fedex';
             }
-
+            if (fulfillmentRec.getLineItemCount('packageusps') > 0) {
+                upsPackage = 'usps';
+            }
             // from SO
             var carrier = salesOrderRec.getFieldValue('shipcarrier');
             totalPackages = fulfillmentRec.getLineItemCount('package' + upsPackage);

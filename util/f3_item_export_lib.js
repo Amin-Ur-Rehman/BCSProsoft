@@ -57,7 +57,7 @@ var ItemExportLibrary = (function () {
            // filters.push(new nlobjSearchFilter('lastmodifieddate', null, 'onorafter', previousDate));
             // TODO: undo test
           //  filters.push(new nlobjSearchFilter('internalid', null, 'is', '7462'));// matrix parent
-          //  filters.push(new nlobjSearchFilter('internalid', null, 'is', '2533'));// matrix child
+          //  filters.push(new nlobjSearchFilter('internalid', null, 'is', '4043'));// matrix child
             filters.push(new nlobjSearchFilter('matrix',null,'is','false'));
           //  filters.push(new nlobjSearchFilter('type',null, 'is','InvtPart'));
             return this.getItemsData(filters);

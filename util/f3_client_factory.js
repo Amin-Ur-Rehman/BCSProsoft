@@ -33,9 +33,6 @@ F3ClientFactory = (function () {
                 case "926253":
                     client= new F3AlphaOmegaClient();
                     break;
-                case "1306438":
-                    client= new F3ArgcoClient();
-                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -1504,6 +1501,44 @@ function F3IntekShopifyClient() {
 }
 function F3AlphaOmegaClient(){
     var currentClient = new F3ClientBase();
+    currentClient.setSalesOrderFields= function (rec, salesOrderObj) {
+
+        var order = salesOrderObj.order;
+
+        var magentoIdId;
+        var magentoSyncId;
+        var externalSystemSalesOrderModifiedAt;
+
+
+        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
+        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
+        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
+
+        // set csutomer in order
+        rec.setFieldValue('customform',101);
+        rec.setFieldValue('class',2);
+        rec.setFieldValue('entity', netsuiteCustomerId);
+        rec.setFieldValue(magentoSyncId, 'T');
+        rec.setFieldValue(magentoIdId, order.increment_id.toString());
+        rec.setFieldValue('tranid', order.order_number);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
+        rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+        //rec.setFieldValue('memo', 'Test Folio3');
+
+        // isDummyItemSetInOrder is set in while setting line items in order
+        if (salesOrderObj.isDummyItemSetInOrder) {
+            // A = Pending Approval
+            // if order has dummy item then set status to A (Pending Approval)
+            rec.setFieldValue('orderstatus', 'A');
+        }
+        else {
+            rec.setFieldValue('orderstatus', 'A');
+        }
+
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
+    }
     /**
      * This method sets the shipping cost,
      * @param salesOrderObj
@@ -1562,40 +1597,6 @@ function F3AlphaOmegaClient(){
 
         // settting shipping method: end
     }
+    Utility.logDebug("setting custom Form");
     return currentClient;
 }
-function F3ArgcoClient(){
-    var currentClient = new F3ClientBase();
-    currentClient.setSalesOrderFields=function (rec, salesOrderObj) {
-        var order = salesOrderObj.order;
-        var magentoIdId;
-        var magentoSyncId;
-        var externalSystemSalesOrderModifiedAt;
-        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
-        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
-        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
-        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
-        rec.setFieldValue('customform',101);
-        rec.setFieldValue('class',2);
-        // set csutomer in order
-        rec.setFieldValue('entity', netsuiteCustomerId);
-        rec.setFieldValue(magentoSyncId, 'T');
-        rec.setFieldValue(magentoIdId, order.increment_id.toString());
-        rec.setFieldValue('tranid', order.order_number);
-        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
-        rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
-        //rec.setFieldValue('memo', 'Test Folio3');
-        // isDummyItemSetInOrder is set in while setting line items in order
-        if (salesOrderObj.isDummyItemSetInOrder) {
-            // A = Pending Approval
-            // if order has dummy item then set status to A (Pending Approval)
-            rec.setFieldValue('orderstatus', 'A');
-        }
-        else {
-            rec.setFieldValue('orderstatus', 'B');
-        }
-        rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
-        rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
-    }
-    return currentClient;
- }

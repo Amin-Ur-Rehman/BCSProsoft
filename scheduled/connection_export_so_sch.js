@@ -195,7 +195,7 @@ var OrderExportHelper = (function () {
                 // load  sales order subrecord(shippingaddress)
                 addressRec = orderRecord.viewSubrecord(type);
             }
-            if (Utility.isBlankOrNull(addressRec)) {
+            if (Utility.isBlankOrNull(addressRec)) {    
                 throw new CustomException({
                     code: "SALES_ORDER_ADDRESS",
                     message: "Sales Order shipping or billing address is empty.",
