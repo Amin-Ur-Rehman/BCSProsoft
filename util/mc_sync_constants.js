@@ -23,8 +23,7 @@ MC_SYNC_CONSTANTS = {
         // test license check
         // return true;
 
-        //1467313200000
-        if ((new Date().getTime() <= 3149253000000)) {// expire after Jul 1 , 2017
+        if ((new Date().getTime() <= 1498849200000)) {// expire after Jul 1 , 2017
             return true;
         } else {
             return false;

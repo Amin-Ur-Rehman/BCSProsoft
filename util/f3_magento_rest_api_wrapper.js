@@ -75,6 +75,29 @@ var MagentoRestApiWrapper = (function (_super) {
         }
         return result;
     };
+    MagentoRestApiWrapper.prototype.getCustomerCreditLimit = function (customerId, store) {
+        var result = {};
+        try {
+            var customRestApiUrl = store.entitySyncInfo.common.customRestApiUrl;
+            var dataObj = {};
+            dataObj.customerID = customerId;
+            var requestParam = { "apiMethod": "getCreditValue", "data": JSON.stringify(dataObj) };
+            var resp = MagentoWrapper._nlapiRequestURL(customRestApiUrl, requestParam, null, "POST");
+            var responseBody = resp.getBody();
+            Utility.logDebug("getItemInfo responseBody", responseBody);
+            var responseBodyData = JSON.parse(responseBody);
+            if (!!responseBodyData.status) {
+                result.status = true;
+            }
+            else {
+                this.setErrorResponse(result, responseBodyData.message);
+            }
+        }
+        catch (ex) {
+            this.setErrorResponse(result, ex.toString());
+        }
+        return result;
+    };
     /**
      * Assign attributes to a configurable product
      * @param productId
@@ -195,7 +218,7 @@ var MagentoRestApiWrapper = (function (_super) {
         tierPrices.forEach(function (tierPrice) {
             result.push({
                 price: tierPrice.price,
-                priceQty: tierPrice.price_qty,
+                priceQty: tierPrice.price_qty
             });
         });
         return result;
@@ -211,7 +234,7 @@ var MagentoRestApiWrapper = (function (_super) {
                         options.push({
                             id: value.value_index,
                             label: value.label,
-                            pricingValue: value.pricing_value,
+                            pricingValue: value.pricing_value
                         });
                     });
                 }

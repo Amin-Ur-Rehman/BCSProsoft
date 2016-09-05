@@ -195,7 +195,7 @@ var OrderExportHelper = (function () {
                 // load  sales order subrecord(shippingaddress)
                 addressRec = orderRecord.viewSubrecord(type);
             }
-            if (Utility.isBlankOrNull(addressRec)) {
+            if (Utility.isBlankOrNull(addressRec)) {    
                 throw new CustomException({
                     code: "SALES_ORDER_ADDRESS",
                     message: "Sales Order shipping or billing address is empty.",
@@ -538,7 +538,10 @@ var OrderExportHelper = (function () {
                     this.appendShippingInfoInDataObject(orderRecord, orderDataObject);
                     this.appendPaymentInfoInDataObject(orderRecord, orderDataObject, store);
                     this.appendGiftCardInfoInDataObject(orderRecord, orderDataObject);
-
+                    orderDataObject.taxAmount=orderRecord.getFieldValue('taxtotal');
+                    if(orderDataObject.taxAmount==null || orderDataObject.taxAmount==''){
+                        orderDataObject.taxAmount=0.00;
+                    }
                     if (!!orderDataObject.cancelledMagentoSOId) {
                         orderDataObject.history += orderDataObject.cancelledMagentoSOId + 'E';
                     }
@@ -826,6 +829,7 @@ var ExportSalesOrders = (function () {
 
                 if (!customerAlreadySynched) {
                     customerObj = CUSTOMER.getCustomer(customerId, store);
+                    Utility.logDebug("zee->Hello", JSON.stringify(customerObj));
                     var magentoCustomer = this.getCustomerFromExternalSystem(customerObj);
                     Utility.logDebug("zee->magentoCustomer", JSON.stringify(magentoCustomer));
                     if (magentoCustomer.status) {

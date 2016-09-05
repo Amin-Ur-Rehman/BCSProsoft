@@ -54,7 +54,8 @@ var ItemExportManager = (function () {
                 var externalSystemConfig = ConnectorConstants.ExternalSystemConfig;
 
                 var externalSystemArr = this.extractExternalSystems(externalSystemConfig);
-
+                Utility.logDebug('nfo',externalSystemArr[0]);
+                Utility.logDebug('nfo',externalSystemArr[1]);
                 if (externalSystemArr.length <= 0) {
                     Utility.logDebug('Customer Export Script', 'Store(s) is/are not active');
                     return null;
@@ -62,6 +63,7 @@ var ItemExportManager = (function () {
 
                 try {
                     for (var i in externalSystemArr) {
+                        Utility.logDebug('Entrying in 1st for loop');
                         var store = externalSystemArr[i];
                         ConnectorConstants.CurrentStore = store;
 
@@ -77,13 +79,14 @@ var ItemExportManager = (function () {
                         Utility.logDebug('debug', 'Step-2');
                         var criteriaObj = {};
                         criteriaObj.identifierType = identifierType;
-                        criteriaObj.identifierValue = identifierValue;
+                       // criteriaObj.identifierValue = identifierValue;
                         criteriaObj.selectedStoreId = selectedStoreId;
-                        //For testing
-                        //criteriaObj.identifierType = 'internalid';
-                        //criteriaObj.identifierValue = '1708';
-                        //criteriaObj.identifierValue = '1706';
-                        //criteriaObj.identifierValue = '1711';
+                        // //For testing
+                        // criteriaObj.identifierType = 'internalid';
+                        // criteriaObj.identifierValue = '2670';
+                        //
+                        // criteriaObj.identifierType='matrix';
+                       // criteriaObj.identifierValue=false;
 
                         var records = this.getRecords(store, criteriaObj);
                         Utility.logDebug('fetched items count', !!records ? records.length : '0');

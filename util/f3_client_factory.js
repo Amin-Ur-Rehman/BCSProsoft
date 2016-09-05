@@ -27,6 +27,12 @@ F3ClientFactory = (function () {
                 case "938277":
                     client = new F3KablaWooClient();
                     break;
+                case "585361":
+                    client= new F3IntekShopifyClient();
+                    break;
+                case "926253":
+                    client= new F3AlphaOmegaClient();
+                    break;
                 default :
                     client = new F3ClientBase();// F3ClientBase
             }
@@ -385,7 +391,9 @@ function F3ClientBase() {
                         // set custom amount
                         rec.setLineItemValue('item', 'amount', x + 1, products[x].product_options.aw_gc_amounts);
                         if (!!ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.settaxcode)
-                            rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
+                           // rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxcode);// -Not Taxable-
+                        rec.setLineItemValue('item', 'istaxable', x + 1, 'F'); // -Not Taxable-
+
                     }
 
                     rec.setLineItemValue('item', ConnectorConstants.Transaction.Columns.MagentoOrderId, x + 1, products[x].item_id.toString());
@@ -394,7 +402,8 @@ function F3ClientBase() {
                     taxAmount = !Utility.isBlankOrNull(taxAmount) && !isNaN(taxAmount) ? parseFloat(taxAmount) : 0;
                     // tax handling for line items
                     if (taxAmount > 0) {
-                        rec.setLineItemValue('item', 'taxcode', x + 1, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.taxCode);
+                        rec.setLineItemValue('item', 'istaxable', x + 1, 'T');
+
                     }
                 }
                 else {
@@ -1424,5 +1433,170 @@ function F3KablaWooClient() {
         Utility.logDebug("F3BaseV1Client.setPayment", "End");
     };
 
+    return currentClient;
+}
+/**
+ *
+ * @returns {F3ClientBase}
+ * @constructor
+ * IntekAmerica customized Set Sales Order Function
+ */
+function F3IntekShopifyClient() {
+
+    var currentClient = new F3ClientBase();
+    /**
+     *
+     * @param rec
+     * @param salesOrderObj
+     */
+    currentClient.setSalesOrderFields = function(rec, salesOrderObj) {
+
+        var order = salesOrderObj.order;
+
+        var magentoIdId;
+        var magentoSyncId;
+        var externalSystemSalesOrderModifiedAt;
+
+        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
+        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
+        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
+        // set csutomer in order
+        rec.setFieldValue('entity', netsuiteCustomerId);
+        rec.setFieldValue(magentoSyncId, 'T');
+        rec.setFieldValue(magentoIdId, order.increment_id.toString());
+        rec.setFieldValue('tranid', order.order_number);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
+        rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.PhoneNo,salesOrderObj.phone);
+        //rec.setFieldValue('memo', 'Test Folio3');
+
+        // isDummyItemSetInOrder is set in while setting line items in order
+        if (salesOrderObj.isDummyItemSetInOrder) {
+            // A = Pending Approval
+            // if order has dummy item then set status to A (Pending Approval)
+            rec.setFieldValue('orderstatus', 'A');
+        } else {
+            rec.setFieldValue('orderstatus', 'B');
+        }
+
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
+        var _storeID = ConnectorConstants.CurrentStore.systemId;
+        Utility.logDebug(_storeID);
+        if (_storeID == 1) {
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class, 19);
+            Utility.logDebug(ConnectorConstants.Transaction.Fields.Class);
+        } else if (_storeID == 2) {
+            rec.setFieldValue(ConnectorConstants.Transaction.Fields.Class, 20);
+        }
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.Location, 5);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesOrderType, 4);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.SalesReresentative,18);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingMethod,85);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ShippingTerms,2);
+        Utility.logDebug(ConnectorConstants.Transaction.Fields.SalesOrderType);
+    }
+    return currentClient;
+}
+function F3AlphaOmegaClient(){
+    var currentClient = new F3ClientBase();
+    currentClient.setSalesOrderFields= function (rec, salesOrderObj) {
+
+        var order = salesOrderObj.order;
+
+        var magentoIdId;
+        var magentoSyncId;
+        var externalSystemSalesOrderModifiedAt;
+
+
+        magentoIdId = ConnectorConstants.Transaction.Fields.MagentoId;
+        magentoSyncId = ConnectorConstants.Transaction.Fields.MagentoSync;
+        externalSystemSalesOrderModifiedAt = ConnectorConstants.Transaction.Fields.ExternalSystemSalesOrderModifiedAt;
+        var netsuiteCustomerId = salesOrderObj.netsuiteCustomerId;
+
+        // set csutomer in order
+        rec.setFieldValue('customform',101);
+        rec.setFieldValue('class',2);
+        rec.setFieldValue('entity', netsuiteCustomerId);
+        rec.setFieldValue(magentoSyncId, 'T');
+        rec.setFieldValue(magentoIdId, order.increment_id.toString());
+        rec.setFieldValue('tranid', order.order_number);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.ExternalSystemNumber, order.order_id + "");
+        rec.setFieldValue(externalSystemSalesOrderModifiedAt, order.updatedAt);
+        //rec.setFieldValue('memo', 'Test Folio3');
+
+        // isDummyItemSetInOrder is set in while setting line items in order
+        if (salesOrderObj.isDummyItemSetInOrder) {
+            // A = Pending Approval
+            // if order has dummy item then set status to A (Pending Approval)
+            rec.setFieldValue('orderstatus', 'A');
+        }
+        else {
+            rec.setFieldValue('orderstatus', 'A');
+        }
+
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
+        rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
+    }
+    /**
+     * This method sets the shipping cost,
+     * @param salesOrderObj
+     * @param rec
+     */
+    currentClient.setShippingInformation=function (salesOrderObj, rec) {
+        var order = salesOrderObj.order;
+        var products = salesOrderObj.products;
+
+        if (!order.shipment_method && this.checkAllProductsAreGiftCards(products)) {
+            Utility.logDebug('inside check', '');
+            // If shipment_method is empty, and all products in order are 'gift cards',
+            // (Note: No shipping information required if you add only gift cards product in an order)
+            order.shipment_method = "DEFAULT_NS";
+        }
+
+        // settting shipping method: start
+
+        var orderShipMethod = order.shipment_method + '';
+        var shippingCost = order.shipping_amount || 0;
+
+        Utility.logDebug('XML', 'orderShipMethod: ' + orderShipMethod);
+
+        //var nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod_' + systemId, orderShipMethod);
+        var nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod', orderShipMethod);
+        var shippingCarrier;
+        var shippingMethod;
+
+        Utility.logDebug('SCRUB', 'nsShipMethod: ' + nsShipMethod);
+
+        // if no mapping is found then search for default
+        if (orderShipMethod === nsShipMethod) {
+            //nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod_' + systemId, 'DEFAULT_NS');
+            nsShipMethod = FC_ScrubHandler.getMappedValue('ShippingMethod', 'DEFAULT_NS');
+        }
+
+        Utility.logDebug('Final SCRUB', 'nsShipMethod: ' + nsShipMethod);
+
+        nsShipMethod = (nsShipMethod + '').split('_');
+
+        shippingCarrier = nsShipMethod.length === 2 ? nsShipMethod[0] : '';
+        shippingMethod = nsShipMethod.length === 2 ? nsShipMethod[1] : '';
+
+        if (!(Utility.isBlankOrNull(shippingCarrier) || Utility.isBlankOrNull(shippingMethod))) {
+            rec.setFieldValue('shipcarrier', shippingCarrier);
+            rec.setFieldValue('shipmethod', shippingMethod);
+            rec.setFieldValue('shippingcost', shippingCost);
+        } else {
+            rec.setFieldValue('shipcarrier', '');
+            rec.setFieldValue('shipmethod', '');
+            rec.setFieldValue('shippingcost', '');
+        }
+
+        Utility.logDebug('order.shipping_amount ', order.shipping_amount);
+        Utility.logDebug('setting method ', nsShipMethod.join(','));
+
+        // settting shipping method: end
+    }
+    Utility.logDebug("setting custom Form");
     return currentClient;
 }

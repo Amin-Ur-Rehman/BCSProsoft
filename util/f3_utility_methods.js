@@ -250,7 +250,28 @@ Utility = (function () {
 
             return result;
         },
+
         /**
+         * Getting parameter values from arguments array and check for existance
+         * Empty array and empty object will also treat as blank values
+         * @return {boolean}
+         */
+        isBlankOrNullZeeVersion: function () {
+            for (var i = 0; i < arguments.length; i++) {
+                var str = arguments[i];
+                if (str === null || str === undefined ||
+                    typeof (str) === 'undefined' || str === 'undefined' ||
+                    // check for 0 and empty array
+                    (str + '').trim().length === 0 ||
+                    // check for empty object
+                    (typeof str === 'object' && this.objectSize(str) === 0)) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        /**
+         * Get Current or specified date of the System in specified offset or timezone
          * Get Current or specified date of the System in specified offset or timezone
          * @param [date]
          * @param [offset]
