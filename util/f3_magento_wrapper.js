@@ -114,17 +114,13 @@ MagentoXmlWrapper = (function () {
             return 'MAGENTO_CUSTOM';
         },
         soapRequestToServer: function (xml) {
-            try {
-                var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
-                var body = res.getBody();
-                // Utility.logDebug('Soap Request: requestbody', xml);
-                // Utility.logDebug('Soap Request: responsetbody', body);
-                var responseXML = nlapiStringToXML(body);
-                return responseXML;
-            }
-            catch(err){
-                nlapiLogExecution("DEBUG", "Error in Soap Request: ", err);
-            }
+            var res = this._nlapiRequestURL(ConnectorConstants.CurrentStore.endpoint, xml);
+            var body = res.getBody();
+            Utility.logDebug('requestbody', xml);
+            Utility.logDebug('responsetbody', body);
+            var responseXML = nlapiStringToXML(body);
+
+            return responseXML;
         },
         soapRequestToServerSpecificStore: function (xml, store) {
             var res = this._nlapiRequestURL(store.endpoint, xml);
@@ -549,6 +545,7 @@ MagentoXmlWrapper = (function () {
 
             return result;
         },
+
         transformSalesOrderListXMLtoArray: function (orders) {
             var result = [];
 
@@ -680,6 +677,7 @@ MagentoXmlWrapper = (function () {
                     product.product_type = nlapiSelectValue(products[i], 'product_type');
                     product.item_id = nlapiSelectValue(products[i], 'item_id');
                     product.tax_amount = nlapiSelectValue(products[i], 'tax_amount');
+                    product.tax_percent= nlapiSelectValue(products[i],'tax_percent');
                     var unSerializedObject = null;
                     var productOptions = nlapiSelectValue(products[i], 'product_options');
                     if (!!productOptions) {
@@ -1453,6 +1451,17 @@ MagentoXmlWrapper = (function () {
 
             return giftCertificatesXml;
         },
+
+        discountXmlData: function(discountAmount){
+            var xml = '';
+            var discAmount = discountAmount
+            if (discAmount == null || discAmount == '') {
+                discAmount = 0.00;
+            }
+            discAmount = -discAmount;
+            xml += '<discount_amount>' + discAmount + '</discount_amount>';
+            return xml;
+        },
         /**
          * Additional data xml
          * @param orderDataObject
@@ -1469,6 +1478,19 @@ MagentoXmlWrapper = (function () {
 
             return xml;
         },
+
+        /**
+         * status XML
+         * @param history
+         * @return {string}
+         */
+        getCustomTaxData: function (tax) {
+            var taxXml = '';
+
+            taxXml += '<tax xsi:type="xsd:double" xs:type="type:double">' + tax + '</tax>';
+
+            return taxXml;
+        },
         /**
          * Creates XML for Sales Order and returns
          * @param orderCreationInfo
@@ -1484,14 +1506,17 @@ MagentoXmlWrapper = (function () {
             var paymentInfo = orderCreationInfo.paymentInfo;
             var history = orderCreationInfo.history;
             var status = orderCreationInfo.status;
+            var customTax=orderCreationInfo.taxAmount;
             var giftCertificates = orderCreationInfo.giftCertificates;
-
+            var discountAmount= orderCreationInfo.discountAmount;
             var customerXml = this.getCustomerXmlForSaleOrder(customer);
             var productsXml = this.getProductsXmlForSaleOrder(items);
             var shippingXml = this.getShippingXml(shipmentInfo);
             var paymentXml = this.getPaymentXml(paymentInfo);
             var historyXml = this.getHistoryXml(history);
             var statusXml = this.getStatusXml(status);
+            var customTaxXml=this.getCustomTaxData(customTax);
+            var discountXml=this.discountXmlData(discountAmount)
             var giftCertificatesXml = this.getGiftCertificatesXml(giftCertificates);
             var additionalDataXml = this.getAdditionalData(orderCreationInfo);
 
@@ -1505,6 +1530,8 @@ MagentoXmlWrapper = (function () {
             orderXml = orderXml + paymentXml;
             orderXml = orderXml + historyXml;
             orderXml = orderXml + statusXml;
+            orderXml = orderXml + customTaxXml;
+            orderXml=  orderXml+ discountXml;
             orderXml = orderXml + giftCertificatesXml;
             orderXml = orderXml + additionalDataXml;
             orderXml = orderXml + '</urn:folio3_salesOrderCreateSalesOrder>';
@@ -2066,12 +2093,12 @@ MagentoXmlWrapper = (function () {
                 xml = xml + '<password xsi:type="xsd:string" xs:type="type:string">' + nlapiEscapeXML(customerDataObject.password) + '</password>';
                 xml = xml + '<website_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.website_id + '</website_id>';
                 xml = xml + '<store_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.store_id + '</store_id>';
-                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.group_id + '</group_id>';
                 xml = xml + '<prefix xsi:type="xsd:string" xs:type="type:string"></prefix>';
                 xml = xml + '<suffix xsi:type="xsd:string" xs:type="type:string"></suffix>';
                 xml = xml + '<dob xsi:type="xsd:string" xs:type="type:string"></dob>';
                 xml = xml + '<taxvat xsi:type="xsd:string" xs:type="type:string"></taxvat>';
                 xml = xml + '<gender xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.gender + '</gender>';
+                //xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
                 xml = xml + '</customerData>';
                 xml = xml + '</urn:customerCustomerCreate>';
                 xml = xml + '</soapenv:Body>';
@@ -2084,6 +2111,7 @@ MagentoXmlWrapper = (function () {
         },
 
         getMagentoUpdateCustomerRequestXML: function (customerDataObject, sessionId) {
+            Utility.logDebug('Update Price Level', customerDataObject.pricelevel);
             var xml = '';
 
             if (customerDataObject != null) {
@@ -2103,12 +2131,12 @@ MagentoXmlWrapper = (function () {
                 //xml = xml + '<password xsi:type="xsd:string" xs:type="type:string"></password>';
                 xml = xml + '<website_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.website_id + '</website_id>';
                 xml = xml + '<store_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.store_id + '</store_id>';
-                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.group_id + '</group_id>';
                 xml = xml + '<prefix xsi:type="xsd:string" xs:type="type:string"></prefix>';
                 xml = xml + '<suffix xsi:type="xsd:string" xs:type="type:string"></suffix>';
                 xml = xml + '<dob xsi:type="xsd:string" xs:type="type:string"></dob>';
                 xml = xml + '<taxvat xsi:type="xsd:string" xs:type="type:string"></taxvat>';
                 xml = xml + '<gender xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.gender + '</gender>';
+                xml = xml + '<group_id xsi:type="xsd:int" xs:type="type:int">' + customerDataObject.pricelevel + '</group_id>';
                 xml = xml + '</customerData>';
                 xml = xml + '</urn:customerCustomerUpdate>';
                 xml = xml + '</soapenv:Body>';
@@ -2754,6 +2782,7 @@ MagentoXmlWrapper = (function () {
                 if (!!id) {
                     createRecord = false;
                 }
+                
                 var parsedResponse = null;
                 if (createRecord) {
                     // if id not exist then create record
@@ -2843,12 +2872,12 @@ MagentoXmlWrapper = (function () {
          */
         exportProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
             var responseBody = null;
-            createOnly = createOnly || null;
             try {
                 var createRecord = true;
                 if (!!itemObject.currentExternalSystemId) {
                     createRecord = false;
                 }
+
                 if (createRecord) {
                     responseBody = this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
                 } else {
@@ -2871,17 +2900,15 @@ MagentoXmlWrapper = (function () {
          * @param magentoProductId
          */
         addProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
-            try{
             //Utility.logDebug('adding product image', 'Start');
             var parsedResponse = null;
             var createImageXml = this.getCreateImageXml(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            //Utility.logDebug('createImageXml', createImageXml);
             //ConnectorCommon.createLogRec(magentoProductId, createImageXml, "Image Export - Create");
+
             var responseXml = MagentoWrapper.soapRequestToServer(createImageXml);
+            Utility.logDebug('addImage response', responseXml);
             return responseXml;
-                }
-            catch(err){
-                nlapiLogExecution("DEBUG", "Error in Adding Product Image: ", err.message);
-            }
         },
 
         /**
@@ -2930,20 +2957,15 @@ MagentoXmlWrapper = (function () {
          * @constructor
          */
         UpdateProductImage: function (store, itemInternalId, itemType, itemObject, createOnly, magentoProductId) {
-            try {
-                var parsedResponse = null;
-                var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
-                //Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
-                //Utility.logDebug('magentoImagesList Lenght', magentoImagesList.length);
+            var parsedResponse = null;
+            var magentoImagesList = this.getMagentoProductImagesList(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            Utility.logDebug('magentoImagesList', JSON.stringify(magentoImagesList));
 
-                for (var i = 0; i < magentoImagesList.length; i++) {
-                    this.removeImageFromMagento(store, magentoProductId, magentoImagesList[i]);
-                }
-                this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
+            for (var i = 0; i < magentoImagesList.length; i++) {
+                this.removeImageFromMagento(store, magentoProductId, magentoImagesList[i]);
             }
-            catch (err){
-                nlapiLogExecution("DEBUG", "Error in Updating Product Image: ", err);
-            }
+
+            this.addProductImage(store, itemInternalId, itemType, itemObject, createOnly, magentoProductId);
         },
 
         /**
@@ -2960,9 +2982,9 @@ MagentoXmlWrapper = (function () {
             xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
             xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
             var getMagentoProductImagesListXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
-            //Utility.logDebug('getMagentoProductImagesList xmlRequest', getMagentoProductImagesListXml);
+            Utility.logDebug('getMagentoProductImagesList xmlRequest', getMagentoProductImagesListXml);
             var imgListResponse = MagentoWrapper.soapRequestToServer(getMagentoProductImagesListXml);
-            //Utility.logDebug('getMagentoProductImagesList response', imgListResponse);
+            Utility.logDebug('getMagentoProductImagesList response', imgListResponse);
 
             var imageList = [];
             try {
@@ -2988,20 +3010,14 @@ MagentoXmlWrapper = (function () {
          * @param magentoProductId
          */
         removeImageFromMagento: function (store, magentoProductId, magentoImageFile) {
-            try {
-                var xmlRequest = this.ImageRemoveXml;
-                xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
-                xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
-                xmlRequest = xmlRequest.replace('[FILE]', magentoImageFile);
-                var removeImageFromMagentoXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
-                //Utility.logDebug('removeImageFromMagento xmlRequest', removeImageFromMagentoXml);
-                var imgListResponse = MagentoWrapper.soapRequestToServer(removeImageFromMagentoXml);
-                //Utility.logDebug('removeImageFromMagento response', imgListResponse);
-            }
-            catch (err)
-            {
-                nlapiLogExecution("DEBUG", "Error in Removing image: ", err);
-            }
+            var xmlRequest = this.ImageRemoveXml;
+            xmlRequest = xmlRequest.replace('[SESSIONID]', ConnectorConstants.CurrentStore.sessionID);
+            xmlRequest = xmlRequest.replace('[PRODUCTID]', magentoProductId);
+            xmlRequest = xmlRequest.replace('[FILE]', magentoImageFile);
+            var removeImageFromMagentoXml = this.OrderRequestXMLHeader + xmlRequest + this.OrderRequestXmlFooter;
+            Utility.logDebug('removeImageFromMagento xmlRequest', removeImageFromMagentoXml);
+            var imgListResponse = MagentoWrapper.soapRequestToServer(removeImageFromMagentoXml);
+            Utility.logDebug('removeImageFromMagento response', imgListResponse);
         },
 
         /**
@@ -3181,8 +3197,9 @@ MagentoXmlWrapper = (function () {
          * @returns {*}
          */
         getCreateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
+            Utility.logDebug('Create Block');
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
             var xml;
-
             xml = this.OrderRequestXMLHeader;
             xml = xml + '<urn:catalogProductCreate soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
             xml = xml + '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + ConnectorConstants.CurrentStore.sessionID + '</sessionId>';
@@ -3255,7 +3272,7 @@ MagentoXmlWrapper = (function () {
             }
 
             xml = xml + '</productData>';
-            //xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
+            xml = xml + '<storeView xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + store.entitySyncInfo.item.storeView + '</storeView>';
             xml = xml + '</urn:catalogProductCreate>';
 
             xml = xml + this.OrderRequestXmlFooter;
@@ -3275,7 +3292,7 @@ MagentoXmlWrapper = (function () {
          * @returns {*}
          */
         getUpdateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
-
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
             var xml = '';
             xml = this.OrderRequestXMLHeader;
             xml += '<urn:catalogProductUpdate>';
@@ -3374,7 +3391,7 @@ MagentoXmlWrapper = (function () {
 
             // making simple associative array
             if (obj.hasOwnProperty("filters") && obj.filters instanceof Array) {
-                var filters = customer.filters;
+                var filters = obj.filters;
                 if (filters.length > 0) {
                     customerXML += '<filter>';
                     for (var i in filters) {
@@ -3405,8 +3422,11 @@ MagentoXmlWrapper = (function () {
          */
         getCustomerList: function (obj) {
             var result = [];
+            Utility.logDebug("Hello","2");
             var xml = this.getCustomerListXML(obj, ConnectorConstants.CurrentStore.sessionID);
-            var responseMagento = this.validateResponseCustomer(this.soapRequestToMagento(xml));
+            Utility.logDebug("Hello","3");
+            var responseXML = this.soapRequestToServer(xml);
+            var responseMagento = this.validateResponseCustomer(responseXML);
             if (!responseMagento.status) {
                 result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
             } else {
@@ -3429,8 +3449,9 @@ MagentoXmlWrapper = (function () {
             var filters = [];
             filters.push({key: "email", value: email});
             customerObj.filters = filters;
-
+            Utility.logDebug("Hello","1");
             var customerList = this.getCustomerList(customerObj);
+            Utility.logDebug("Hello","4");
 
             if (customerList instanceof Array && customerList.length > 0) {
                 customer = customerList[0];
@@ -3741,6 +3762,74 @@ MagentoXmlWrapper = (function () {
                 item = this.tranformItemForNetSuite(responseMagentoItemInfo.product);
             }
             return item;
+        },
+        /**
+         *
+         * @param shipmentId
+         * @param trackingNumberId
+         * @param sessionID
+         * @returns {string}
+         */
+
+        removeTrackXML: function (shipmentId, trackingNumberId, sessionID) {
+            // remove tracking numbers
+            var xml = '';
+
+            xml += this.XmlHeader;
+            xml += '<urn:salesOrderShipmentRemoveTrack soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
+            xml += '<sessionId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + sessionID + '</sessionId>';
+            xml += '<shipmentIncrementId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + shipmentId + '</shipmentIncrementId>';
+            xml += '<trackId xsi:type="xsd:string" xs:type="type:string" xmlns:xs="http://www.w3.org/2000/XMLSchema-instance">' + trackingNumberId + '</trackId>';
+            xml += '</urn:salesOrderShipmentRemoveTrack>';
+            xml += this.XmlFooter;
+
+            return xml;
+        },
+
+        /**
+         *
+         * @param xml
+         * @returns {{}}
+         */
+        validateRemoveTrackResponse: function (xml) {
+            Utility.logDebug('XML', nlapiEscapeXML(xml));
+            var responseMagento = {};
+            var magentoFulfillmentID;
+            var faultCode;
+            var faultString;
+
+
+            try {
+                faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+                faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+
+                //  if (operation=='create')
+                magentoFulfillmentID = nlapiSelectValue(xml, "//result");
+
+            } catch (ex) {
+                Utility.logException('XmlUtility.validateRemoveTrackResponse', ex);
+            }
+
+
+            if (faultCode != null) {
+                responseMagento.status = false;       // Means There is fault
+                responseMagento.faultCode = faultCode;   // Fault Code
+                responseMagento.faultString = faultString; //Fault String
+                Utility.logDebug('Tracking Number Remove Operation Failed', responseMagento.faultString + ' - ' + responseMagento.faultCode);
+            }
+            else if (magentoFulfillmentID != null) {
+                responseMagento.status = true;       // Means There is fault
+                responseMagento.result = magentoFulfillmentID;
+            }
+            else    // Not Attribute ID Found, Nor fault code found
+            {
+                responseMagento.status = false;
+                responseMagento.faultCode = '000';
+                responseMagento.faultString = 'Unexpected Error';
+                Utility.logDebug('Tracking Number Remove Operation Failed', responseMagento.faultString + ' - ' + responseMagento.faultCode);
+            }
+
+            return responseMagento;
         }
     };
 })();

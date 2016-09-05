@@ -1,4 +1,5 @@
 /**
+ * Updated By Anas Khurshid
  * Created by nzahid on 30 June 2016.
  * TODO:
  * -
@@ -6,6 +7,9 @@
  * -
  * -
  * Dependencies:
+ * magento_wrapper.js
+ * connector_constants.js
+ *
  * -
  * -
  */
@@ -14,6 +18,15 @@
  * Image_Sync_Module class that has the actual functionality of Scheduled Script.
  * All business logic will be encapsulated in this class.
  */
+
+ImageSync = {
+    FieldName: {
+        RecordType: 'type',
+        ImageSync: 'custitem_f3_image_sync',
+        IsInactive: 'isinactive',
+        ExternalSystem: 'custitem_f3mg_magento_stores'
+    }
+};
 var Image_Sync_Module = (function () {
 
     return {
@@ -35,7 +48,7 @@ var Image_Sync_Module = (function () {
             try {
                 nlapiLogExecution("DEBUG", "Scheduled Script Started", " ");
                 this.startTime = (new Date()).getTime();
-
+                var storeId;
                 var ctx = nlapiGetContext();
                 if (!MC_SYNC_CONSTANTS.isValidLicense()) {
                     nlapiLogExecution("DEBUG", 'LICENSE', 'Your license has been expired.');
@@ -45,13 +58,13 @@ var Image_Sync_Module = (function () {
                 var identifierType = ctx.getSetting('SCRIPT', "custscript_identifiertype");
                 var identifierValue = ctx.getSetting('SCRIPT', "custscript_identifiervalue");
                 var selectedStoreId = ctx.getSetting('SCRIPT', "custscript_selectedstoreid");
-                var savedSearchId = ctx.getSetting('SCRIPT', "custscript_savedsearchid");
+                // var savedSearchId = ctx.getSetting('SCRIPT', "custscript_savedsearchid");
                 var customImageFields = ctx.getSetting('SCRIPT', "custscript_cust_img_fields");
-
-                if (!!!savedSearchId) {
-                    nlapiLogExecution("DEBUG", "Error: ", "No Saved Search ID was specified");
-                    return;
-                }
+                //
+                // if (!savedSearchId) {
+                //     nlapiLogExecution("DEBUG", "Error: ", "No Saved Search ID was specified");
+                //     return;
+                // }
                 var startIndex = 0;
                 var limit = 1000;
                 var customImageFieldsLists = [];
@@ -60,19 +73,9 @@ var Image_Sync_Module = (function () {
                 if (!!customImageFields) {
                     customImageFieldsLists = customImageFields.split(',');
                 }
-
                 customImageFieldsLists.push("storedisplayimage");
                 nlapiLogExecution("DEBUG", "Image Fields List Length: ", customImageFieldsLists.length);
-                nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
-
-                var search = nlapiLoadSearch(null, savedSearchId).runSearch();
-                var results = search.getResults(startIndex, limit);
-
-                if (!!results && results.length < 0) {
-                    nlapiLogExecution('DEBUG', ' No records found to process', '');
-                    return;
-                }
-
+                // nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
                 //initialize constants
                 ConnectorConstants.initialize();
                 ConnectorConstants.loadItemConfigRecords();
@@ -90,23 +93,27 @@ var Image_Sync_Module = (function () {
                     for (var i in externalSystemArr) {
                         var store = externalSystemArr[i];
                         ConnectorConstants.CurrentStore = store;
-
-                         // Check for feature availability
-                         if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
-                         nlapiLogExecution("DEBUG",';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
-                         continue;
-                         }
+                        if (!!selectedStoreId) {
+                            if (selectedStoreId !== store.systemId) {
+                                continue;
+                            }
+                        }
+                        if (!store) {
+                            //Utility.logDebug('store ' + system, 'This store is null');
+                            continue;
+                        }
+                        storeId = store.systemId;
+                        // Check for feature availability
+                        if (!FeatureVerification.isPermitted(Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM, ConnectorConstants.CurrentStore.permissions)) {
+                            nlapiLogExecution("DEBUG", ';FEATURE PERMISSION', Features.EXPORT_ITEM_TO_EXTERNAL_SYSTEM + ' NOT ALLOWED');
+                            continue;
+                        }
 
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
+                        var results = this.getImageToSyncItems(null, storeId);
 
-                        var criteriaObj = {};
-                        criteriaObj.identifierType = identifierType;
-                        criteriaObj.identifierValue = identifierValue;
-                        criteriaObj.selectedStoreId = selectedStoreId;
-
-                        //var records = this.getRecords(store, criteriaObj);
-
+                        //////
                         if (!!results && results.length > 0) {
                             this.processRecords(store, results, customImageFieldsLists);
                         } else {
@@ -251,17 +258,13 @@ var Image_Sync_Module = (function () {
                     obj.magento = records[i].getValue("custitem_magentoid");
                     obj.magento = JSON.parse(obj.magento);
                     obj.magentoProductId = obj.magento[0].MagentoId;
-
+                    var rec = nlapiLoadRecord(obj.itemType, obj.itemInternalId);
                     if (!this.deleteImages(store, obj.itemInternalId, obj.itemType, null, null, obj.magentoProductId))
                         return;
-
-                    if (this.rescheduleIfNeeded(ctx, records, null)) {
-                        return null;
-                    }
-
-                    nlapiLogExecution("DEBUG", "Adding New Image(s)", " ");
+                    nlapiLogExecution("DEBUG", "Adding New Image(s)", JSON.stringify(rec));
                     for (var j = 0; j < customImageFieldsLists.length; j++) {
-                        var path = records[i].getValue(customImageFieldsLists[j]);
+                        var path = rec.getFieldValue(customImageFieldsLists[j]);
+                        nlapiLogExecution("DEBUG", "Adding New Image(s)" + j, customImageFieldsLists[j] + "path" + path);
                         if (!!path) {
                             var file = nlapiLoadFile(path);
                             var itemObject = {
@@ -274,7 +277,7 @@ var Image_Sync_Module = (function () {
                             };
 
                             //store, itemInternalId, itemType, itemObject, createOnly, magentoProductId
-                            response = MagentoXmlWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
+                            response = ConnectorConstants.CurrentWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
                         }
                     }
                     if (!response.error) {
@@ -304,11 +307,11 @@ var Image_Sync_Module = (function () {
          */
         deleteImages: function (store, itemInternalId, itemType, itemObject, creatOnly, magentoProductId) {
             try {
-                var imageList = MagentoXmlWrapper.getMagentoProductImagesList(store, itemInternalId, itemType, null, null, magentoProductId);
+                var imageList = ConnectorConstants.CurrentWrapper.getMagentoProductImagesList(store, itemInternalId, itemType, null, null, magentoProductId);
                 if (imageList.length > 0) {
                     nlapiLogExecution("DEBUG", "Deleting Old Image(s)", " ");
                     for (var j = 0; j < imageList.length; j++) {
-                        MagentoXmlWrapper.removeImageFromMagento(store, magentoProductId, imageList[j]);
+                        ConnectorConstants.CurrentWrapper.removeImageFromMagento(store, magentoProductId, imageList[j]);
                     }
                 }
                 return true;
@@ -326,12 +329,41 @@ var Image_Sync_Module = (function () {
          */
         markRecords: function (itemType, itemId) {
             try {
-                    nlapiSubmitField(itemType, itemId, "custitem_f3_image_sync", "F", null);
-                    nlapiLogExecution("DEBUG", "Record Marked", "Record Marked");
-                    return;
+                nlapiSubmitField(itemType, itemId, "custitem_f3_image_sync", "F", null);
+                nlapiLogExecution("DEBUG", "Record Marked", "Record Marked");
+                return;
             } catch (err) {
                 nlapiLogExecution("DEBUG", "Error! Cannot Mark Record(s)", err);
             }
+        },
+
+
+        getImageToSyncItems: function (allstores, storeId) {
+            var fils = [];
+            var searchResults = null;
+            var results = [];
+            var arrCols = [];
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.RecordType, null, "anyof", ['InvtPart', 'NonInvtPart', 'Kit', 'Assembly']));
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.ImageSync, null, "is", 'T', null));
+            fils.push(new nlobjSearchFilter(ImageSync.FieldName.IsInactive, null, "is", 'F', null));
+            if (!!allstores) {
+                fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'is', storeId, null));
+            }
+            else {
+                fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
+            }
+            arrCols.push((new nlobjSearchColumn('internalid', null, null)).setSort(true));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.ItemId, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.Name, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.Type, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.Parent, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.DisplayImage, null, null));
+            // arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.CustomImage, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.DispalyThumbnail, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.MagentoId, null, null));
+            arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.MagentoStore, null, null));
+            results = nlapiSearchRecord('item', null, fils, arrCols);
+            return results;
         },
 
         /**

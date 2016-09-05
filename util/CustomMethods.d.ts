@@ -32,6 +32,9 @@ declare class ExternalSystemWrapper {
     public getSalesOrderInfo(incrementId: number|string, sessionId?: string): any;
     public getNsProductIdsByExtSysIds(magentoIds: Array<any>, enviornment: any): any;
     public createInvoice(sessionId: string, netsuiteInvoiceObj: any, store: any): any;
+
+    //Anas Khurshid
+    public getCreditLimit(creditlimit: number, sessionId?:string):any;
 }
 
 declare class ConnectorModels {

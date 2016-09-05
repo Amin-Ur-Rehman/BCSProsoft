@@ -64,9 +64,8 @@ function customerExport() {
                 customerIds = CUSTOMER.getCustomersSubmittedFromUserEvent();
             } else {
                 //Get ids of all customer which has custentity_magentosync_dev (Magento Sync) field marked No
-                //customerIds = CUSTOMER.getCustomers();
+                customerIds = CUSTOMER.getCustomers();
             }
-            //Is Customer(s) Exists for Sync
             if (customerIds != null && customerIds.length > 0) {
                 for (var c = 0; c < customerIds.length; c++) {
                     nlapiLogExecution('audit', 'Customer:' + customerIds[c].internalId + '  S.No:' + c + ' Started');
@@ -88,6 +87,7 @@ function customerExport() {
                                     customerSynched = updateCustomerInMagento(customerIds[c], store, magentoStoreAndCustomer[store.systemId], magentoReferences);
                                     Utility.logDebug('End Update Block ');
                                 }
+                                var creditLimitResponse=getCreditLimit(customerIds[c], sessionID, store)
                             } catch (ex) {
                                 Utility.logDebug('Internal Catch Block, Iternation failed for Customer + Store : ' + customerIds[c].internalId + ' StoreId:' + store.systemId, ex.toString());
                             }
@@ -138,6 +138,22 @@ function customerExport() {
 
 
 }
+
+function getCreditLimit(listParams,sessionID, store){
+    if (!!store.entitySyncInfo.common && !!store.entitySyncInfo.common.customRestApiUrl) {
+        Utility.logDebug('Inside MagentoRestApiWrapper', 'getSalesOrdersList call');
+        var mgRestAPiWrapper = new MagentoRestApiWrapper();
+        responseMagentoCustomers = mgRestAPiWrapper.getCustomerCreditLimit(listParams, store);
+        Utility.logDebug('responseMagentoOrders from MagentoRestApiWrapper', JSON.stringify(responseMagentoOrders));
+    }
+    else {
+        responseMagentoCustomers = ConnectorConstants.CurrentWrapper.getSalesOrders(listParams, sessionID);
+    }
+    
+    
+}
+
+
 
 
 function getStoreCustomerIdAssociativeArray(data) {

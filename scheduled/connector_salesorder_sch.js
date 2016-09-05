@@ -448,7 +448,7 @@ function startup(type) {
 
                     var sofrequency = store.entitySyncInfo.salesorder.noOfDays;
                     //var sofrequency = 120;
-
+                    Utility.logDebug("sofrequency",sofrequency);
                     soUpdateDate = ConnectorCommon.getUpdateDate(-1 * sofrequency,
                         ConnectorConstants.CurrentWrapper.getDateFormat());
                     Utility.logDebug('soUpdateDate', soUpdateDate);
