@@ -112,7 +112,7 @@ var Image_Sync_Module = (function () {
                         ConnectorConstants.CurrentWrapper = F3WrapperFactory.getWrapper(store.systemType);
                         ConnectorConstants.CurrentWrapper.initialize(store);
                         var results = this.getImageToSyncItems(null, storeId);
-
+                        nlapiLogExecution("DEBUG", "result count", results && results.length || 0);
                         //////
                         if (!!results && results.length > 0) {
                             this.processRecords(store, results, customImageFieldsLists);
@@ -250,11 +250,11 @@ var Image_Sync_Module = (function () {
                 //var context = nlapiGetContext();
                 var ctx = nlapiGetContext();
                 nlapiLogExecution("DEBUG", "Processing Records", "Processing " + records.length + " records");
-                var response;
+                var response = {};
                 for (var i = 0; i < records.length; i++) {
                     var obj = {};
                     obj.itemType = records[i].getRecordType();
-                    obj.itemInternalId = records[i].getValue("internalid");
+                    obj.itemInternalId = records[i].getId();
                     obj.magento = records[i].getValue("custitem_magentoid");
                     obj.magento = JSON.parse(obj.magento);
                     obj.magentoProductId = obj.magento[0].MagentoId;
@@ -280,6 +280,35 @@ var Image_Sync_Module = (function () {
                             response = ConnectorConstants.CurrentWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
                         }
                     }
+
+                    var multipleImages = (rec.getFieldValue('custitem_multiple_images') || '').split(',');
+                    nlapiLogExecution('DEBUG', 'multipleImages', JSON.stringify(multipleImages));
+                    multipleImages.map(function(path) {
+                        path = (path||'').trim();
+                        Utility.logDebug('path', path);
+                        if (path) {
+                            var url = "http://yowzafitness.com" + path;
+                            var resp = nlapiRequestURL(url);
+                            Utility.logDebug('resp code', resp.getCode().toString().trim());
+                            Utility.logDebug('resp body', resp.getBody());
+                            Utility.logDebug('resp type', resp.getContentType());
+                            if (resp.getCode().toString().trim() == '200') {
+                                var fullName = path.substr(path.lastIndexOf('/')+1);
+                                var itemObject = {
+                                    image: {
+                                        mime: resp.getContentType(),
+                                            fullName: fullName,
+                                        content: resp.getBody(),
+                                        position: 0
+                                    }
+                                };
+
+                                Utility.logDebug('multiple_images[x] name', fullName);
+
+                                response = ConnectorConstants.CurrentWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
+                            }
+                        }
+                    });
                     if (!response.error) {
                         nlapiLogExecution("DEBUG", "Marking Record", "Marking Record");
                         this.markRecords(obj.itemType, obj.itemInternalId);
@@ -350,7 +379,7 @@ var Image_Sync_Module = (function () {
                 fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'is', storeId, null));
             }
             else {
-                fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
+                // fils.push(new nlobjSearchFilter(ImageSync.FieldName.ExternalSystem, null, 'noneof', '@NONE@', null));
             }
             arrCols.push((new nlobjSearchColumn('internalid', null, null)).setSort(true));
             arrCols.push(new nlobjSearchColumn(ConnectorConstants.ImageSync.Fields.ItemId, null, null));
