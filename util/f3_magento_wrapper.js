@@ -2907,8 +2907,9 @@ MagentoXmlWrapper = (function () {
             //ConnectorCommon.createLogRec(magentoProductId, createImageXml, "Image Export - Create");
 
             var responseXml = MagentoWrapper.soapRequestToServer(createImageXml);
-            Utility.logDebug('addImage response', responseXml);
-            return responseXml;
+            var response = this.validateAndTransformProductAttributeMediaCreateResponse(responseXml);
+
+            return response;
         },
 
         /**
@@ -3144,6 +3145,43 @@ MagentoXmlWrapper = (function () {
             return isUpdated;
         },
 
+        /**
+         * validate and transform xml response of product image attribute create call
+         * @param xml
+         * @returns {{}}
+         */
+        validateAndTransformProductAttributeMediaCreateResponse: function (xml) {
+            var faultCode, faultString, result;
+            var response = {};
+
+            try {
+                faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
+                faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
+                result = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/ns1:catalogProductAttributeMediaCreateResponse/result");
+            } catch (ex) {
+                Utility.logException('XmlUtility.validateAndTransformProductAttributeMediaCreateResponse', ex);
+            }
+
+
+            if (!Utility.isBlankOrNull(faultCode)) {
+                response.status = false;
+                response.faultCode = faultCode;
+                response.faultString = faultString;
+                Utility.logDebug('An error has occurred with Product Image creation request xml', response.faultString);
+            } else {
+                if (!!result) {
+                    response.status = true;
+                    response.result = result;
+                } else {
+                    response.status = false;
+                    response.faultCode = '000';
+                    response.faultString = 'Unexpected Error';
+                    Utility.logDebug('An error has occurred with request xml', response.faultString);
+                }
+            }
+
+            return response;
+        },
 
         /**
          * Parse item export success response
