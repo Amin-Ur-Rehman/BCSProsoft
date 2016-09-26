@@ -17,7 +17,8 @@ var ItemExportLibrary = (function () {
     return {
         configData: {
             ItemTypes: {
-                InventoryItem: 'inventoryitem'
+                InventoryItem: 'inventoryitem',
+                SerializedInventoryItem: 'serializedinventoryitem'
             }
         },
         /**
@@ -738,7 +739,7 @@ var ItemExportLibrary = (function () {
             var obj = {};
             var itemRec = itemRecord;
             var catalogProductTierPriceEntityArray = [];
-            var qty, price;
+            var qty, price, specialPrice;
 
             // Set the ID for the sublist and the price field. Note that if all pricing-related features
             // are disabled, you will set the price in the rate field. See Pricing Sublist Feature Dependencies
@@ -766,26 +767,28 @@ var ItemExportLibrary = (function () {
                 }
                 // reading price level from configuration
                 var priceLevel = store.entitySyncInfo.item.priceLevel;
+                var specialPriceLevel = store.entitySyncInfo.item.specialPriceLevel;
+                var priceLevelLineNumber = itemRecord.findLineItemValue(priceID, 'pricelevel', priceLevel);
+                var specialPriceLevelLineNumber = itemRecord.findLineItemValue(priceID, 'pricelevel', specialPriceLevel);
                 Utility.logDebug('Price Level',priceID);
                 for (var i = 1; i <= incr; i++) {
                     var catalogProductTierPriceEntity = {};
                  //   update tier price if tiers exist
                  //  if (!!itemRec.getMatrixValue(priceID, 'price', i)) {
-                        Utility.logDebug('Price Level',priceID +'__'+ itemRec.getMatrixValue(priceID, 'price', i))
+                    Utility.logDebug('Price Level',priceID +'__'+ itemRec.getMatrixValue(priceID, 'price', i))
 
-                       qty= itemRec.getMatrixValue(priceID, 'price', i);
-                    if(qty==null){
-                        qty=0;
-                    }
-                       // price = itemRec.getLineItemValue('price', 'price_' + i + '_', priceLevel);
-                        price = itemRec.getLineItemMatrixValue(priceID, 'price', priceLevel, i);
+                    qty = itemRec.getMatrixValue(priceID, 'price', i) || 0;
 
-                       catalogProductTierPriceEntity.qty = qty;
-                       catalogProductTierPriceEntity.price = price;
+                    // price = itemRec.getLineItemValue('price', 'price_' + i + '_', priceLevel);
+                    price = itemRec.getLineItemMatrixValue(priceID, 'price', priceLevelLineNumber, i);
+                    specialPrice = itemRec.getLineItemMatrixValue(priceID, 'price', specialPriceLevelLineNumber, i);
+                    catalogProductTierPriceEntity.qty = qty;
+                    catalogProductTierPriceEntity.price = price;
+                    catalogProductTierPriceEntity.specialPrice = specialPrice;
 
-                       catalogProductTierPriceEntityArray.push(catalogProductTierPriceEntity);
-                    }
-          //      }
+                    catalogProductTierPriceEntityArray.push(catalogProductTierPriceEntity);
+                    // }
+                }
                 Utility.logDebug('catalogProductTierPriceEntityArray', JSON.stringify(catalogProductTierPriceEntityArray));
                 itemObject.catalogProductTierPriceEntityArray = catalogProductTierPriceEntityArray;
                 Utility.logDebug('5');
@@ -824,6 +827,7 @@ var ItemExportLibrary = (function () {
         setItemFieldsBasedOnType: function (store, itemInternalId, itemType, itemObject, itemRecord) {
             switch (itemType) {
                 case this.configData.ItemTypes.InventoryItem:
+                case this.configData.ItemTypes.SerializedInventoryItem:
                     ConnectorConstants.CurrentWrapper.setInventoryItemFields(store, itemInternalId, itemType, itemObject, itemRecord);
                     break;
                 default:
@@ -842,6 +846,7 @@ var ItemExportLibrary = (function () {
             var responseBody = null;
             switch (itemType) {
                 case this.configData.ItemTypes.InventoryItem:
+                case this.configData.ItemTypes.SerializedInventoryItem:
                     responseBody = this.exportInventoryItemToExternalSystem(store, itemInternalId, itemType, itemObject, createOnly);
                     break;
                 default:
