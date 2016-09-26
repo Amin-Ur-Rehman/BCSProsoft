@@ -70,9 +70,9 @@ var Image_Sync_Module = (function () {
                 var customImageFieldsLists = [];
                 //var savedSearchId = "121";
 
-                if (!!customImageFields) {
-                    customImageFieldsLists = customImageFields.split(',');
-                }
+                // if (!!customImageFields) {
+                //     customImageFieldsLists = customImageFields.split(',');
+                // }
                 customImageFieldsLists.push("storedisplayimage");
                 nlapiLogExecution("DEBUG", "Image Fields List Length: ", customImageFieldsLists.length);
                 // nlapiLogExecution("DEBUG", "Saved Search ID: ", savedSearchId);
@@ -262,6 +262,38 @@ var Image_Sync_Module = (function () {
                     if (!this.deleteImages(store, obj.itemInternalId, obj.itemType, null, null, obj.magentoProductId))
                         return;
                     nlapiLogExecution("DEBUG", "Adding New Image(s)", JSON.stringify(rec));
+
+                    var multipleImages = (rec.getFieldValue('custitem_multiple_images') || '').split(',').filter(function(path){
+                        return path.indexOf('/zoom/')>-1;
+                    });
+                    nlapiLogExecution('DEBUG', 'multipleImages', JSON.stringify(multipleImages));
+                    multipleImages.map(function(path) {
+                        path = (path||'').trim();
+                        Utility.logDebug('path', path);
+                        if (path) {
+                            var url = "http://yowzafitness.com" + path;
+                            var resp = nlapiRequestURL(url);
+                            Utility.logDebug('resp code', resp.getCode().toString().trim());
+                            Utility.logDebug('resp body', resp.getBody());
+                            Utility.logDebug('resp type', resp.getContentType());
+                            if (resp.getCode().toString().trim() == '200') {
+                                var fullName = path.substr(path.lastIndexOf('/')+1);
+                                var itemObject = {
+                                    image: {
+                                        mime: resp.getContentType(),
+                                        fullName: fullName,
+                                        content: resp.getBody(),
+                                        position: 0
+                                    }
+                                };
+
+                                Utility.logDebug('multiple_images[x] name', fullName);
+
+                                response = ConnectorConstants.CurrentWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
+                            }
+                        }
+                    });
+
                     for (var j = 0; j < customImageFieldsLists.length; j++) {
                         var path = rec.getFieldValue(customImageFieldsLists[j]);
                         nlapiLogExecution("DEBUG", "Adding New Image(s)" + j, customImageFieldsLists[j] + "path" + path);
@@ -281,34 +313,6 @@ var Image_Sync_Module = (function () {
                         }
                     }
 
-                    var multipleImages = (rec.getFieldValue('custitem_multiple_images') || '').split(',');
-                    nlapiLogExecution('DEBUG', 'multipleImages', JSON.stringify(multipleImages));
-                    multipleImages.map(function(path) {
-                        path = (path||'').trim();
-                        Utility.logDebug('path', path);
-                        if (path) {
-                            var url = "http://yowzafitness.com" + path;
-                            var resp = nlapiRequestURL(url);
-                            Utility.logDebug('resp code', resp.getCode().toString().trim());
-                            Utility.logDebug('resp body', resp.getBody());
-                            Utility.logDebug('resp type', resp.getContentType());
-                            if (resp.getCode().toString().trim() == '200') {
-                                var fullName = path.substr(path.lastIndexOf('/')+1);
-                                var itemObject = {
-                                    image: {
-                                        mime: resp.getContentType(),
-                                            fullName: fullName,
-                                        content: resp.getBody(),
-                                        position: 0
-                                    }
-                                };
-
-                                Utility.logDebug('multiple_images[x] name', fullName);
-
-                                response = ConnectorConstants.CurrentWrapper.exportProductImage(store, obj.itemInternalId, obj.itemType, itemObject, null, obj.magentoProductId);
-                            }
-                        }
-                    });
                     if (!response.error) {
                         nlapiLogExecution("DEBUG", "Marking Record", "Marking Record");
                         this.markRecords(obj.itemType, obj.itemInternalId);
