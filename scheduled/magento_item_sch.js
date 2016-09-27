@@ -89,10 +89,14 @@ function getTierPriceDataObj(product) {
     var obj = {};
     var itemRec = product.itemRec;
     var catalogProductTierPriceEntityArray = [];
-    var qty, price;
+    var qty, price, specialPrice;
 
+    var store = ConnectorConstants.CurrentStore;
     // reading price level from configuration
-    var priceLevel = ConnectorConstants.CurrentStore.entitySyncInfo.item.priceLevel;
+    var priceLevel = store.entitySyncInfo.item.priceLevel;
+    var specialPriceLevel = store.entitySyncInfo.item.specialPriceLevel;
+    var priceLevelLineNumber = itemRec.findLineItemValue(priceID, 'pricelevel', priceLevel);
+    var specialPriceLevelLineNumber = itemRec.findLineItemValue(priceID, 'pricelevel', specialPriceLevel);
 
     for (var i = 2; i <= 5; i++) {
         var catalogProductTierPriceEntity = {};
@@ -101,10 +105,11 @@ function getTierPriceDataObj(product) {
 
             qty = itemRec.getMatrixValue(priceID, 'price', i);
             //price = itemRec.getLineItemValue('price', 'price_' + i + '_', priceLevel);
-            price = itemRec.getLineItemMatrixValue(priceID, 'price', priceLevel, i);
-
+            price = itemRec.getLineItemMatrixValue(priceID, 'price', priceLevelLineNumber, i);
+            specialPrice = itemRec.getLineItemMatrixValue(priceID, 'price', specialPriceLevelLineNumber, i);
             catalogProductTierPriceEntity.qty = qty;
             catalogProductTierPriceEntity.price = price;
+            catalogProductTierPriceEntity.specialPrice = specialPrice;
 
             catalogProductTierPriceEntityArray.push(catalogProductTierPriceEntity);
         }
@@ -308,8 +313,13 @@ function ws_soaftsubm(type) {
                             }
                             Utility.logDebug('checkpoint', '4');
                             // getting store price level
-                            var soprice = store.entitySyncInfo.item.priceLevel;
-                            Utility.logDebug('priceLevel', soprice);
+                            var priceLevel = store.entitySyncInfo.item.priceLevel;
+                            var specialPriceLevel = store.entitySyncInfo.item.specialPriceLevel;
+                            var priceLevelLineNumber = itemRec.findLineItemValue('price1', 'pricelevel', priceLevel);
+                            var specialPriceLevelLineNumber = itemRec.findLineItemValue('price1', 'pricelevel', specialPriceLevel);
+
+                            Utility.logDebug('priceLevel', priceLevel);
+                            Utility.logDebug('specialPriceLevel', specialPriceLevel);
                             Utility.logDebug('checkpoint', '5');
                             var sessionID = store.sessionID;
                             var quantityLocation = store.entitySyncInfo.item.quantityLocation;
@@ -322,7 +332,8 @@ function ws_soaftsubm(type) {
                             if (!ConnectorCommon.isDevAccount()) {
                                 Utility.logDebug('checkpoint', '6');
                                 // TODO: check multipricing feature & update dynamic sublist id
-                                product.price = itemRec.getLineItemValue('price1', 'price_1_', soprice) || 0;
+                                product.price = itemRec.getLineItemValue('price1', 'price_1_', priceLevel) || 0;
+                                product.specialPrice = itemRec.getLineItemValue('price1', 'price_1_', specialPriceLevelLineNumber) || 0;
                                 // check  multi location feature
                                 if (Utility.isMultiLocInvt()) {
                                     Utility.logDebug('checkpoint', '7');
@@ -335,7 +346,8 @@ function ws_soaftsubm(type) {
 
                             } else {
                                 Utility.logDebug('checkpoint', '8');
-                                product.price = itemRec.getLineItemValue('price1', 'price_1_', soprice) || 0;
+                                product.price = itemRec.getLineItemValue('price1', 'price_1_', priceLevelLineNumber) || 0;
+                                product.specialPrice = itemRec.getLineItemValue('price1', 'price_1_', specialPriceLevelLineNumber) || 0;
                                 //product.quatity = itemRec.getLineItemValue('locations', 'quantityonhand', 1) || 0;
                                 product.quatity = itemRec.getLineItemValue('locations', 'quantityavailable', 1) || 0;
                             }

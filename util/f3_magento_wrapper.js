@@ -34,6 +34,7 @@ MagentoXmlWrapper = (function () {
         var type;
         switch (itemType) {
             case ItemExportLibrary.configData.ItemTypes.InventoryItem:
+            case ItemExportLibrary.configData.ItemTypes.SerializedInventoryItem:
                 type = itemObject.isMatrix
                     ? (itemObject.isMatrixParentItem ?
                     MagentoItemTypes.ConfigurableProduct : MagentoItemTypes.SimpleProduct)
@@ -304,6 +305,7 @@ MagentoXmlWrapper = (function () {
 
             xml = xml + '<productData xsi:type="urn:catalogProductCreateEntity">';
             xml = xml + '<price xsi:type="xsd:string">' + item.price + '</price>';
+            xml = xml + '<special_price xsi:type="xsd:string">' + item.specialPrice + '</special_price>';
 
             xml = xml + '<stock_data xsi:type="urn:catalogInventoryStockItemUpdateEntity" xs:type="type:catalogInventoryStockItemUpdateEntity">';
 
@@ -2384,6 +2386,7 @@ MagentoXmlWrapper = (function () {
                 xml = xml + '<catalogProductTierPriceEntity>';
                 xml = xml + '<qty xsi:type="xsd:int">' + catalogProductTierPriceEntity.qty + '</qty>';
                 xml = xml + '<price xsi:type="xsd:double">' + catalogProductTierPriceEntity.price + '</price>';
+                xml = xml + '<special_price xsi:type="xsd:string">' + catalogProductTierPriceEntity.specialPrice + '</special_price>';
                 xml = xml + '</catalogProductTierPriceEntity>';
             }
 
@@ -2699,6 +2702,7 @@ MagentoXmlWrapper = (function () {
 
             if (itemObject.tierPricingEnabled && !!itemObject.catalogProductTierPriceEntityArray && itemObject.catalogProductTierPriceEntityArray.length > 0) {
                 itemObject.price = itemObject.catalogProductTierPriceEntityArray[0].price;
+                itemObject.specialPrice = itemObject.catalogProductTierPriceEntityArray[0].specialPrice;
             }
 
             if (itemObject.isInactive === 'T') {
@@ -3236,7 +3240,7 @@ MagentoXmlWrapper = (function () {
          */
         getCreateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
             Utility.logDebug('Create Block');
-            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='4';
             var xml;
             xml = this.OrderRequestXMLHeader;
             xml = xml + '<urn:catalogProductCreate soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">';
@@ -3272,6 +3276,7 @@ MagentoXmlWrapper = (function () {
             xml = xml + '<url_key xsi:type="xsd:string">' + itemObject.urlComponent + '</url_key>';
             xml = xml + '<visibility xsi:type="xsd:string">' + itemObject.magentoVisibility + '</visibility>';
             xml = xml + '<price xsi:type="xsd:string">' + itemObject.price + '</price>';
+            xml = xml + '<special_price xsi:type="xsd:string">' + itemObject.specialPrice + '</special_price>';
             xml = xml + '<tax_class_id xsi:type="xsd:string">' + store.entitySyncInfo.item.taxClass + '</tax_class_id>';
             xml = xml + '<meta_title xsi:type="xsd:string">' + itemObject.pageTitle + '</meta_title>';
             xml = xml + '<meta_keyword xsi:type="xsd:string">' + itemObject.searchKeywords + '</meta_keyword>';
@@ -3330,7 +3335,7 @@ MagentoXmlWrapper = (function () {
          * @returns {*}
          */
         getUpdateProductXml: function (store, itemInternalId, itemType, itemObject, createOnly) {
-            itemObject.itemAttributeSet.externalSystemItemAttrSetId='Default';
+            itemObject.itemAttributeSet.externalSystemItemAttrSetId='4';
             var xml = '';
             xml = this.OrderRequestXMLHeader;
             xml += '<urn:catalogProductUpdate>';
@@ -3367,6 +3372,7 @@ MagentoXmlWrapper = (function () {
             xml = xml + '<url_key xsi:type="xsd:string">' + itemObject.urlComponent + '</url_key>';
             xml = xml + '<visibility xsi:type="xsd:string">' + itemObject.magentoVisibility + '</visibility>';
             xml = xml + '<price xsi:type="xsd:string">' + itemObject.price + '</price>';
+            xml = xml + '<special_price xsi:type="xsd:string">' + itemObject.specialPrice + '</special_price>';
             xml = xml + '<tax_class_id xsi:type="xsd:string">' + store.entitySyncInfo.item.taxClass + '</tax_class_id>';
             xml = xml + '<meta_title xsi:type="xsd:string">' + itemObject.pageTitle + '</meta_title>';
             xml = xml + '<meta_keyword xsi:type="xsd:string">' + itemObject.searchKeywords + '</meta_keyword>';
