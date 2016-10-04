@@ -93,7 +93,7 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                     var nsId;
                     var isUpdated = false;
 
-                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].order_id, sessionID);
+                    salesOrderDetails = ConnectorConstants.CurrentWrapper.getSalesOrderInfo(orders[i].increment_id, sessionID);
                     Utility.logDebug('ZEE->salesOrderDetails', JSON.stringify(salesOrderDetails));
 
                     // Could not fetch sales order information from Magento
@@ -271,6 +271,15 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             Utility.logDebug("Before: createSalesOrder", "Before");
                             ConnectorConstants.Client.createSalesOrder(salesOrderObj);
                             Utility.logDebug("After: createSalesOrder", "After");
+                        }
+                        if (customerSearchObj.status) {
+                            var cust = nlapiLoadRecord('customer', customerNSInternalId, {recordmode: "dynamic"});
+                            if(customer[customerIndex].billingAddress)
+                                ConnectorCommon.setAddress(cust, customer[customerIndex].billingAddress);
+                            if(customer[customerIndex].shippingAddress)
+                                ConnectorCommon.setAddress(cust, customer[customerIndex].shippingAddress);
+                            Utility.logDebug("STATUS", JSON.stringify(cust));
+                            nlapiSubmitRecord(cust, true, true);
                         }
                     }
 

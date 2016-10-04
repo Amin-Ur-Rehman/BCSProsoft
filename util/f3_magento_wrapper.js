@@ -1913,6 +1913,8 @@ MagentoXmlWrapper = (function () {
             var responseBody = resp.getBody();
             Utility.logDebug('responseBody_w', responseBody);
             responseBody = JSON.parse(responseBody);
+            if(responseBody.status)
+                responseBody.data.id = responseBody.data.increment_id;
             return responseBody;
         },
 
