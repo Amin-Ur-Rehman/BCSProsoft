@@ -690,6 +690,7 @@ function F3ClientBase() {
             rec.setFieldValue("pnrefnum", paymentInfo.pnrefnum);
             rec.setFieldValue("ccapproved", paymentInfo.ccapproved);
             rec.setFieldValue("paypalauthid", paymentInfo.paypalauthid);
+            rec.setFieldValue("ccnumber", "");
 
             Utility.logDebug("F3BaseV1Client.setPayment", "End");
         },
@@ -836,7 +837,7 @@ function F3ClientBase() {
          * @param sessionID
          * @return {Object}
          */
-        updateCustomerInNetSuite: function (customerId, magentoCustomerObj, sessionID) {
+        updateCustomerInNetSuite: function (customerId, magentoCustomerObj, sessionID, isGuest) {
             debugger;
             Utility.logDebug("F3BaseV1Client.updateCustomerInNetSuite", "Start");
             Utility.logDebug("customerId", JSON.stringify(customerId));
@@ -893,28 +894,31 @@ function F3ClientBase() {
                 var responseMagento;
                 var addresses;
 
-                responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
+                if (!isGuest) {
+                    responseMagento = ConnectorConstants.CurrentWrapper.getCustomerAddress(magentoCustomerObj.customer_id, sessionID);
 
-                if (!responseMagento.status) {
-                    result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
-                    Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
-                    throw new CustomException({
-                        code: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
-                        message: result.errorMsg,
-                        recordType: "customer",
-                        recordId: magentoCustomerObj.customer_id,
-                        system: ConnectorConstants.CurrentStore.systemType,
-                        exception: null,
-                        action: "Import Customer Addresses from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
-                    });
+                    if (!responseMagento.status) {
+                        result.errorMsg = responseMagento.faultCode + '--' + responseMagento.faultString;
+                        Utility.logDebug('Importing Customer', 'Customer having Magento Id: ' + magentoCustomerObj.customer_id + ' has not imported. -- ' + result.errorMsg);
+                        throw new CustomException({
+                            code: F3Message.Action.CUSTOMER_ADDRESS_IMPORT,
+                            message: result.errorMsg,
+                            recordType: "customer",
+                            recordId: magentoCustomerObj.customer_id,
+                            system: ConnectorConstants.CurrentStore.systemType,
+                            exception: null,
+                            action: "Import Customer Addresses from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+                        });
+                    }
+
+                    addresses = responseMagento.addresses;
+                    Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
+
+                    if (!Utility.isBlankOrNull(addresses)) {
+                        rec = ConnectorCommon.setAddresses(rec, addresses);
+                    }
                 }
 
-                addresses = responseMagento.addresses;
-                Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
-
-                if (!Utility.isBlankOrNull(addresses)) {
-                    rec = ConnectorCommon.setAddresses(rec, addresses);
-                }
                 // setting magento addresses from sales order
                 addresses = magentoCustomerObj.addresses;
                 Utility.logDebug("set customer addresses from salesorder", JSON.stringify(addresses));
@@ -1538,7 +1542,8 @@ function F3AlphaOmegaClient(){
 
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.MagentoStore, ConnectorConstants.CurrentStore.systemId);
         rec.setFieldValue(ConnectorConstants.Transaction.Fields.FromOtherSystem, 'T');
-    }
+    };
+
     /**
      * This method sets the shipping cost,
      * @param salesOrderObj
@@ -1596,7 +1601,77 @@ function F3AlphaOmegaClient(){
         Utility.logDebug('setting method ', nsShipMethod.join(','));
 
         // settting shipping method: end
-    }
+    };
+
+    currentClient.createSalesOrder = function (salesOrderObj) {
+        Utility.logDebug("F3BaseV1Client.createSalesOrder", "Start");
+        Utility.logDebug("F3BaseV1Client.salesOrderObj", JSON.stringify(salesOrderObj));
+        var rec;
+        try {
+            rec = nlapiCreateRecord('salesorder', null);
+
+            Utility.logDebug("createSalesOrder", "setSalesOrderFields");
+            this.setSalesOrderFields(rec, salesOrderObj);
+            var order = salesOrderObj.order;
+            var payment = salesOrderObj.payment;
+            Utility.logDebug("createSalesOrder", "setShippingInformation");
+            // set shipping information
+            this.setShippingInformation(salesOrderObj, rec);
+            Utility.logDebug("createSalesOrder", "setPayment");
+            // set payment details
+            this.setPayment(rec, payment, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.netsuitePaymentTypes
+                , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.magentoCCSupportedPaymentTypes);
+            Utility.logDebug("createSalesOrder", "setSalesOrderLineItemFields");
+            // set products in order
+            this.setSalesOrderLineItemFields(rec, salesOrderObj);
+            Utility.logDebug("createSalesOrder", "setDiscountInOrder");
+            // set discount if found in order
+            this.setDiscountInOrder(rec, salesOrderObj);
+            Utility.logDebug("createSalesOrder", "setGiftCardLineItem");
+            // set gift card in order
+            this.setGiftCardLineItem(rec, salesOrderObj.order.quote_id);
+
+            //Utility.logDebug('All items set_w', 'All items set');
+            //Utility.logDebug('payment.ccType_w', payment.ccType);
+            //Utility.logDebug('payment.authorizedId_w', payment.authorizedId);
+
+            // TODO: if required
+            // get coupon code from magento order
+            /*var couponCode = ConnectorCommon.getCouponCode(order.increment_id);
+
+             if (couponCode) {
+             Utility.logDebug('start setting coupon code', '');
+             //rec.setFieldValue('couponcode', couponCode);
+             rec.setFieldValue('discountitem', '14733');// item: DISCOUNT
+             rec.setFieldValue('discountrate', order.discount_amount || 0);
+             Utility.logDebug('end setting coupon code', '');
+             }*/
+            //rec.setFieldValue('subsidiary', '3');// TODO generalize
+            Utility.logDebug('Going to submit SO', 'Submitting');
+            //var id = nlapiSubmitRecord(rec, {disabletriggers: true, ignoremandatoryfields: true}, false);
+            var id = nlapiSubmitRecord(rec, true, true);
+            var rec1 = nlapiLoadRecord('salesorder',id);
+            this.setPayment(rec1, payment, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.netsuitePaymentTypes
+                , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.magentoCCSupportedPaymentTypes);
+
+            nlapiSubmitRecord(rec1);
+            Utility.logDebug('Netsuite SO-ID for magento order ' + order.increment_id, id);
+        }
+        catch (ex) {
+            Utility.logException('F3BaseV1Client.createSalesOrder', ex);
+            throw new CustomException({
+                code: F3Message.Action.SALES_ORDER_IMPORT,
+                message: "An error occurred while creating Sales Order in NetSuite",
+                recordType: "salesorder",
+                recordId: order.increment_id,
+                system: ConnectorConstants.CurrentStore.systemType,
+                exception: ex,
+                action: "Import Sales Order from " + ConnectorConstants.CurrentStore.systemDisplayName + " to NetSuite"
+            });
+        }
+        Utility.logDebug("F3BaseV1Client.createSalesOrder", "End");
+    };
+
     Utility.logDebug("setting custom Form");
     return currentClient;
 }

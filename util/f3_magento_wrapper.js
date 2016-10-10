@@ -753,7 +753,7 @@ MagentoXmlWrapper = (function () {
                 var payment = nlapiSelectNodes(xml, "//payment");
                 var statusHistory = nlapiSelectNodes(xml, "//status_history/item");
                 var authorizedId;
-                Utility.logDebug('payment XML', nlapiXMLToString(payment));
+                // Utility.logDebug('payment XML', nlapiXMLToString(payment));
                 faultCode = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultcode");
                 faultString = nlapiSelectValue(xml, "SOAP-ENV:Envelope/SOAP-ENV:Body/SOAP-ENV:Fault/faultstring");
                 if (!Utility.isBlankOrNull(faultCode)) {
