@@ -1619,6 +1619,8 @@ function F3AlphaOmegaClient(){
             this.setShippingInformation(salesOrderObj, rec);
             Utility.logDebug("createSalesOrder", "setPayment");
             // set payment details
+            var phone = salesOrderObj.billingAddress.phone || salesOrderObj.billingAddress.telephone || '';
+            rec.setFieldValue('custbody6', phone);
             this.setPayment(rec, payment, ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.netsuitePaymentTypes
                 , ConnectorConstants.CurrentStore.entitySyncInfo.salesorder.magentoCCSupportedPaymentTypes);
             Utility.logDebug("createSalesOrder", "setSalesOrderLineItemFields");

@@ -412,11 +412,11 @@ var ConnectorCommon = (function () {
             countryId = address.country_id || '';
             firstname = address.firstname || '';
             lastname = address.lastname || '';
-            postcode = address.postcode || '';
+            postcode = address.postcode || address.zip || '';
             region = address.region || '';
             regionId = address.region_id || '';
             street = address.street || '';
-            telephone = address.telephone || '';
+            telephone = address.telephone || address.phone || '';
             isDefaultBilling = address.is_default_billing ? 'T' : 'F';
             isDefaultShipping = address.is_default_shipping ? 'T' : 'F';
 
@@ -456,6 +456,7 @@ var ConnectorCommon = (function () {
             addressObj.city = city;
             addressObj.state = regionId;
             addressObj.zip = postcode;
+            addressObj.phone = telephone;
 
             var addressSubRec;
 
@@ -500,6 +501,10 @@ var ConnectorCommon = (function () {
                 rec.commitLineItem('addressbook');
             }
 
+            if (isDefaultBilling) {
+                rec.setFieldValue('phone', telephone);
+            }
+            
             Utility.logDebug('DEBUG', 'in setAddress() end');
             return rec;
         },
@@ -1388,6 +1393,7 @@ var ConnectorCommon = (function () {
                 str += (rec.getLineItemValue('addressbook', 'city', t) || '') + ' === ' + add.city.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'state', t) || '') + ' === ' + add.state.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
+                str += (rec.getLineItemValue('addressbook', 'phone', t) || '').replace(/[^0-9]/g, '')  + ' === ' + add.phone.replace(/[^0-9]/g, '' ) + ' || ';
                 str += 'isShipping' + ' === ' + isShipping + ' || ';
                 str += 'isBilling' + ' === ' + isBilling;
                 Utility.logDebug('addressExists', str);
@@ -1397,7 +1403,8 @@ var ConnectorCommon = (function () {
                     (rec.getLineItemValue('addressbook', 'addressee', t) || '').trim().toLowerCase() === add.addressee.replace(/"/g, '').trim().toLowerCase() &&
                     (rec.getLineItemValue('addressbook', 'city', t) || '' ).trim().toLowerCase() === add.city.replace(/"/g, '').trim().toLowerCase() &&
                     (rec.getLineItemValue('addressbook', 'state', t) || '').trim().toLowerCase() === add.state.replace(/"/g, '').trim().toLowerCase() &&
-                    (rec.getLineItemValue('addressbook', 'zip', t) || '' ).trim() === add.zip.replace(/"/g, '').trim()) {
+                    (rec.getLineItemValue('addressbook', 'zip', t) || '' ).trim() === add.zip.replace(/"/g, '').trim() &&
+                    (rec.getLineItemValue('addressbook', 'phone', t) || '').replace(/[^0-9]/g, '') === add.phone.replace(/[^0-9]/g, '')) {
                     if (isShipping === 'T') {
                         line = rec.findLineItemValue("addressbook", "defaultshipping", "T");
                         if (line > 0) {
