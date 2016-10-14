@@ -423,7 +423,10 @@ var ConnectorCommon = (function () {
             if (!Utility.isBlankOrNull(region)) {
                 regionId = FC_ScrubHandler.getMappedValue('State', region);
             } else {
-                regionId = FC_ScrubHandler.getMappedValue('State', regionId);
+                if(regionId != '0')
+                    regionId = FC_ScrubHandler.getMappedValue('State', regionId);
+                else
+                    regionId = '';
             }
 
             if (type === 'order') {
@@ -438,6 +441,7 @@ var ConnectorCommon = (function () {
             var subStr;
             var index;
 
+            stAddr = stAddr.replace('\n',' ');
             if (stAddr.length > 150) {
                 subStr = stAddr.substring(0, 150);
                 index = subStr.lastIndexOf(' ');
@@ -1394,6 +1398,7 @@ var ConnectorCommon = (function () {
                 str += (rec.getLineItemValue('addressbook', 'state', t) || '') + ' === ' + add.state.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
                 str += (rec.getLineItemValue('addressbook', 'phone', t) || '').replace(/[^0-9]/g, '')  + ' === ' + add.phone.replace(/[^0-9]/g, '' ) + ' || ';
+
                 str += 'isShipping' + ' === ' + isShipping + ' || ';
                 str += 'isBilling' + ' === ' + isBilling;
                 Utility.logDebug('addressExists', str);
@@ -1405,6 +1410,7 @@ var ConnectorCommon = (function () {
                     (rec.getLineItemValue('addressbook', 'state', t) || '').trim().toLowerCase() === add.state.replace(/"/g, '').trim().toLowerCase() &&
                     (rec.getLineItemValue('addressbook', 'zip', t) || '' ).trim() === add.zip.replace(/"/g, '').trim() &&
                     (rec.getLineItemValue('addressbook', 'phone', t) || '').replace(/[^0-9]/g, '') === add.phone.replace(/[^0-9]/g, '')) {
+
                     if (isShipping === 'T') {
                         line = rec.findLineItemValue("addressbook", "defaultshipping", "T");
                         if (line > 0) {

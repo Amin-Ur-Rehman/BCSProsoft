@@ -912,6 +912,15 @@ function F3ClientBase() {
                     }
 
                     addresses = responseMagento.addresses;
+                    for(var i=0;i<addresses.length;i++) {
+                        if(addresses[i].is_default_billing)
+                            magentoCustomerObj.billingAddress = addresses[i];
+                        if(addresses[i].is_default_shipping)
+                            magentoCustomerObj.shippingAddress = addresses[i];
+                    }
+                    Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
+
+                    addresses = responseMagento.addresses;
                     Utility.logDebug("set customer addresses from addressbook", JSON.stringify(addresses));
 
                     if (!Utility.isBlankOrNull(addresses)) {
@@ -1674,6 +1683,5 @@ function F3AlphaOmegaClient(){
         Utility.logDebug("F3BaseV1Client.createSalesOrder", "End");
     };
 
-    Utility.logDebug("setting custom Form");
     return currentClient;
 }

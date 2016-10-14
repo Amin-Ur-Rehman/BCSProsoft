@@ -277,6 +277,15 @@ function syncSalesOrderMagento(sessionID, updateDate) {
                             ConnectorConstants.Client.createSalesOrder(salesOrderObj);
                             Utility.logDebug("After: createSalesOrder", "After");
                         }
+                        if (customerSearchObj.status) {
+                            var cust = nlapiLoadRecord('customer', customerNSInternalId, {recordmode: "dynamic"});
+                            if(customer[customerIndex].billingAddress)
+                                ConnectorCommon.setAddress(cust, customer[customerIndex].billingAddress);
+                            if(customer[customerIndex].shippingAddress)
+                                ConnectorCommon.setAddress(cust, customer[customerIndex].shippingAddress);
+                            Utility.logDebug("STATUS", JSON.stringify(cust));
+                            nlapiSubmitRecord(cust, true, true);
+                        }
                     }
 
                     // this handling is for maintaining order ids in custom record
