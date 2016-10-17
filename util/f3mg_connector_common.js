@@ -505,6 +505,10 @@ var ConnectorCommon = (function () {
                 rec.commitLineItem('addressbook');
             }
 
+            if (isDefaultBilling) {
+                rec.setFieldValue('phone', telephone);
+            }
+            
             Utility.logDebug('DEBUG', 'in setAddress() end');
             return rec;
         },
@@ -1392,7 +1396,7 @@ var ConnectorCommon = (function () {
                 str += (rec.getLineItemValue('addressbook', 'addressee', t) || '') + ' === ' + add.addressee.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'city', t) || '') + ' === ' + add.city.replace(/"/g, '') + ' || ';
                 str += (rec.getLineItemValue('addressbook', 'state', t) || '') + ' === ' + add.state.replace(/"/g, '') + ' || ';
-                str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' ) + ' || ';
+                str += (rec.getLineItemValue('addressbook', 'zip', t) || '') + ' === ' + add.zip.replace(/"/g, '' + ' || ');
                 str += (rec.getLineItemValue('addressbook', 'phone', t) || '').replace(/[^0-9]/g, '')  + ' === ' + add.phone.replace(/[^0-9]/g, '' ) + ' || ';
 
                 str += 'isShipping' + ' === ' + isShipping + ' || ';
