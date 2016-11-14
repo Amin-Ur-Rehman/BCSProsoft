@@ -80,7 +80,7 @@ var InvoiceExportHelper = (function () {
                 }
 
                 // only executes code when license is valid and type is create
-                if (type.toString() === 'create') {
+                if (type.toString() === 'create' || type.toString() === 'edit') {
 
                     var recType = nlapiGetRecordType();
                     Utility.logDebug('recType_w', recType);
