@@ -508,7 +508,13 @@ var ConnectorCommon = (function () {
             if (isDefaultBilling) {
                 rec.setFieldValue('phone', telephone);
             }
-            
+
+
+            var shippingLineNumber = rec.findLineItemValue('addressbook','defaultshipping','T');
+            var addressText = rec.getLineItemValue('addressbook', 'addrtext', shippingLineNumber);
+            rec.setFieldValue('custentity_shippingaddress', addressText);
+
+
             Utility.logDebug('DEBUG', 'in setAddress() end');
             return rec;
         },
