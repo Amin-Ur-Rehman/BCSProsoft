@@ -636,6 +636,7 @@ MagentoXmlWrapper = (function () {
             paymentObj.ccLast4 = nlapiSelectValue(payment[0], 'cc_last4');
             paymentObj.ccExpMonth = nlapiSelectValue(payment[0], 'cc_exp_month');
             paymentObj.ccExpYear = nlapiSelectValue(payment[0], 'cc_exp_year');
+            // paymentObj.authorizedId = nlapiSelectValue(payment[0], 'payment_id');
             paymentObj.paymentId = nlapiSelectValue(payment[0], 'payment_id');
 
             return paymentObj;
@@ -2496,7 +2497,8 @@ MagentoXmlWrapper = (function () {
                 }
                 paymentInfo.ccapproved = "T";
             }
-            else if (paymentMethod === 'paypal_express' || paymentMethod === 'payflow_advanced') {
+            else if (paymentMethod === 'paypal_express' || paymentMethod === 'payflow_advanced' || paymentMethod == 'paypal_direct' || paymentMethod == 'paypal_express_bml' || paymentMethod == 'paypaluk_express'
+                || paymentMethod == 'paypal_billing_agreement' || paymentMethod == 'paypaluk_express_bml') {
                 Utility.logDebug("Condition (2)", "");
                 paymentInfo.paymentmethod = paypalPaymentMethod;
                 paymentInfo.paypalauthid = payment.authorizedId;
@@ -2788,7 +2790,7 @@ MagentoXmlWrapper = (function () {
                 if (!!id) {
                     createRecord = false;
                 }
-                
+
                 var parsedResponse = null;
                 if (createRecord) {
                     // if id not exist then create record
