@@ -357,7 +357,13 @@ var ConnectorCommon = (function () {
             Utility.logDebug('in setAddresses() start', addresses.toSource());
 
             for (var i in addresses) {
-                rec = this.setAddress(rec, addresses[i], type);
+                try {
+                    rec = this.setAddress(rec, addresses[i], type);
+                }
+                catch(e) {
+                    Utility.logDebug('Address Error', e);
+                }
+
             }
             Utility.logDebug('DEBUG', 'in setAddresses() end');
             return rec;
