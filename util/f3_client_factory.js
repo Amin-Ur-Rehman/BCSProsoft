@@ -689,7 +689,8 @@ function F3ClientBase() {
             rec.setFieldValue("paymentmethod", paymentInfo.paymentmethod);
             rec.setFieldValue("pnrefnum", paymentInfo.pnrefnum);
             rec.setFieldValue("ccapproved", paymentInfo.ccapproved);
-            rec.setFieldValue("paypalauthid", paymentInfo.paypalauthid);
+            // rec.setFieldValue("paypalauthid", paymentInfo.paypalauthid);
+            rec.setFieldValue("paypalauthid", "");
             rec.setFieldValue("ccnumber", "");
 
             Utility.logDebug("F3BaseV1Client.setPayment", "End");
@@ -754,7 +755,6 @@ function F3ClientBase() {
                     }
 
                     addresses = responseMagento.addresses;
-
                     if (!Utility.isBlankOrNull(addresses)) {
                         rec = ConnectorCommon.setAddresses(rec, addresses);
                     }

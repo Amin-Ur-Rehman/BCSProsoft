@@ -235,7 +235,7 @@ var ItemExportLibrary = (function () {
             this.setTierPriceData(store, itemObject, itemRecord);
             this.setInventoryData(store, itemObject, itemRecord);
             //TODO: Delete below after, its just for testing
-            itemObject.quatity = 50;
+            // itemObject.quatity = 50;
 
             this.setExternalSystemData(store, itemInternalId, itemType, itemObject, itemRecord);
 
