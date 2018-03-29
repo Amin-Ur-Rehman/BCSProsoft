@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<config>
-    <modules>
-        <Folio3_Sales>
-            <active>true</active>
-            <codePool>local</codePool>
-        </Folio3_Sales>
-    </modules>
-</config>
