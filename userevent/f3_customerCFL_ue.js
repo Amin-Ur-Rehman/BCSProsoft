@@ -30,6 +30,24 @@
 
 
 function beforeLoadSublist(type, form) {
+    //adding an inline html field to hold the css for the class dynamically
+    var inlineCss = form.addField('custpage_inline_css','inlinehtml','inline Css');
+    var stylingCss = "<style>\n";
+
+    stylingCss += '.f3Hyperlink:link {\n' +
+        'text-decoration: none;\n' +
+        '}\n' +
+        '\n' +
+        '.f3Hyperlink:visited {\n' +
+        'text-decoration: none;\n' +
+        '}\n';
+
+    stylingCss+=".f3Hyperlink:hover {\n";
+    stylingCss+= "text-decoration: underline;\n";
+    stylingCss += '}\n';
+
+    stylingCss += '</style>';
+    inlineCss.setDefaultValue(stylingCss);
     Utility.logDebug('Work','Started'+type);
     if (type.toString() ===  'view') {
 
