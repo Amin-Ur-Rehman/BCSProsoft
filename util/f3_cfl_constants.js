@@ -94,11 +94,11 @@ var UEConstants = /** @class */ (function () {
             }
         }
     };
-    UEConstants.HTTP_REQUEST_TYPE = {
-        POST: "POST",
-        GET: "GET",
-        DELETE: "DELETE",
-        PUT: "PUT"
+    UEConstants.savedSearch = {
+        type: "customrecord_bcs_customer_fav_lines_rtyp",
+        internalId: "customsearch56",
+        start: 0,
+        end: 1000
     };
     return UEConstants;
 }());

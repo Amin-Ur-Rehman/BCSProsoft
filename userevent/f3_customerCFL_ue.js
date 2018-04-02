@@ -26,11 +26,19 @@
  * @param type
  * @param form
  */
-function beforeLoadSublist(type, form) {
 
-    if (type ===  'edit' || 'view') {
+
+
+function beforeLoadSublist(type, form) {
+    Utility.logDebug('Work','Started'+type);
+    if (type.toString() ===  'view') {
 
         Utility.logDebug('Work','Started');
+
+        form.setScript('customscript_f3_remove_customer_sublist');
+        var sublist = form.getSubList('recmachcustrecord_bcs_cust_fav_lines_parent');
+
+        sublist.setDisplayType('hidden');
 
         var customerFavoriteLines = this.createSublist(form);
 
@@ -39,12 +47,27 @@ function beforeLoadSublist(type, form) {
         // this.loadsearch();
         // this.getSearch();
 
-        if(!!cfl_search)
+        if(!!cfl_search) {
             customerFavoriteLines.setLineItemValues(cfl_search);
+            for(var i=1;i<=cfl_search.length;i++){
 
+                if(!!cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_parent'))
+                    customerFavoriteLines.setLineItemValue('custrecord_bcs_cust_fav_lines_parent',i,"<a href ='#' class='f3Hyperlink' style='color:#255599' onclick='openCustomer("+cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_parent')+")'>"+cfl_search[i-1].getText('custrecord_bcs_cust_fav_lines_parent')+"</a>");
+                if(!!cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_item'))
+                    customerFavoriteLines.setLineItemValue('custrecord_bcs_cust_fav_lines_item',i,"<a href ='#' class='f3Hyperlink' style='color:#255599' onclick='openItem("+cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_item')+")'>"+cfl_search[i-1].getText('custrecord_bcs_cust_fav_lines_item')+"</a>");
+                if(!!cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_vendor'))
+                    customerFavoriteLines.setLineItemValue('custrecord_bcs_cust_fav_lines_vendor',i,"<a href ='#' class='f3Hyperlink' style='color:#255599' onclick='openVendor("+cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_vendor')+")'>"+cfl_search[i-1].getText('custrecord_bcs_cust_fav_lines_vendor')+"</a>");
+                if(!!cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_lastorder'))
+                    customerFavoriteLines.setLineItemValue('custrecord_bcs_cust_fav_lines_lastorder',i,"<a href ='#' class='f3Hyperlink' style='color:#255599' onclick='openTransaction("+cfl_search[i-1].getValue('custrecord_bcs_cust_fav_lines_lastorder')+")'>"+cfl_search[i-1].getText('custrecord_bcs_cust_fav_lines_lastorder')+"</a>");
+                customerFavoriteLines.setLineItemValue('custpage_edit',i,"<a href ='#' class='f3Hyperlink' style='color: #255599' onclick='openEdit("+cfl_search[i-1].getId()+")'>Edit</a>");
+                customerFavoriteLines.setLineItemValue('custpage_remove',i,"<a href ='#' class='f3Hyperlink' style='color:#255599' onclick='removeLine("+cfl_search[i-1].getId()+","+nlapiGetRecordId()+")'>Remove</a>");//); //,
+
+            }
+        }
         Utility.logDebug('Work','Completed');
 
     }
+
 }
 
 /**
@@ -53,13 +76,14 @@ function beforeLoadSublist(type, form) {
  */
 function createSublist(form){
 
-    var customerFavoriteLines = form.addSubList('custpage_cfl', 'inlineeditor', 'Customer Favorite Lines', 'general');
+    var customerFavoriteLines = form.addSubList('custpage_cfl', 'list', 'Customer Favorite Lines', 'custom12'); //custom12
 
-    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_parent', 'select', 'Customer', 'customer');
-    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_item', 'select', 'Item', 'item');
+    customerFavoriteLines.addField('custpage_edit', 'text', 'Edit');
+    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_parent', 'text', 'Customer');
+    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_item', 'text', 'Item');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_manu', 'text', 'MFG');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_oem', 'text', 'OEM#');
-    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_vendor', 'select', 'Vendor', 'vendor');
+    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_vendor', 'text', 'Vendor');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_vendorpart', 'text', 'Vendor Part#');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_descriptio', 'text', 'Description');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_cost', 'currency', 'Cost');
@@ -76,7 +100,8 @@ function createSublist(form){
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_contract', 'checkbox', 'Contract');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_dateadded', 'date', 'Date Added');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_dateorder', 'date', 'Date Last Ordered');
-    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_lastorder', 'select', 'last Order#', 'transaction');
+    customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_lastorder', 'text', 'last Order#');
+    customerFavoriteLines.addField('custpage_remove', 'text', 'Remove')//.setLinkText('Remove');
 
     return customerFavoriteLines;
 }
@@ -124,9 +149,10 @@ function getSearch(){
  */
 function loadsearch(){
 
-    var start = 0;
+    var start = 0; //UEConstants.
     var end = 1000;
     var s = nlapiLoadSearch('customrecord_bcs_customer_fav_lines_rtyp', 'customsearch56'); //761 56
+    s.addFilter(new nlobjSearchFilter( 'custrecord_bcs_cust_fav_lines_parent', null, 'anyof', nlapiGetRecordId() ));
     var resultSet = s.runSearch();
     var results = resultSet.getResults(start, end);
     var allSearch = [];

@@ -95,12 +95,12 @@ class UEConstants {
                 }
             }
         };
-    public static HTTP_REQUEST_TYPE =
+    public static savedSearch =
         {
-            POST: "POST",
-            GET: "GET",
-            DELETE: "DELETE",
-            PUT: "PUT"
+            type: "customrecord_bcs_customer_fav_lines_rtyp",
+            internalId: "customsearch56",
+            start: 0,
+            end: 1000
         };
 
 
