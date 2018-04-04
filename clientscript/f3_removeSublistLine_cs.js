@@ -21,6 +21,10 @@
  *                                      as sublist on customer record without pagination.
  **/
 
+function newCFL(id) {
+
+    window.open("/app/common/custom/custrecordentry.nl?rectype=5&pf=CUSTRECORD_BCS_CUST_FAV_LINES_PARENT&pi="+id+"&pr=-2","_self");
+}
 
 
 function openEdit(id){

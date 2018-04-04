@@ -30,6 +30,7 @@
 
 
 function beforeLoadSublist(type, form) {
+
     //adding an inline html field to hold the css for the class dynamically
     var inlineCss = form.addField('custpage_inline_css','inlinehtml','inline Css');
     var stylingCss = "<style>\n";
@@ -47,23 +48,25 @@ function beforeLoadSublist(type, form) {
     stylingCss += '}\n';
 
     stylingCss += '</style>';
-    inlineCss.setDefaultValue(stylingCss);
+
+    var addbutton = "<Button onclick='newCFL("+nlapiGetRecordId()+"); return false;'>New Customer Favorites Lines </Button>";
+
     Utility.logDebug('Work','Started'+type);
+
     if (type.toString() ===  'view') {
 
         Utility.logDebug('Work','Started');
 
-        form.setScript('customscript_f3_remove_customer_sublist');
         var sublist = form.getSubList('recmachcustrecord_bcs_cust_fav_lines_parent');
+        var field = form.getField('custentity_f3_newcfl');
 
+        form.setScript('customscript_f3_remove_customer_sublist');
         sublist.setDisplayType('hidden');
+        field.setDefaultValue(addbutton);
+        inlineCss.setDefaultValue(stylingCss);
 
         var customerFavoriteLines = this.createSublist(form);
-
         var cfl_search = this.loadsearch();
-
-        // this.loadsearch();
-        // this.getSearch();
 
         if(!!cfl_search) {
             customerFavoriteLines.setLineItemValues(cfl_search);
@@ -82,8 +85,14 @@ function beforeLoadSublist(type, form) {
 
             }
         }
-        Utility.logDebug('Work','Completed');
 
+        Utility.logDebug('Work','Completed');
+    }
+
+    else if(type.toString() === 'edit'){
+        var field = form.getField('custentity_f3_newcfl');
+
+        field.setDisplayType('hidden');
     }
 
 }
@@ -94,8 +103,9 @@ function beforeLoadSublist(type, form) {
  */
 function createSublist(form){
 
-    var customerFavoriteLines = form.addSubList('custpage_cfl', 'list', 'Customer Favorite Lines', 'custom12'); //custom12
+    var customerFavoriteLines = form.addSubList('custpage_cfl', 'list', 'Customer Favorites Lines', 'custom12'); //custom12
 
+    // customerFavoriteLines.addButton('custpage_button','New Customer Favourites Lines','newCFL(nlapiGetRecordId())');
     customerFavoriteLines.addField('custpage_edit', 'text', 'Edit');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_parent', 'text', 'Customer');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_item', 'text', 'Item');
@@ -119,46 +129,9 @@ function createSublist(form){
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_dateadded', 'date', 'Date Added');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_dateorder', 'date', 'Date Last Ordered');
     customerFavoriteLines.addField('custrecord_bcs_cust_fav_lines_lastorder', 'text', 'last Order#');
-    customerFavoriteLines.addField('custpage_remove', 'text', 'Remove')//.setLinkText('Remove');
+    customerFavoriteLines.addField('custpage_remove', 'text', 'Remove');
 
     return customerFavoriteLines;
-}
-
-/**
- * This function get the searched records from the customer favourite list.
- * @returns {*}
- */
-function getSearch(){
-
-    var cfl_search =  nlapiSearchRecord("customrecord_bcs_customer_fav_lines_rtyp",null, null,
-        [
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_parent"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_item"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_manu"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_oem"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_vendor"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_vendorpart"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_descriptio"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_cost"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_price"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_margin"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_quoted"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_qty"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_extension"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_oldcost"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_oldmarg"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_status"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_clastaprov"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_exclweb"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_contract"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_dateadded"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_dateorder"),
-            new nlobjSearchColumn("custrecord_bcs_cust_fav_lines_lastorder")
-        ]
-    );
-
-    return cfl_search;
-
 }
 
 /**
