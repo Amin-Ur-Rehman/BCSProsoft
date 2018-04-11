@@ -61,8 +61,8 @@ function beforeLoadSublist(type, form) {
         var field = form.getField('custentity_f3_newcfl');
 
         form.setScript('customscript_f3_remove_customer_sublist');
-        sublist.setDisplayType('hidden');
-        field.setDefaultValue(addbutton);
+        !!sublist ? sublist.setDisplayType('hidden') : '';
+        !!field ? field.setDefaultValue(addbutton) : '';
         inlineCss.setDefaultValue(stylingCss);
 
         var customerFavoriteLines = this.createSublist(form);
